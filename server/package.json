@@ -1,0 +1,20 @@
+{
+  "name": "proton-sieve-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Proton Sieve service: web login, REST API and MCP server on top of the shared core",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "bcryptjs": "2.4.3",
+    "zod": "3.25.76"
+  }
+}

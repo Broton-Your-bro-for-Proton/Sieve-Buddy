@@ -1,0 +1,14 @@
+services:
+  proton-sieve:
+    build: .
+    image: proton-sieve-service:latest
+    container_name: proton-sieve
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - proton-sieve-data:/data
+
+volumes:
+  proton-sieve-data:

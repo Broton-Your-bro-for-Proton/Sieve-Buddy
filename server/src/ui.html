@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Proton Sieve Service</title>
+  <style>
+    :root { --bg:#f6f5fb; --panel:#fff; --text:#1c1b22; --muted:#6b6880; --border:#dcd9e8; --accent:#6d4aff; --ok:#1a7f4b; --bad:#d6334a; color-scheme: light; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#17161d; --panel:#201f28; --text:#ecebf3; --muted:#9c99ad; --border:#35333f; --accent:#8b6dff; --ok:#6fd69f; --bad:#ff6b81; color-scheme: dark; } }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { width: min(560px, calc(100% - 32px)); margin: 40px auto; display: flex; flex-direction: column; gap: 16px; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+    h1 { font-size: 20px; margin: 0; } h2 { font-size: 15px; margin: 0 0 10px; }
+    label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 14px; }
+    input { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; }
+    button { font: inherit; background: var(--accent); color: #fff; border: 1px solid var(--accent); border-radius: 6px; padding: 7px 14px; cursor: pointer; }
+    button.ghost { background: transparent; color: var(--text); border-color: var(--border); }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .ok { color: var(--ok); } .bad { color: var(--bad); }
+    code, pre { font: 12px/1.5 ui-monospace, Consolas, monospace; }
+    pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+    ol { padding-left: 20px; margin: 0 0 10px; }
+    ul.filters { list-style: none; padding: 0; margin: 0; }
+    ul.filters li { padding: 4px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 8px; }
+    #msg { min-height: 1.5em; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Proton Sieve Service</h1>
+
+  <section class="card" id="token-card">
+    <h2>Zugang</h2>
+    <p class="muted">API-Token aus der Konfiguration (<code>API_TOKEN</code>). Wird nur in diesem Browser gespeichert.</p>
+    <form id="token-form" class="row">
+      <input id="token" type="password" autocomplete="off" placeholder="API-Token" style="flex:1">
+      <button>Verbinden</button>
+    </form>
+  </section>
+
+  <section class="card" id="status-card" hidden>
+    <div class="row" style="justify-content:space-between">
+      <h2 id="status-text">…</h2>
+      <button class="ghost" id="logout" hidden>Proton abmelden</button>
+    </div>
+    <div id="msg" class="muted"></div>
+
+    <form id="login-form" hidden>
+      <label>Proton-Benutzername / E-Mail<input id="username" autocomplete="username" required></label>
+      <label>Passwort<input id="password" type="password" autocomplete="current-password" required></label>
+      <p class="muted">Das Passwort wird nur für die Anmeldung (SRP) verwendet und nicht gespeichert.</p>
+      <button>Anmelden</button>
+    </form>
+
+    <form id="totp-form" hidden>
+      <label>2FA-Code<input id="totp" inputmode="numeric" autocomplete="one-time-code" required></label>
+      <button>Bestätigen</button>
+    </form>
+
+    <div id="captcha-box" hidden>
+      <ol>
+        <li><a id="captcha-link" target="_blank" rel="noopener noreferrer">Proton-Verifizierung öffnen</a> und das Captcha lösen.</li>
+        <li>Danach hier weiter.</li>
+      </ol>
+      <button id="captcha-continue">Weiter</button>
+    </div>
+
+    <div id="filters-box" hidden>
+      <h2 style="margin-top:14px">Filter</h2>
+      <ul class="filters" id="filters"></ul>
+    </div>
+  </section>
+
+  <section class="card" id="mcp-card" hidden>
+    <h2>MCP-Anbindung</h2>
+    <p class="muted">Streamable-HTTP-Endpunkt für Inbox Zero, Claude und andere MCP-Clients:</p>
+    <pre id="mcp-config"></pre>
+  </section>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  let token = '';
+  try { token = localStorage.getItem('pss-token') || ''; } catch {}
+
+  async function api(path, body) {
+    const res = await fetch(path, {
+      method: body === undefined ? 'GET' : 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(data.error || `HTTP ${res.status}`), { status: res.status });
+    return data;
+  }
+
+  const msg = (text, cls = 'muted') => { $('msg').textContent = text; $('msg').className = cls; };
+
+  async function refresh() {
+    let status;
+    try {
+      status = await api('/api/status');
+    } catch (e) {
+      $('token-card').hidden = false;
+      $('status-card').hidden = $('mcp-card').hidden = true;
+      if (e.status === 401 && token) msg('Token ungültig', 'bad');
+      return;
+    }
+    $('token-card').hidden = true;
+    $('status-card').hidden = $('mcp-card').hidden = false;
+    $('status-text').innerHTML = status.loggedIn
+      ? `<span class="ok">●</span> Verbunden als ${status.username.replace(/[<>&]/g, '')}`
+      : '<span class="bad">●</span> Nicht bei Proton angemeldet';
+    $('logout').hidden = !status.loggedIn;
+    $('login-form').hidden = status.loggedIn || status.pending === 'totp' || status.pending === 'captcha';
+    $('totp-form').hidden = status.pending !== 'totp';
+    $('captcha-box').hidden = status.pending !== 'captcha';
+    if (status.captchaUrl) $('captcha-link').href = status.captchaUrl;
+    $('filters-box').hidden = !status.loggedIn;
+    if (!status.allowWrite) msg('Schreibzugriffe sind deaktiviert (ALLOW_WRITE=false).');
+    $('mcp-config').textContent = JSON.stringify({
+      mcpServers: { 'proton-sieve': { type: 'http', url: `${location.origin}/mcp`, headers: { Authorization: 'Bearer <API_TOKEN>' } } },
+    }, null, 2);
+    if (status.loggedIn) {
+      const { filters } = await api('/api/ops/list-filters', {});
+      $('filters').replaceChildren(...filters.map((f) => {
+        const li = document.createElement('li');
+        li.textContent = f.name;
+        const s = document.createElement('span');
+        s.className = f.enabled ? 'ok' : 'muted';
+        s.textContent = f.enabled ? 'aktiv' : 'aus';
+        li.append(s);
+        return li;
+      }));
+    }
+  }
+
+  async function step(promise) {
+    try {
+      const r = await promise;
+      if (r.step === 'captcha') { msg('Proton verlangt ein Captcha.'); window.open(r.webUrl, '_blank', 'noopener'); }
+      else if (r.step === 'totp') msg('Bitte 2FA-Code eingeben.');
+      else msg('Angemeldet ✓', 'ok');
+    } catch (e) { msg(e.message, 'bad'); }
+    await refresh();
+  }
+
+  $('token-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    token = $('token').value.trim();
+    try { localStorage.setItem('pss-token', token); } catch {}
+    refresh();
+  });
+  $('login-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const body = { username: $('username').value.trim(), password: $('password').value };
+    $('password').value = '';
+    msg('Anmeldung läuft …');
+    step(api('/api/login', body));
+  });
+  $('totp-form').addEventListener('submit', (e) => { e.preventDefault(); step(api('/api/login/totp', { code: $('totp').value })); });
+  $('captcha-continue').addEventListener('click', () => step(api('/api/login/continue', {})));
+  $('logout').addEventListener('click', async () => { await api('/api/logout', {}); msg('Abgemeldet'); refresh(); });
+  refresh();
+</script>
+</body>
+</html>

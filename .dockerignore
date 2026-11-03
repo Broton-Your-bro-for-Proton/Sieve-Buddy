@@ -1,0 +1,11 @@
+node_modules
+server/node_modules
+dist
+data
+.git
+addon/vendor
+addon/manager
+addon/rule
+test
+server/test
+*.md

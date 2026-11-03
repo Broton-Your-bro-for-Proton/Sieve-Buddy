@@ -1,6 +1,6 @@
 {
   "name": "proton-sieve-thunderbird",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Thunderbird add-on to manage Proton Mail Sieve filters",
   "type": "module",
@@ -8,7 +8,10 @@
     "vendor": "node scripts/vendor.mjs",
     "test": "node --test test/*.test.mjs",
     "lint": "web-ext lint --source-dir addon",
-    "build": "web-ext build --source-dir addon --artifacts-dir dist --overwrite-dest"
+    "build": "web-ext build --source-dir addon --artifacts-dir dist --overwrite-dest",
+    "test:server": "npm --prefix server test",
+    "test:all": "npm test && npm run test:server",
+    "docker:build": "docker build -t proton-sieve-service ."
   },
   "devDependencies": {
     "bcryptjs": "2.4.3",
