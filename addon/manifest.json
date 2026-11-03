@@ -16,7 +16,13 @@
     "https://mail-api.proton.me/*"
   ],
   "background": {
-    "scripts": ["background.js"]
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "options_ui": {
+    "page": "manager/manager.html",
+    "open_in_tab": true
   },
   "browser_action": {
     "default_title": "Proton Sieve",
