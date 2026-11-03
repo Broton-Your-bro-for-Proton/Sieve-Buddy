@@ -1,0 +1,441 @@
+// Sieve simulator for Proton's dialect: runs the user's filters against a message's headers and reports
+// where it would end up and which rules fired. Mirrors Proton's documented semantics (keep, discard, stop,
+// labels vs. folders, flags applied at fileinto time). Contact lists are unknown unless a resolver is given.
+
+import { lineOf, parseSieve } from './sieve-ast.js';
+import { addressPart, decodeEncodedWords, parseAddresses } from './mail.js';
+
+const SYSTEM = { inbox: 'Posteingang', archive: 'Archiv', trash: 'Papierkorb', spam: 'Spam', starred: 'Markiert' };
+
+class Stop extends Error {}
+class Return extends Error {}
+
+/**
+ * @param {Array<{id: string, name: string, sieve: string, enabled?: boolean}>} scripts in Proton's order
+ * @param {import('./mail.js').SieveMessage} message
+ * @param {{labels?: string[], spamScore?: number, spamThreshold?: string, now?: Date, isInList?: (spec: string, address: string) => boolean|undefined}} [options]
+ */
+export function simulate(scripts, message, options = {}) {
+  const labels = new Set(options.labels ?? []);
+  const state = {
+    folder: null,
+    labels: new Set(),
+    flags: new Set(message.flags ?? []),
+    filedFlags: null,
+    filedOrKept: false,
+    discarded: false,
+    rejected: null,
+    vacation: null,
+    expire: null,
+    stoppedBy: null,
+    fired: [],
+    notes: [],
+  };
+
+  for (const script of scripts) {
+    if (script.enabled === false) continue;
+    let ast;
+    try {
+      ast = parseSieve(script.sieve);
+    } catch (error) {
+      state.notes.push(`Filter „${script.name}“ konnte nicht gelesen werden: ${error.message}`);
+      continue;
+    }
+    const ctx = { script, text: script.sieve, vars: new Map(), match: [], discard: false, keep: false };
+    let stopped = false;
+    try {
+      runCommands(ast.commands, ctx);
+    } catch (e) {
+      if (e instanceof Stop) stopped = true;
+      else if (!(e instanceof Return)) throw e;
+    }
+    if (ctx.discard && !ctx.keep) {
+      if (!state.filedOrKept) state.discarded = true;
+      state.stoppedBy ??= { script: script.name, reason: 'discard' };
+      break;
+    }
+    if (state.rejected || stopped) {
+      state.stoppedBy ??= { script: script.name, reason: state.rejected ? 'reject' : 'stop' };
+      break;
+    }
+  }
+
+  const location = state.rejected ? 'abgewiesen' : state.discarded ? 'gelöscht' : SYSTEM[state.folder ?? 'inbox'] ?? state.folder;
+  return {
+    location,
+    folder: state.folder,
+    labels: [...state.labels],
+    flags: [...(state.filedFlags ?? state.flags)],
+    expireDays: state.expire,
+    rejected: state.rejected,
+    vacation: state.vacation,
+    discarded: state.discarded,
+    stoppedBy: state.stoppedBy,
+    fired: state.fired,
+    notes: state.notes,
+  };
+
+  // ---------- commands ----------
+
+  function runCommands(commands, ctx) {
+    let chainMatched = false;
+    for (const c of commands) {
+      if (c.name === 'if' || c.name === 'elsif' || c.name === 'else') {
+        if (c.name === 'if') chainMatched = false;
+        if (chainMatched) continue;
+        const ok = c.name === 'else' || evalTest(c.test, ctx);
+        if (ok) {
+          chainMatched = true;
+          state.fired.push({
+            script: ctx.script.name,
+            scriptId: ctx.script.id,
+            line: lineOf(ctx.text, c.start),
+            test: c.test ? ctx.text.slice(c.test.start, c.test.end) : 'else',
+          });
+          runCommands(c.block.commands, ctx);
+        }
+        continue;
+      }
+      runAction(c, ctx);
+    }
+  }
+
+  function runAction(c, ctx) {
+    const pos = positional(c.args);
+    const tags = tagsOf(c.args);
+    const str = (i) => expand(strs(pos[i])[0] ?? '', ctx);
+    switch (c.name) {
+      case 'require':
+        return;
+      case 'stop':
+        throw new Stop();
+      case 'return':
+        throw new Return();
+      case 'keep':
+        ctx.keep = true;
+        state.filedOrKept = true;
+        state.filedFlags = new Set(state.flags);
+        return;
+      case 'discard':
+        ctx.discard = true;
+        return;
+      case 'fileinto': {
+        const target = str(0);
+        const lower = target.toLowerCase();
+        if (lower === 'drafts' || lower === 'sent') {
+          state.notes.push(`fileinto „${target}“ wird von Proton ignoriert`);
+          return;
+        }
+        if (labels.has(target)) state.labels.add(target);
+        else if (lower === 'starred') state.labels.add('Markiert');
+        else state.folder = SYSTEM[lower] ? lower : target;
+        state.filedOrKept = true;
+        state.filedFlags = new Set(state.flags);
+        return;
+      }
+      case 'addflag':
+        for (const f of strs(pos[pos.length - 1]).map((s) => expand(s, ctx))) state.flags.add(f);
+        return;
+      case 'removeflag':
+        for (const f of strs(pos[pos.length - 1]).map((s) => expand(s, ctx))) state.flags.delete(f);
+        return;
+      case 'setflag':
+        state.flags = new Set(strs(pos[pos.length - 1]).map((s) => expand(s, ctx)));
+        return;
+      case 'reject':
+        state.rejected = str(0) || 'abgewiesen';
+        throw new Stop();
+      case 'vacation':
+        state.vacation = { reason: expand(strs(pos[pos.length - 1])[0] ?? '', ctx), days: tags[':days'] ?? null, subject: tags[':subject'] ?? null };
+        return;
+      case 'expire': {
+        const unit = str(0);
+        const n = Number(str(1));
+        const days = { month: n * 30, day: n, hour: n / 24, minute: n / 1440, second: n / 86400 }[unit] ?? n;
+        state.expire = Math.min(730, days);
+        return;
+      }
+      case 'unexpire':
+        state.expire = null;
+        return;
+      case 'set': {
+        let value = expand(strs(pos[1])[0] ?? '', ctx);
+        if (tags[':lower']) value = value.toLowerCase();
+        if (tags[':upper']) value = value.toUpperCase();
+        if (tags[':lowerfirst']) value = value.charAt(0).toLowerCase() + value.slice(1);
+        if (tags[':upperfirst']) value = value.charAt(0).toUpperCase() + value.slice(1);
+        if (tags[':quotewildcard']) value = value.replace(/[*?\\]/g, '\\$&');
+        if (tags[':length']) value = String([...value].length);
+        if (tags[':eval']) value = String(evalArithmetic(value));
+        ctx.vars.set((strs(pos[0])[0] ?? '').toLowerCase(), value);
+        return;
+      }
+      default:
+        state.notes.push(`Befehl „${c.name}“ wird im Simulator nicht ausgeführt`);
+    }
+  }
+
+  // ---------- tests ----------
+
+  function evalTest(t, ctx) {
+    const tags = tagsOf(t.args);
+    const pos = positional(t.args);
+    const keys = () => strs(pos[pos.length - 1]).map((k) => expand(k, ctx));
+    switch (t.name) {
+      case 'true':
+        return true;
+      case 'false':
+        return false;
+      case 'not':
+        return !evalTest(t.tests[0], ctx);
+      case 'anyof':
+        return t.tests.some((x) => evalTest(x, ctx));
+      case 'allof':
+        return t.tests.every((x) => evalTest(x, ctx));
+      case 'exists':
+        return strs(pos[0]).every((h) => (message.headers[h.toLowerCase()] ?? []).length > 0);
+      case 'size': {
+        const limit = parseSize(pos[0]?.value ?? '0');
+        const size = message.size ?? 0;
+        return tags[':over'] !== undefined ? size > limit : size < limit;
+      }
+      case 'header': {
+        const values = strs(pos[0]).flatMap((h) => (message.headers[h.toLowerCase()] ?? []).map(decodeEncodedWords));
+        if (tags[':list'] !== undefined) return listTest(values.flatMap(parseAddresses), strs(pos[1]));
+        return compare(values, keys(), tags, ctx);
+      }
+      case 'address': {
+        const part = tags[':domain'] !== undefined ? 'domain' : tags[':localpart'] !== undefined ? 'localpart' : 'all';
+        const values = strs(pos[0]).flatMap((h) => (message.headers[h.toLowerCase()] ?? []).flatMap(parseAddresses)).map((a) => addressPart(a, part));
+        return compare(values, keys(), tags, ctx);
+      }
+      case 'envelope': {
+        const part = tags[':domain'] !== undefined ? 'domain' : tags[':localpart'] !== undefined ? 'localpart' : 'all';
+        const values = strs(pos[0]).map((p) => envelope(p.toLowerCase())).filter(Boolean).map((a) => addressPart(a, part));
+        return compare(values, keys(), tags, ctx);
+      }
+      case 'string':
+        return compare(strs(pos[0]).map((s) => expand(s, ctx)), keys(), tags, ctx);
+      case 'hasflag':
+        return compare([...state.flags], keys(), tags, ctx);
+      case 'environment': {
+        const name = expand(strs(pos[0])[0] ?? '', ctx);
+        const env = { 'vnd.proton.spam-threshold': options.spamThreshold ?? '5', ...(options.environment ?? {}) };
+        return env[name] !== undefined && compare([env[name]], keys(), tags, ctx);
+      }
+      case 'spamtest':
+        return compare([String(options.spamScore ?? 0)], keys(), tags, ctx);
+      case 'hasexpiration':
+        return state.expire !== null;
+      case 'expiration':
+        return state.expire !== null && compare([String(Math.round(state.expire))], keys(), tags, ctx);
+      case 'currentdate': {
+        const part = expand(strs(pos[0])[0] ?? '', ctx);
+        return compare([datePart(options.now ?? new Date(), part, tags[':zone'])], keys(), tags, ctx);
+      }
+      case 'date': {
+        const raw = message.headers[(strs(pos[0])[0] ?? '').toLowerCase()]?.[0];
+        const date = raw ? new Date(raw.replace(/^.*;\s*/, '')) : null;
+        if (!date || Number.isNaN(date.getTime())) return false;
+        return compare([datePart(date, expand(strs(pos[1])[0] ?? '', ctx), tags[':zone'])], keys(), tags, ctx);
+      }
+      default:
+        state.notes.push(`Test „${t.name}“ wird im Simulator nicht ausgewertet (als falsch angenommen)`);
+        return false;
+    }
+  }
+
+  function listTest(addresses, specs) {
+    if (!options.isInList) {
+      state.notes.push(`Kontaktlisten (${specs.join(', ')}) sind dem Simulator nicht bekannt – als „nicht enthalten“ angenommen`);
+      return false;
+    }
+    return addresses.some((a) => specs.some((s) => options.isInList(s, a)));
+  }
+
+  function envelope(part) {
+    if (message.envelope?.[part]) return message.envelope[part];
+    if (part === 'from') return parseAddresses(message.headers['return-path']?.[0] ?? message.headers.from?.[0] ?? '')[0];
+    if (part === 'to') return parseAddresses(message.headers['delivered-to']?.[0] ?? message.headers.to?.[0] ?? '')[0];
+    return null;
+  }
+
+  function compare(values, keys, tags, ctx) {
+    const comparator = tags[':comparator'] ?? 'i;ascii-casemap';
+    if (tags[':count'] !== undefined) {
+      return keys.some((k) => relational(String(values.length), k, tags[':count'], 'i;ascii-numeric'));
+    }
+    for (const v of values) {
+      for (const k of keys) {
+        if (tags[':value'] !== undefined) {
+          if (relational(v, k, tags[':value'], comparator)) return true;
+        } else if (tags[':matches'] !== undefined) {
+          const m = globToRegExp(k, comparator).exec(v);
+          if (m) {
+            ctx.match = [...m];
+            return true;
+          }
+        } else if (tags[':regex'] !== undefined) {
+          try {
+            const m = new RegExp(k, comparator === 'i;octet' ? '' : 'i').exec(v);
+            if (m) {
+              ctx.match = [...m];
+              return true;
+            }
+          } catch {
+            state.notes.push(`Regex „${k}“ ist ungültig`);
+          }
+        } else if (tags[':contains'] !== undefined) {
+          if (fold(v, comparator).includes(fold(k, comparator))) return true;
+        } else if (comparator === 'i;ascii-numeric' ? numeric(v) === numeric(k) : fold(v, comparator) === fold(k, comparator)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function expand(value, ctx) {
+    return value.replace(/\$\{([^}]+)\}/g, (whole, name) => {
+      const n = name.trim().toLowerCase();
+      if (/^\d+$/.test(n)) return ctx.match[Number(n)] ?? '';
+      return ctx.vars.get(n) ?? '';
+    });
+  }
+}
+
+// ---------- helpers ----------
+
+function tagsOf(args) {
+  const tags = {};
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a.type !== 'tag') continue;
+    const next = args[i + 1];
+    if ([':comparator', ':value', ':count', ':zone', ':days', ':subject', ':handle'].includes(a.value) && next && next.type !== 'tag') {
+      tags[a.value] = next.type === 'list' ? next.items[0]?.value : next.value;
+      i++;
+    } else {
+      tags[a.value] = true;
+    }
+  }
+  return tags;
+}
+
+function positional(args) {
+  const out = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a.type === 'tag') {
+      if ([':comparator', ':value', ':count', ':zone', ':days', ':subject', ':handle'].includes(a.value)) i++;
+      continue;
+    }
+    out.push(a);
+  }
+  return out;
+}
+
+const strs = (arg) => (arg?.type === 'list' ? arg.items.map((i) => i.value) : arg?.type === 'string' ? [arg.value] : arg ? [String(arg.value)] : []);
+
+const fold = (s, comparator) => (comparator === 'i;octet' ? s : s.toLowerCase());
+
+function numeric(s) {
+  const m = /^\d+/.exec(s);
+  return m ? Number(m[0]) : Infinity;
+}
+
+function relational(value, key, op, comparator) {
+  let a = value;
+  let b = key;
+  if (comparator === 'i;ascii-numeric') {
+    a = numeric(value);
+    b = numeric(key);
+  } else {
+    a = fold(value, comparator);
+    b = fold(key, comparator);
+  }
+  return { gt: a > b, ge: a >= b, lt: a < b, le: a <= b, eq: a === b, ne: a !== b }[op] ?? false;
+}
+
+function globToRegExp(glob, comparator) {
+  let re = '';
+  for (let i = 0; i < glob.length; i++) {
+    const c = glob[i];
+    if (c === '\\' && i + 1 < glob.length) re += glob[++i].replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+    else if (c === '*') re += '(.*?)';
+    else if (c === '?') re += '(.)';
+    else re += c.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+  }
+  return new RegExp(`^${re}$`, comparator === 'i;octet' ? 's' : 'is');
+}
+
+function parseSize(v) {
+  const m = /^(\d+)([KMGkmg]?)$/.exec(String(v));
+  if (!m) return 0;
+  return Number(m[1]) * ({ k: 1024, m: 1024 ** 2, g: 1024 ** 3 }[m[2].toLowerCase()] ?? 1);
+}
+
+/** Integer arithmetic for `set :eval` (+ - * / % and parentheses) without eval, which extension CSP forbids. */
+function evalArithmetic(expr) {
+  const tokens = expr.match(/\d+|[+\-*/%()]/g) ?? [];
+  let i = 0;
+  const factor = () => {
+    const t = tokens[i++];
+    if (t === '(') {
+      const v = sum();
+      i++; // ')'
+      return v;
+    }
+    if (t === '-') return -factor();
+    return Number(t) || 0;
+  };
+  const product = () => {
+    let v = factor();
+    while (['*', '/', '%'].includes(tokens[i])) {
+      const op = tokens[i++];
+      const r = factor();
+      v = op === '*' ? v * r : r === 0 ? 0 : op === '/' ? Math.trunc(v / r) : v % r;
+    }
+    return v;
+  };
+  const sum = () => {
+    let v = product();
+    while (tokens[i] === '+' || tokens[i] === '-') v = tokens[i++] === '+' ? v + product() : v - product();
+    return v;
+  };
+  return tokens.length ? sum() : 0;
+}
+
+const pad = (n, w = 2) => String(n).padStart(w, '0');
+
+function datePart(date, part, zone) {
+  // shift into the requested zone ("+0100") or the runtime's local zone
+  let offset = -date.getTimezoneOffset();
+  if (typeof zone === 'string' && /^[+-]\d{4}$/.test(zone)) {
+    offset = (zone[0] === '-' ? -1 : 1) * (Number(zone.slice(1, 3)) * 60 + Number(zone.slice(3)));
+  }
+  const d = new Date(date.getTime() + offset * 60000);
+  const Y = d.getUTCFullYear();
+  const M = pad(d.getUTCMonth() + 1);
+  const D = pad(d.getUTCDate());
+  const h = pad(d.getUTCHours());
+  const m = pad(d.getUTCMinutes());
+  const s = pad(d.getUTCSeconds());
+  const z = `${offset < 0 ? '-' : '+'}${pad(Math.floor(Math.abs(offset) / 60))}${pad(Math.abs(offset) % 60)}`;
+  switch (part.toLowerCase()) {
+    case 'year': return String(Y);
+    case 'month': return M;
+    case 'day': return D;
+    case 'date': return `${Y}-${M}-${D}`;
+    case 'time': return `${h}:${m}:${s}`;
+    case 'hour': return h;
+    case 'minute': return m;
+    case 'second': return s;
+    case 'weekday': return String(d.getUTCDay());
+    case 'zone': return z;
+    case 'iso8601': return `${Y}-${M}-${D}T${h}:${m}:${s}${z.slice(0, 3)}:${z.slice(3)}`;
+    case 'julian': return String(Math.floor(date.getTime() / 86400000) + 40587);
+    case 'std11': return date.toUTCString();
+    default: return '';
+  }
+}
