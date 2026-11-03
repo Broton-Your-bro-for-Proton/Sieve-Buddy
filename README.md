@@ -46,7 +46,7 @@ addon/
 
 ## Bekannte Einschränkungen / offene Punkte
 
-- **Noch nicht gegen ein echtes Proton-Konto getestet.** SRP ist gegen einen Server getestet, der go-srp nachgebaut ist, und nutzt den echten Proton-Modulus. Ob Proton die Anfragen aus dem Add-on annimmt, zeigt erst der erste Login.
+- **Login gegen ein echtes Proton-Konto funktioniert** (SRP, App-Kennung `Other`, Captcha über verify.proton.me, getestet am 03.11.2026). Filter-Schreibzugriffe sind noch nicht ausführlich getestet.
 - **App-Kennung:** Proton prüft den Header `x-pm-appversion`. Voreingestellt ist `Other`. Lehnt Proton das ab, lässt sich die Kennung unter *Erweitert* ändern.
 - Die PGP-Signatur des SRP-Modulus wird noch **nicht** geprüft (go-srp prüft sie).
 - 2FA nur per TOTP, keine Sicherheitsschlüssel (FIDO2).
