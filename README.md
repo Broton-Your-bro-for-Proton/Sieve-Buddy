@@ -108,6 +108,19 @@ Gespeichert wird immer erst, nachdem Proton das Skript selbst geprüft hat. Dies
 npm run test:server   # Ende-zu-Ende: Dienst + nachgebautes Proton + echter MCP-Client
 ```
 
+Zielordner werden beim Planen und Speichern gegen die echten Ordner und Labels geprüft. Proton würde ein `fileinto` in einen nicht existierenden Ordner sonst still ignorieren. Bei Tippfehlern schlägt der Dienst ähnliche Namen vor („einkaeufe“ → „Einkäufe“).
+
+## Entwickeln und testen ohne echtes Proton-Konto
+
+`scripts/fake-proton.mjs` ist ein lokaler Proton-Ersatz mit **echtem SRP**, optional 2FA und Captcha (Code 9001 samt Verifizierungsseite), Token-Refresh, Filtern und Labels:
+
+```bash
+FAKE_TOTP=1 FAKE_CAPTCHA=1 npm run fake-proton   # http://127.0.0.1:8790/api, test@proton.local / test123, 2FA 123456
+npm run preview                                  # Add-on-Oberfläche unter http://localhost:8765/manager/manager.html
+```
+
+Im Manager unter *Erweitert* als API-Basis `http://127.0.0.1:8790/api` eintragen. Für den Docker-Dienst den Testserver mit `HOST=0.0.0.0` starten und `PROTON_API_BASE=http://host.docker.internal:8790/api` setzen.
+
 ## Bekannte Einschränkungen
 
 - **Getestet gegen ein echtes Proton-Konto ist der Login** (03.11.2026: SRP, App-Kennung `Other`, Captcha). Schreibzugriffe sind gegen einen nachgebauten Proton-Server getestet, aber noch nicht ausführlich gegen das echte.

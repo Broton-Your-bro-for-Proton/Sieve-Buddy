@@ -11,7 +11,9 @@
     "build": "web-ext build --source-dir addon --artifacts-dir dist --overwrite-dest",
     "test:server": "npm --prefix server test",
     "test:all": "npm test && npm run test:server",
-    "docker:build": "docker build -t proton-sieve-service ."
+    "docker:build": "docker build -t proton-sieve-service .",
+    "fake-proton": "node scripts/fake-proton.mjs",
+    "preview": "node scripts/serve.mjs"
   },
   "devDependencies": {
     "bcryptjs": "2.4.3",

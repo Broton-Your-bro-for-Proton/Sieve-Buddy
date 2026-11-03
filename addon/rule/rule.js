@@ -60,14 +60,16 @@ async function loadMessage() {
 }
 
 async function loadAccount() {
-  if (!inAddon) {
-    const local = (await storage.get('localFilters')) ?? [];
-    return { filters: local, folders: ['Einkäufe', 'Newsletter', 'Listen', 'Rechnungen'], labels: ['Wichtig'] };
+  const client = await makeClient();
+  if (await client.restore()) {
+    state.client = client;
+    $('account').textContent = client.session?.username ?? '';
+    return loadAccountData(client);
   }
-  state.client = await makeClient();
-  if (!(await state.client.restore())) return null;
-  $('account').textContent = state.client.session?.username ?? '';
-  return loadAccountData(state.client);
+  if (inAddon) return null;
+  // preview outside Thunderbird without a session: the manager's offline filters
+  const local = (await storage.get('localFilters')) ?? [];
+  return { filters: local, folders: ['Einkäufe', 'Newsletter', 'Listen', 'Rechnungen'], labels: ['Wichtig'] };
 }
 
 // ---------- form ----------
@@ -217,7 +219,7 @@ function render() {
 async function applyPlan() {
   const plan = state.plan;
   if (!plan) return;
-  if (!inAddon) {
+  if (!state.client) {
     const local = (await storage.get('localFilters')) ?? [];
     const next = plan.targetId
       ? local.map((f) => (f.ID === plan.targetId ? { ...f, Sieve: plan.sieve } : f))

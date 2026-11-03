@@ -243,7 +243,7 @@ export function installTools(editor, state) {
               `↳ „${f.script}“ Zeile ${f.line}: ${f.test}`,
             ),
           ),
-        r.stoppedBy ? el('div', { class: 'muted small' }, `Verarbeitung endet in „${r.stoppedBy.script}“ (${r.stoppedBy.reason})`) : null,
+        r.stoppedBy ? el('div', { class: 'muted small' }, `Verarbeitung endet in „${r.stoppedBy.script}“ (${r.stoppedBy.reason})`) : '',
         ...r.notes.map((n) => el('div', { class: 'muted small' }, `ℹ ${n}`)),
       );
     };

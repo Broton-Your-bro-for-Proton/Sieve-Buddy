@@ -137,7 +137,7 @@ export function openModal({ title, body, actions = [], wide = false }) {
     dialog.append(
       el('header', { class: 'modal-head' }, el('h2', {}, title), el('button', { class: 'ghost small', type: 'button', onclick: () => close(null) }, '✕')),
       el('div', { class: 'modal-body' }, body),
-      buttons.length ? el('footer', { class: 'modal-foot' }, buttons) : null,
+      buttons.length ? el('footer', { class: 'modal-foot' }, buttons) : '',
     );
     dialog.addEventListener('cancel', (e) => {
       e.preventDefault();

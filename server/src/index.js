@@ -125,7 +125,15 @@ export async function startServer(config = loadConfig()) {
       if (path.startsWith('/api/')) return await handleApi(req, res, path);
       return send(res, 404, { error: 'Nicht gefunden' });
     } catch (error) {
-      if (!res.headersSent) send(res, error.status ?? 400, { error: error.message, ...(error.issues ? { issues: error.issues } : {}) });
+      if (res.headersSent) return;
+      // Proton's own status codes are not passed through: a Proton 401 must not look like a wrong API token
+      const fromProton = error.name === 'ProtonApiError';
+      const status = fromProton ? (error.status >= 500 ? 502 : 400) : (error.status ?? 400);
+      send(res, status, {
+        error: error.message,
+        ...(fromProton ? { proton: { status: error.status ?? null, code: error.code ?? null } } : {}),
+        ...(error.issues ? { issues: error.issues } : {}),
+      });
     }
   });
 

@@ -120,8 +120,34 @@ export const listTemplates = () => ({
 
 // ---------- planning ----------
 
+const SYSTEM_TARGETS = ['inbox', 'archive', 'trash', 'spam', 'starred'];
+
+/**
+ * Proton silently ignores fileinto into a folder that does not exist, and agents may invent names –
+ * so targets are checked against the real folders/labels, with close matches as suggestions.
+ */
+function assertFolderExists(data, folder) {
+  if (!folder || folder.includes('${')) return;
+  const known = [...data.folders, ...data.labels];
+  if (known.includes(folder) || SYSTEM_TARGETS.includes(folder.toLowerCase())) return;
+  const norm = (s) =>
+    s
+      .toLowerCase()
+      .replace(/ä/g, 'ae')
+      .replace(/ö/g, 'oe')
+      .replace(/ü/g, 'ue')
+      .replace(/ß/g, 'ss')
+      .normalize('NFKD')
+      .replace(/[^\p{L}\p{N}/]/gu, '');
+  const similar = known.filter((k) => norm(k).includes(norm(folder)) || norm(folder).includes(norm(k)) || norm(k) === norm(folder));
+  throw new Error(
+    `Ordner/Label „${folder}“ existiert nicht${similar.length ? ` – meintest du ${similar.map((s) => `„${s}“`).join(', ')}?` : ''} (siehe list_folders; Ordner muss vorher in Proton angelegt werden)`,
+  );
+}
+
 export async function planRule(account, { rule, target = 'auto', newName, headers, size }) {
   const data = await account.data();
+  assertFolderExists(data, rule.actions?.fileinto);
   const result = planRuleCore({
     scripts: account.scripts(data),
     rule,
@@ -136,8 +162,10 @@ export async function planRule(account, { rule, target = 'auto', newName, header
 export async function buildTemplate(account, { templateId, params = {}, target = 'auto', newName }) {
   const template = RULE_TEMPLATES.find((t) => t.id === templateId);
   if (!template) throw new Error(`Vorlage ${templateId} nicht gefunden – siehe list_templates`);
-  const built = buildTemplateCore(template, { ...templateDefaults(template), ...params });
+  const merged = { ...templateDefaults(template), ...params };
+  const built = buildTemplateCore(template, merged);
   if (built.rule) return { rule: built.rule, ...(await planRule(account, { rule: built.rule, target, newName })) };
+  if (template.params.some((p) => p.type === 'folder')) assertFolderExists(await account.data(), merged.folder);
 
   // finished snippets are appended to the chosen (or first) filter, or become a new filter
   const data = await account.data();
