@@ -2,10 +2,10 @@
 // filters, shows the diff and the simulated result, then saves to Proton.
 
 import { messageFromThunderbird, parseHeaderBlock, senderName, suggestConditions, decodeEncodedWords } from '../lib/mail.js';
-import { fixRequire, lintSieve } from '../lib/sieve-analyzer.js';
-import { describeRule, insertRuleBefore, mergeRuleIntoScript, proposeRule, ruleReached, ruleToSieve } from '../lib/sieve-rules.js';
+import { planRule } from '../lib/rule-planner.js';
+import { describeRule } from '../lib/sieve-rules.js';
 import { simulate } from '../lib/sieve-sim.js';
-import { SYSTEM_FOLDERS, newScript } from '../lib/sieve-dialect.js';
+import { SYSTEM_FOLDERS } from '../lib/sieve-dialect.js';
 import {
   $,
   asScripts,
@@ -161,129 +161,55 @@ function currentRule() {
 
 // ---------- planning ----------
 
-function planFor(filter, rule) {
-  const script = { id: filter.ID, name: filter.Name, sieve: filter.Sieve };
-  const merged = mergeRuleIntoScript(script, rule);
-  const merges = merged.steps.filter((s) => s.kind !== 'new-block' && s.kind !== 'covered').length;
-  const covered = merged.steps.filter((s) => s.kind === 'covered').length;
-  const sameFolder = rule.actions.fileinto && filter.Sieve.includes(`fileinto "${rule.actions.fileinto}"`) ? 1 : 0;
-  return { targetId: filter.ID, name: filter.Name, before: filter.Sieve, sieve: merged.sieve, steps: merged.steps, score: merges * 10 + covered * 5 + sameFolder * 2 + (filter.Status === 1 ? 1 : 0) };
-}
-
-function computePlan(rule) {
-  const target = $('target').value;
-  $('new-name').hidden = target !== 'new';
-  if (target === 'new' || !state.filters.length) {
-    const sieve = fixRequire(`${newScript()}\n${ruleToSieve(rule)}\n`);
-    return { targetId: null, name: $('new-name').value.trim() || defaultName(rule), before: '', sieve, steps: rule.conditions.map((condition) => ({ condition, kind: 'new-block' })) };
-  }
-  if (target !== 'auto') return planFor(state.filters.find((f) => f.ID === target), rule);
-  const plans = state.filters.map((f) => planFor(f, rule));
-  return plans.sort((a, b) => b.score - a.score)[0];
-}
-
-function defaultName(rule) {
-  return rule.actions.fileinto ? `→ ${rule.actions.fileinto}` : 'Neue Regel';
-}
-
 let updateTimer;
 function update() {
   clearTimeout(updateTimer);
   updateTimer = setTimeout(render, 120);
 }
 
+function clearPlan(message) {
+  $('plan').replaceChildren(el('div', { class: 'warn' }, message));
+  $('diff').replaceChildren();
+  $('after').textContent = '';
+  $('apply').disabled = true;
+  state.plan = null;
+}
+
 function render() {
   const rule = currentRule();
-  const planBox = $('plan');
-  const apply = $('apply');
-  if (!rule.conditions.length) {
-    planBox.replaceChildren(el('div', { class: 'warn' }, 'Bitte mindestens eine Bedingung auswählen.'));
-    $('diff').replaceChildren();
-    $('after').textContent = '';
-    apply.disabled = true;
-    state.plan = null;
-    return;
-  }
-  const actions = rule.actions;
-  if (!actions.fileinto && !actions.seen && !actions.flagged && !actions.expireDays && !actions.stop) {
-    planBox.replaceChildren(el('div', { class: 'warn' }, 'Bitte mindestens eine Aktion wählen.'));
-    $('diff').replaceChildren();
-    $('after').textContent = '';
-    apply.disabled = true;
-    state.plan = null;
-    return;
-  }
+  if (!rule.conditions.length) return clearPlan('Bitte mindestens eine Bedingung auswählen.');
+  const a = rule.actions;
+  if (!a.fileinto && !a.seen && !a.flagged && !a.expireDays && !a.stop) return clearPlan('Bitte mindestens eine Aktion wählen.');
 
-  // plan, then check with the simulator that the mail really ends up where the rule says
-  const plan = computePlan(rule);
-  let after = simulateWith(plan);
-  const notes = [];
-  if (!ruleReached(after, rule.actions)) {
-    const fix = placeBeforeBlocker(plan, rule, after);
-    if (fix) {
-      Object.assign(plan, fix.plan);
-      after = fix.after;
-      notes.push(`↪ ${fix.note}`);
-    } else {
-      const blocker = after.fired.find((f) => !f.test.includes('vnd.proton.spam-threshold'));
-      notes.push(
-        blocker
-          ? `⚠ Die Regel greift bei dieser Mail nicht: Filter „${blocker.script}“ (Zeile ${blocker.line}) fängt sie vorher ab. Dort eintragen oder die Filterreihenfolge ändern.`
-          : '⚠ Die Regel greift bei dieser Mail nicht – Bedingungen prüfen.',
-      );
-    }
-  }
+  const target = $('target').value;
+  $('new-name').hidden = target !== 'new';
+  const { plan, after, notes, conflicts, errors } = planRule({
+    scripts: asScripts(state.filters),
+    rule,
+    target,
+    newName: $('new-name').value,
+    message: state.message,
+    labels: state.labels,
+  });
   state.plan = plan;
-  const conflicts = rule.conditions.length === 1 ? proposeRule(asScripts(state.filters), rule).conflicts : [];
-  const errors = lintSieve(plan.sieve).filter((i) => i.severity === 'error');
 
-  planBox.replaceChildren(
+  $('plan').replaceChildren(
     el('div', {}, el('strong', {}, describeRule(rule))),
     el('div', { class: 'muted' }, plan.targetId ? `Filter „${plan.name}“` : `Neuer Filter „${plan.name}“`),
-    ...plan.steps.map((s) =>
-      el('div', { class: `step${s.kind === 'covered' ? ' ok' : ''}` }, `${s.condition ? `„${s.condition.value ?? s.condition.header}“` : 'Regel'} ${KIND_TEXT[s.kind] ?? s.kind}${s.line ? ` (Zeile ${s.line})` : ''}`),
+    ...plan.steps.map((st) =>
+      el(
+        'div',
+        { class: `step${st.kind === 'covered' ? ' ok' : ''}` },
+        `${st.condition ? `„${st.condition.value ?? st.condition.header}“` : 'Regel'} ${KIND_TEXT[st.kind] ?? st.kind}${st.line ? ` (Zeile ${st.line})` : ''}`,
+      ),
     ),
-    ...notes.map((n) => el('div', { class: 'warn' }, n)),
+    ...notes.map((n) => el('div', { class: 'warn' }, `↪ ${n}`)),
     ...conflicts.map((c) => el('div', { class: 'warn' }, `⚠ ${c.message} – Filter „${c.scriptName}“, Zeile ${c.line}`)),
     ...errors.map((e) => el('div', { class: 'warn' }, `✖ ${e.message}`)),
   );
   const stats = renderDiff($('diff'), plan.before, plan.sieve);
-  $('after').textContent = `Danach: ${describeSimulation(after)}`;
-  apply.disabled = errors.length > 0 || (stats.added === 0 && stats.removed === 0);
-}
-
-/** Simulates the mail against all filters with the plan applied. */
-function simulateWith(plan) {
-  const scripts = asScripts(state.filters).map((s) => (s.id === plan.targetId ? { ...s, sieve: plan.sieve } : s));
-  if (!plan.targetId) scripts.push({ id: 'new', name: plan.name, sieve: plan.sieve, enabled: true });
-  return simulate(scripts, state.message, { labels: state.labels });
-}
-
-/**
- * When an earlier block of the same filter catches the mail (stop, or a later fileinto that wins),
- * try the rule as a new block right before that block – first as is, then with `stop`.
- */
-function placeBeforeBlocker(plan, rule, after) {
-  const scriptId = plan.targetId ?? 'new';
-  const blockers = after.fired.filter((f) => f.scriptId === scriptId && !f.test.includes('vnd.proton.spam-threshold'));
-  for (const blocker of blockers) {
-    for (const stop of [false, true]) {
-      try {
-        const sieve = insertRuleBefore(plan.before || plan.sieve, blocker.line, rule, { stop });
-        const candidate = { ...plan, sieve, steps: rule.conditions.map((condition) => ({ condition, kind: 'new-block', line: blocker.line })) };
-        const result = simulateWith(candidate);
-        if (ruleReached(result, rule.actions)) {
-          const note = stop
-            ? `Als neuer Block vor Zeile ${blocker.line} eingefügt und mit „stop“ beendet – sonst würde der Block dort die Mail woandershin verschieben.`
-            : `Als neuer Block vor Zeile ${blocker.line} eingefügt – der Block dort hätte die Mail sonst vorher abgefangen.`;
-          return { plan: candidate, after: result, note };
-        }
-      } catch {
-        // blocker is nested, not a top-level block
-      }
-    }
-  }
-  return null;
+  $('after').textContent = after ? `Danach: ${describeSimulation(after)}` : '';
+  $('apply').disabled = errors.length > 0 || (stats.added === 0 && stats.removed === 0);
 }
 
 // ---------- save ----------
