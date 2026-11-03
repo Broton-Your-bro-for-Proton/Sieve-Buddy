@@ -50,5 +50,5 @@ addon/
 - **App-Kennung:** Proton prüft den Header `x-pm-appversion`. Voreingestellt ist `Other`. Lehnt Proton das ab, lässt sich die Kennung unter *Erweitert* ändern.
 - Die PGP-Signatur des SRP-Modulus wird noch **nicht** geprüft (go-srp prüft sie).
 - 2FA nur per TOTP, keine Sicherheitsschlüssel (FIDO2).
-- Bei der menschlichen Verifizierung wird nur Captcha unterstützt (kein E-Mail-/SMS-Code). Das Captcha öffnet sich in einem eigenen Fenster, weil Thunderbird eingebetteten fremden Seiten Cookies verweigert; `captcha-relay.js` reicht das Ergebnis an den Manager zurück.
+- Bei der menschlichen Verifizierung wird nur Captcha unterstützt (kein E-Mail-/SMS-Code). Wie bei der Proton Bridge wird das Captcha auf verify.proton.me im System-Browser gelöst; danach wiederholt das Add-on die Anmeldung mit demselben Token.
 - Das Refresh-Token liegt unverschlüsselt im Thunderbird-Profil.

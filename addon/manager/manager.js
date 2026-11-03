@@ -452,54 +452,25 @@ function startCaptcha(details) {
     toast(`Proton verlangt eine Verifizierung per ${methods.join('/') || 'unbekannter Methode'}. Bitte einmal im Proton-Web-Login anmelden und es danach erneut versuchen.`, true);
     return;
   }
-  // Thunderbird blocks cookies/storage for third-party frames, so the captcha runs in its own window.
-  // captcha-relay.js (content script) forwards Proton's pm_captcha message back to us.
-  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
-  const url = state.client.captchaUrl(details.HumanVerificationToken, dark).toString();
+  // Like Proton Bridge: the user solves the captcha on verify.proton.me in the system browser,
+  // which marks the HumanVerificationToken as verified; then we retry the login with that token.
+  captcha.token = details.HumanVerificationToken;
+  captcha.type = methods.join(',');
+  captcha.url = details.WebUrl || `https://verify.proton.me/?methods=captcha&token=${encodeURIComponent(captcha.token)}`;
   show('captcha');
-  closeCaptchaWindow();
-  captcha.url = url;
-  openCaptchaWindow().catch((error) => {
-    console.error('Captcha konnte nicht geöffnet werden', error);
-    toast(`Captcha konnte nicht geöffnet werden: ${error.message}`, true);
-  });
+  openVerification().catch((error) => toast(`Verifizierungsseite konnte nicht geöffnet werden: ${error.message}`, true));
 }
 
-const captcha = { url: null, windowId: null, tabId: null };
+const captcha = { token: null, type: null, url: null };
 
-async function openCaptchaWindow() {
-  try {
-    const win = await browser.windows.create({ url: captcha.url, type: 'popup', width: 520, height: 720 });
-    captcha.windowId = win.id;
-  } catch (error) {
-    // some Thunderbird versions refuse web-content popups; a content tab works as well
-    console.warn('Popup fehlgeschlagen, öffne Captcha als Tab', error);
-    const tab = await browser.tabs.create({ url: captcha.url });
-    captcha.tabId = tab.id;
-  }
+async function openVerification() {
+  if (globalThis.browser?.windows?.openDefaultBrowser) await browser.windows.openDefaultBrowser(captcha.url);
+  else window.open(captcha.url, '_blank', 'noopener');
 }
 
-function closeCaptchaWindow() {
-  if (captcha.windowId !== null) browser.windows.remove(captcha.windowId).catch(() => {});
-  if (captcha.tabId !== null) browser.tabs.remove(captcha.tabId).catch(() => {});
-  captcha.windowId = null;
-  captcha.tabId = null;
+function resetCaptcha() {
+  captcha.token = captcha.type = captcha.url = null;
 }
-
-globalThis.browser?.runtime.onMessage.addListener((message, sender) => {
-  if (message?.type !== 'pm_captcha' || typeof message.token !== 'string' || !captcha.url) return;
-  if (!sender.url || new URL(sender.url).origin !== new URL(captcha.url).origin) return;
-  captcha.url = null;
-  closeCaptchaWindow();
-  attemptLogin({ token: message.token, type: 'captcha' }).catch((error) => {
-    show('login');
-    toast(error.message, true);
-  });
-});
-
-globalThis.browser?.windows.onRemoved.addListener((id) => {
-  if (id === captcha.windowId) captcha.windowId = null;
-});
 
 $('login-form').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -528,17 +499,23 @@ $('totp-form').addEventListener('submit', (e) => {
 for (const back of document.querySelectorAll('[data-back]')) {
   back.addEventListener('click', () => {
     state.pendingLogin = null;
-    captcha.url = null;
-    closeCaptchaWindow();
+    resetCaptcha();
     show('login');
   });
 }
 
 $('captcha-reopen').addEventListener('click', () => {
-  if (!captcha.url) return;
-  closeCaptchaWindow();
-  openCaptchaWindow().catch((e) => toast(e.message, true));
+  if (captcha.url) openVerification().catch((e) => toast(e.message, true));
 });
+
+$('captcha-continue').addEventListener('click', (e) =>
+  busy(e.currentTarget, async () => {
+    if (!captcha.token) return;
+    const hv = { token: captcha.token, type: captcha.type };
+    resetCaptcha();
+    await attemptLogin(hv);
+  }),
+);
 
 $('offline').addEventListener('click', () => enterOffline().catch((e) => toast(e.message, true)));
 

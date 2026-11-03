@@ -58,9 +58,14 @@
   <!-- Human verification -->
   <section id="view-captcha" class="card" hidden>
     <h2>Proton möchte bestätigen, dass du ein Mensch bist</h2>
-    <p class="muted">Das Captcha wurde in einem eigenen Fenster geöffnet. Löse es dort – das Fenster schließt sich danach und die Anmeldung wird automatisch fortgesetzt.</p>
+    <ol class="muted">
+      <li>In deinem Browser hat sich Protons Verifizierungsseite (verify.proton.me) geöffnet.</li>
+      <li>Löse dort das Captcha, bis Proton die Bestätigung anzeigt.</li>
+      <li>Komm hierher zurück und klicke auf „Weiter“.</li>
+    </ol>
     <div class="row">
-      <button type="button" id="captcha-reopen">Captcha-Fenster erneut öffnen</button>
+      <button type="button" id="captcha-continue">Weiter – Anmeldung fortsetzen</button>
+      <button type="button" id="captcha-reopen" class="ghost">Seite erneut öffnen</button>
       <button type="button" class="ghost" data-back>Abbrechen</button>
     </div>
   </section>

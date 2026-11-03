@@ -20,19 +20,6 @@
       "background.js"
     ]
   },
-  "content_scripts": [
-    {
-      "matches": [
-        "https://mail.proton.me/api/core/v4/captcha*",
-        "https://mail-api.proton.me/core/v4/captcha*"
-      ],
-      "js": [
-        "captcha-relay.js"
-      ],
-      "all_frames": true,
-      "run_at": "document_start"
-    }
-  ],
   "options_ui": {
     "page": "manager/manager.html",
     "open_in_tab": true

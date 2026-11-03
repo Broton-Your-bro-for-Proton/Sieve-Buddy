@@ -213,13 +213,6 @@ export class ProtonClient {
     await this.store.save(null);
   }
 
-  captchaUrl(token, dark = false) {
-    const url = new URL(`${this.settings.apiBase.replace(/\/$/, '')}/core/v4/captcha`);
-    url.searchParams.set('Token', token);
-    url.searchParams.set('ForceWebMessaging', '1');
-    if (dark) url.searchParams.set('Dark', 'true');
-    return url;
-  }
 
   // ---------- Filters ----------
 
