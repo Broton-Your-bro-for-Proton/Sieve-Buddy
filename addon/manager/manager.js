@@ -459,19 +459,31 @@ function startCaptcha(details) {
   show('captcha');
   closeCaptchaWindow();
   captcha.url = url;
-  openCaptchaWindow();
+  openCaptchaWindow().catch((error) => {
+    console.error('Captcha konnte nicht geöffnet werden', error);
+    toast(`Captcha konnte nicht geöffnet werden: ${error.message}`, true);
+  });
 }
 
-const captcha = { url: null, windowId: null };
+const captcha = { url: null, windowId: null, tabId: null };
 
 async function openCaptchaWindow() {
-  const win = await browser.windows.create({ url: captcha.url, type: 'popup', width: 520, height: 720 });
-  captcha.windowId = win.id;
+  try {
+    const win = await browser.windows.create({ url: captcha.url, type: 'popup', width: 520, height: 720 });
+    captcha.windowId = win.id;
+  } catch (error) {
+    // some Thunderbird versions refuse web-content popups; a content tab works as well
+    console.warn('Popup fehlgeschlagen, öffne Captcha als Tab', error);
+    const tab = await browser.tabs.create({ url: captcha.url });
+    captcha.tabId = tab.id;
+  }
 }
 
 function closeCaptchaWindow() {
   if (captcha.windowId !== null) browser.windows.remove(captcha.windowId).catch(() => {});
+  if (captcha.tabId !== null) browser.tabs.remove(captcha.tabId).catch(() => {});
   captcha.windowId = null;
+  captcha.tabId = null;
 }
 
 globalThis.browser?.runtime.onMessage.addListener((message, sender) => {
