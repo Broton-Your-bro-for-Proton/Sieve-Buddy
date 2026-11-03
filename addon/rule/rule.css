@@ -1,0 +1,31 @@
+body.rule-page { height: auto; min-height: 100vh; }
+.rule-form { padding: 12px 16px 20px; display: flex; flex-direction: column; gap: 14px; max-width: 760px; }
+.rule-form h2 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.mail-summary { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.mail-summary .subject { font-weight: 600; font-size: 15px; }
+.mail-summary .current { margin-top: 6px; font-size: 13px; }
+
+.conditions { display: flex; flex-direction: column; gap: 6px; }
+.condition { display: grid; grid-template-columns: auto 170px 110px 1fr; gap: 8px; align-items: center; }
+.condition .what { color: var(--muted); font-size: 13px; }
+.condition input[type=text] { min-width: 0; }
+.condition.off .what, .condition.off input, .condition.off select { opacity: .55; }
+
+label.inline { flex-direction: row; align-items: center; gap: 6px; margin: 0; }
+.actions-grid { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+input.days { width: 70px; }
+.row.tight { margin-top: 0; align-items: center; }
+#target { min-width: 280px; }
+
+.plan { font-size: 13px; margin: 8px 0; }
+.plan .step::before { content: "• "; color: var(--accent); }
+.plan .warn { color: var(--tag); }
+.plan .ok { color: var(--str); }
+.after { font-size: 13px; font-weight: 600; margin-top: 6px; }
+footer.row { position: sticky; bottom: 0; background: var(--bg); padding: 8px 0; }
+footer .spacer { flex: 1; }
+
+@media (max-width: 640px) {
+  .condition { grid-template-columns: auto 1fr; }
+  .condition .match, .condition input[type=text] { grid-column: 2; }
+}

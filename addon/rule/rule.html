@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Sieve-Regel aus Mail</title>
+  <link rel="stylesheet" href="../manager/manager.css">
+  <link rel="stylesheet" href="rule.css">
+  <script src="../vendor/bcrypt.min.js"></script>
+  <script type="module" src="rule.js"></script>
+</head>
+<body class="rule-page">
+  <header class="topbar">
+    <h1>Sieve-Regel aus Mail</h1>
+    <span id="account" class="account"></span>
+  </header>
+
+  <main id="loading" class="card"><p class="muted">Lade Mail und Filter …</p></main>
+
+  <main id="need-login" class="card narrow" hidden>
+    <h2>Nicht mit Proton verbunden</h2>
+    <p class="muted">Melde dich zuerst im Proton Sieve Manager an.</p>
+    <div class="row"><button type="button" id="open-manager">Manager öffnen</button></div>
+  </main>
+
+  <main id="form" class="rule-form" hidden>
+    <section class="mail-summary">
+      <div class="subject" id="mail-subject"></div>
+      <div class="muted" id="mail-from"></div>
+      <div class="current" id="current"></div>
+    </section>
+
+    <section>
+      <h2>Wenn …</h2>
+      <div id="conditions" class="conditions"></div>
+      <div class="row tight">
+        <label class="inline" id="combine-row" hidden>Verknüpfung
+          <select id="combine">
+            <option value="anyof">eine davon zutrifft (ODER)</option>
+            <option value="allof">alle zutreffen (UND)</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section>
+      <h2>… dann</h2>
+      <div class="actions-grid">
+        <label class="inline">Verschieben nach
+          <select id="folder"></select>
+        </label>
+        <label class="switch"><input type="checkbox" id="seen"> als gelesen</label>
+        <label class="switch"><input type="checkbox" id="flagged"> Stern</label>
+        <label class="inline">Löschen nach
+          <input type="number" id="expire" min="1" max="730" placeholder="—" class="days"> Tagen
+        </label>
+        <label class="switch"><input type="checkbox" id="stop"> danach keine weiteren Filter</label>
+      </div>
+    </section>
+
+    <section>
+      <h2>Wo eintragen?</h2>
+      <div class="row tight">
+        <select id="target"></select>
+        <input id="new-name" placeholder="Name des neuen Filters" hidden>
+      </div>
+      <div id="plan" class="plan"></div>
+      <div id="diff" class="diff"></div>
+      <div id="after" class="after"></div>
+    </section>
+
+    <footer class="row">
+      <button type="button" id="apply">Übernehmen</button>
+      <button type="button" id="edit" class="ghost">Im Manager bearbeiten</button>
+      <span class="spacer"></span>
+      <button type="button" id="cancel" class="ghost">Schließen</button>
+    </footer>
+  </main>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>

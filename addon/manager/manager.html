@@ -80,6 +80,8 @@
       <ul id="filter-list" class="filter-list"></ul>
       <p id="offline-note" class="muted small" hidden>Offline-Modus: Skripte werden nicht bei Proton gespeichert.</p>
       <button id="reload" class="ghost small">Neu laden</button>
+      <h2 class="outline-head">Gliederung</h2>
+      <div id="outline" class="outline"></div>
     </aside>
 
     <section class="editor-pane">
@@ -88,9 +90,12 @@
         <label class="switch"><input type="checkbox" id="filter-enabled" checked> aktiv</label>
       </div>
       <div class="toolbar">
-        <select id="templates"><option value="">Vorlage einfügen …</option></select>
+        <button id="assistant" title="Regel aus einer Vorlage erstellen und automatisch einreihen">✨ Regel-Assistent</button>
+        <button id="simulate" class="ghost" title="Prüfen, wo eine Mail landen würde">Mail testen</button>
         <button id="fix-require" class="ghost" title="Fehlende Erweiterungen in ein require übernehmen">require ergänzen</button>
-        <button id="insert-guard" class="ghost" title="Proton-Spam-Schutz am Anfang einfügen">Spam-Schutz einfügen</button>
+        <button id="format" class="ghost" title="Einrückung vereinheitlichen">Formatieren</button>
+        <button id="history" class="ghost" title="Frühere Versionen dieses Filters">Verlauf</button>
+        <button id="insert-guard" class="ghost" title="Proton-Spam-Schutz am Anfang einfügen">Spam-Schutz</button>
         <button id="copy" class="ghost">Kopieren</button>
         <span class="spacer"></span>
         <button id="check" class="ghost">Bei Proton prüfen</button>
@@ -103,6 +108,7 @@
     </section>
   </main>
 
+  <div id="hover-tip" class="hover-tip" hidden></div>
   <div id="toast" class="toast" role="status" hidden></div>
 </body>
 </html>

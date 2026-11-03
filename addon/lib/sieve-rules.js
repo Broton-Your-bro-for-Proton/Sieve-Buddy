@@ -139,8 +139,23 @@ export function actionsToSieve(actions, indent = '    ') {
   return lines.map((l) => indent + l).join('\n');
 }
 
+/** For OR rules, conditions of the same form share one test with a key list: ["a.de", "b.de"]. */
+function groupConditions(conditions) {
+  const groups = new Map();
+  for (const c of conditions) {
+    const key = c.kind === 'exists' ? `exists:${c.header}` : `${c.kind}:${c.header}:${c.part ?? 'all'}:${c.match ?? 'is'}`;
+    if (!groups.has(key)) groups.set(key, { ...c, values: [] });
+    if (c.kind !== 'exists') groups.get(key).values.push(c.value);
+  }
+  return [...groups.values()].map((g) => {
+    if (g.kind === 'exists' || g.values.length === 1) return conditionToSieve({ ...g, value: g.values[0] });
+    const single = conditionToSieve({ ...g, value: '\u0000' });
+    return single.replace(quoteSieve('\u0000'), `[${g.values.map(quoteSieve).join(', ')}]`);
+  });
+}
+
 export function ruleToSieve({ conditions, combine = 'anyof', actions }) {
-  const tests = conditions.map(conditionToSieve);
+  const tests = combine === 'allof' ? conditions.map(conditionToSieve) : groupConditions(conditions);
   const test = tests.length === 1 ? tests[0] : `${combine}(\n    ${tests.join(',\n    ')}\n)`;
   return `if ${test} {\n${actionsToSieve(actions)}\n}`;
 }
@@ -316,4 +331,28 @@ export function mergeRuleIntoScript(script, rule) {
     for (const condition of rest) steps.push({ condition, kind: 'new-block', line: block.line });
   }
   return { sieve, steps };
+}
+
+/**
+ * Inserts the rule as a new block right before the top-level command that starts on `line`
+ * (used when an earlier block would otherwise catch the mail first, e.g. with `stop`).
+ */
+export function insertRuleBefore(sieve, line, rule, { stop = false } = {}) {
+  const ast = parseSieve(sieve);
+  const command = ast.commands.find((c) => lineOf(sieve, c.start) === line);
+  if (!command) throw new Error(`Kein Block beginnt in Zeile ${line}`);
+  const indent = indentOf(sieve, command.start);
+  const placed = stop ? { ...rule, actions: { ...rule.actions, stop: true } } : rule;
+  const block = ruleToSieve(placed).replace(/\n/g, `\n${indent}`);
+  return fixRequire(`${sieve.slice(0, command.start)}${block}\n\n${indent}${sieve.slice(command.start)}`);
+}
+
+/** Whether a simulation result shows the rule's actions took effect. */
+export function ruleReached(result, actions) {
+  const a = normaliseActions(actions);
+  if (a.fileinto && result.folder !== a.fileinto && !result.labels.includes(a.fileinto)) return false;
+  if (a.seen && !result.flags.includes('\Seen')) return false;
+  if (a.flagged && !result.flags.includes('\Flagged')) return false;
+  if (a.expireDays && result.expireDays !== a.expireDays) return false;
+  return true;
 }

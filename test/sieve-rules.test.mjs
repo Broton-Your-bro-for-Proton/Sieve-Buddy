@@ -158,7 +158,8 @@ test('conditions without a matching block end up in one new block', async () => 
   });
   // the first condition creates nothing to merge into, the second then joins the first one's new block
   assert.deepEqual(steps.map((s) => s.kind), ['new-block', 'new-block']);
-  assert.match(sieve, /if anyof\(\n {4}header :contains "subject" "Rechnung",\n {4}header :contains "subject" "Invoice"\n\) \{\n {4}fileinto "Rechnungen";\n\}\n$/);
+  // same-form conditions share one test with a key list
+  assert.match(sieve, /if header :contains "subject" \["Rechnung", "Invoice"\] \{\n {4}fileinto "Rechnungen";\n\}\n$/);
   assert.deepEqual(errors(sieve), []);
 });
 
@@ -176,4 +177,23 @@ test('every template builds valid Sieve', async () => {
       : mergeRuleIntoScript({ id: 'n', name: 'n', sieve: newScript() }, built.rule).sieve;
     assert.deepEqual(errors(sieve), [], `${t.id}: ${JSON.stringify(errors(sieve))}`);
   }
+});
+
+test('a rule blocked by an earlier stop can be placed before it', async () => {
+  const { insertRuleBefore, ruleReached, proposeRule: propose } = await import('../addon/lib/sieve-rules.js');
+  const { simulate } = await import('../addon/lib/sieve-sim.js');
+  const { parseHeaderBlock } = await import('../addon/lib/mail.js');
+  const base = withRules('if exists "list-id" {\n    fileinto "Listen";\n    stop;\n}');
+  const rule = { conditions: [{ kind: 'header', header: 'list-id', match: 'contains', value: 'news.example.com' }], actions: { fileinto: 'News' } };
+  const msg = { headers: parseHeaderBlock('From: a@example.com\nList-Id: <news.example.com>\n') };
+  const appended = propose([{ id: 'a', name: 'A', sieve: base }], rule).proposals[0].sieve;
+  assert.equal(ruleReached(simulate([{ id: 'a', name: 'A', sieve: appended }], msg), rule.actions), false);
+  const blockLine = base.split('\n').findIndex((l) => l.startsWith('if exists')) + 1;
+  // before the catching block alone is not enough: its later fileinto would win
+  const before = insertRuleBefore(base, blockLine, rule);
+  assert.equal(ruleReached(simulate([{ id: 'a', name: 'A', sieve: before }], msg), rule.actions), false);
+  const withStop = insertRuleBefore(base, blockLine, rule, { stop: true });
+  assert.equal(ruleReached(simulate([{ id: 'a', name: 'A', sieve: withStop }], msg), rule.actions), true);
+  assert.deepEqual(errors(withStop), []);
+  assert.deepEqual(errors(before), []);
 });

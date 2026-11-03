@@ -1,22 +1,10 @@
-import { DEFAULT_SETTINGS, LABEL_TYPE, ProtonClient } from '../lib/proton-api.js';
 import { fixRequire, getCompletions, lintSieve } from '../lib/sieve-analyzer.js';
-import { SPAM_GUARD, SPAM_GUARD_REQUIRE, TEMPLATES, formatList, newScript } from '../lib/sieve-dialect.js';
+import { SPAM_GUARD, SPAM_GUARD_REQUIRE, formatList, newScript } from '../lib/sieve-dialect.js';
+import { $, busy, loadAccountData, loadSettings, makeClient, pushHistory, storage, toast } from '../shared/env.js';
+import { DEFAULT_SETTINGS } from '../lib/proton-api.js';
+import { confirmDiff, installTools } from './tools.js';
 
-const $ = (id) => document.getElementById(id);
 const CodeMirror = window.CodeMirror;
-
-// ---------- Storage (browser.storage.local in Thunderbird, localStorage when opened as a plain page) ----------
-
-const storage = globalThis.browser?.storage?.local
-  ? {
-      get: async (key) => (await browser.storage.local.get(key))[key] ?? null,
-      set: (key, value) => (value === null ? browser.storage.local.remove(key) : browser.storage.local.set({ [key]: value })),
-    }
-  : {
-      get: async (key) => JSON.parse(localStorage.getItem(`proton-sieve:${key}`) ?? 'null'),
-      set: async (key, value) =>
-        value === null ? localStorage.removeItem(`proton-sieve:${key}`) : localStorage.setItem(`proton-sieve:${key}`, JSON.stringify(value)),
-    };
 
 // ---------- State ----------
 
@@ -32,33 +20,9 @@ const state = {
   pendingLogin: null, // {username, password} while 2FA/captcha is in progress
 };
 
-// ---------- Small UI helpers ----------
-
-let toastTimer;
-function toast(message, isError = false) {
-  const el = $('toast');
-  el.textContent = message;
-  el.className = isError ? 'toast error' : 'toast';
-  el.hidden = false;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (el.hidden = true), isError ? 7000 : 3000);
-}
-
 function show(view) {
   for (const v of ['login', '2fa', 'captcha', 'app']) $(`view-${v}`).hidden = v !== view;
   if (view === 'app') editor.refresh();
-}
-
-async function busy(button, fn) {
-  button.disabled = true;
-  try {
-    return await fn();
-  } catch (error) {
-    console.error(error);
-    toast(error.message || String(error), true);
-  } finally {
-    button.disabled = false;
-  }
 }
 
 // ---------- Editor ----------
@@ -81,6 +45,8 @@ const editor = CodeMirror($('editor'), {
   },
 });
 editor.setOption('lineComment', '#');
+
+const tools = installTools(editor, state);
 
 function annotations(text) {
   const toPos = (i) => editor.posFromIndex(i);
@@ -212,6 +178,7 @@ function loadIntoEditor(filter) {
   state.dirty = false;
   $('delete').disabled = !filter;
   renderFilters();
+  tools.renderOutline();
 }
 
 async function selectFilter(id) {
@@ -225,14 +192,10 @@ async function reloadFilters() {
   if (state.offline) {
     state.filters = (await storage.get('localFilters')) ?? [];
   } else {
-    const [filters, folders, labels] = await Promise.all([
-      state.client.listFilters(),
-      state.client.listLabels(LABEL_TYPE.FOLDER).catch(() => []),
-      state.client.listLabels(LABEL_TYPE.LABEL).catch(() => []),
-    ]);
-    state.filters = filters.sort((a, b) => (a.Priority ?? 0) - (b.Priority ?? 0));
-    state.folders = folders.map((l) => l.Path ?? l.Name);
-    state.labels = labels.map((l) => l.Path ?? l.Name);
+    const account = await loadAccountData(state.client);
+    state.filters = account.filters;
+    state.folders = account.folders;
+    state.labels = account.labels;
   }
   const current = state.filters.find((f) => f.ID === state.selectedId) ?? state.filters[0] ?? null;
   state.dirty = false;
@@ -252,6 +215,10 @@ async function saveFilter() {
 
   const errors = lintSieve(Sieve).filter((i) => i.severity === 'error');
   if (errors.length && !confirm(`Der Editor findet ${errors.length} Fehler. Trotzdem an Proton senden?`)) return;
+
+  const previous = state.filters.find((f) => f.ID === state.selectedId);
+  if (previous && previous.Sieve !== Sieve && !(await confirmDiff(previous.Sieve ?? '', Sieve, `„${Name}“ speichern`))) return;
+  if (previous) await pushHistory(previous.ID, previous.Name, previous.Sieve);
 
   if (state.offline) {
     const ID = state.selectedId ?? `local-${Date.now()}`;
@@ -321,25 +288,6 @@ async function moveFilter(index, delta) {
 
 // ---------- Toolbar ----------
 
-for (const [index, tpl] of TEMPLATES.entries()) {
-  const opt = document.createElement('option');
-  opt.value = String(index);
-  opt.textContent = tpl.name;
-  $('templates').append(opt);
-}
-
-$('templates').addEventListener('change', (e) => {
-  const tpl = TEMPLATES[Number(e.target.value)];
-  e.target.value = '';
-  if (!tpl) return;
-  const end = CodeMirror.Pos(editor.lastLine());
-  const cursor = editor.getCursor();
-  const atEnd = editor.somethingSelected() || cursor.line === 0 ? end : cursor;
-  editor.replaceRange(`\n${tpl.body}\n`, atEnd);
-  editor.setValue(fixRequire(editor.getValue()));
-  editor.focus();
-});
-
 $('fix-require').addEventListener('click', () => {
   const fixed = fixRequire(editor.getValue());
   if (fixed === editor.getValue()) toast('require ist bereits vollständig');
@@ -393,16 +341,25 @@ window.addEventListener('beforeunload', (e) => {
   if (state.dirty) e.preventDefault();
 });
 
+// ---------- Drafts from "Sieve-Regel aus Mail" ----------
+
+async function loadDraft() {
+  const draft = await storage.get('draft');
+  if (!draft || Date.now() - draft.at > 30 * 60 * 1000) return;
+  await storage.set('draft', null);
+  const filter = state.filters.find((f) => f.ID === draft.filterId) ?? null;
+  loadIntoEditor(filter);
+  if (!filter) $('filter-name').value = draft.name ?? '';
+  editor.setValue(draft.sieve);
+  state.dirty = true;
+  toast('Entwurf aus „Sieve-Regel aus Mail“ geladen – prüfen und speichern');
+}
+
+globalThis.browser?.storage?.onChanged.addListener((changes) => {
+  if (changes.draft?.newValue && !$('view-app').hidden && confirmDiscard()) loadDraft();
+});
+
 // ---------- Login flow ----------
-
-function sessionStore() {
-  return { load: () => storage.get('session'), save: (s) => storage.set('session', s) };
-}
-
-async function makeClient() {
-  const settings = { ...DEFAULT_SETTINGS, ...((await storage.get('settings')) ?? {}) };
-  return new ProtonClient({ bcrypt: window.dcodeIO.bcrypt, store: sessionStore(), settings });
-}
 
 async function enterApp() {
   state.offline = false;
@@ -412,6 +369,7 @@ async function enterApp() {
   $('logout').hidden = false;
   show('app');
   await reloadFilters();
+  await loadDraft();
 }
 
 async function enterOffline() {
@@ -422,6 +380,7 @@ async function enterOffline() {
   $('logout').hidden = false;
   show('app');
   await reloadFilters();
+  await loadDraft();
 }
 
 async function attemptLogin(humanVerification) {
@@ -532,7 +491,7 @@ $('logout').addEventListener('click', async () => {
 // ---------- Start ----------
 
 (async () => {
-  const settings = { ...DEFAULT_SETTINGS, ...((await storage.get('settings')) ?? {}) };
+  const settings = await loadSettings();
   $('api-base').value = settings.apiBase;
   $('app-version').value = settings.appVersion;
   state.client = await makeClient();
