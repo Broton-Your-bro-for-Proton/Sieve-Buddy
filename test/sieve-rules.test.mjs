@@ -130,3 +130,50 @@ test('formatter re-indents but keeps the spam guard verbatim', () => {
   assert.match(formatted, /if true \{\n {4}fileinto "A";\n {4}if exists "x" \{\n {8}stop;\n {4}\}\n\}/);
   assert.ok(formatted.includes(newScript().split('\n\n')[1]));
 });
+
+test('multi-condition rules merge every condition into the block with the same actions', async () => {
+  const { mergeRuleIntoScript } = await import('../addon/lib/sieve-rules.js');
+  const { sieve, steps } = mergeRuleIntoScript(scripts[0], {
+    conditions: [
+      { kind: 'address', header: 'from', part: 'domain', match: 'is', value: 'amazon.de' },
+      { kind: 'address', header: 'from', part: 'domain', match: 'is', value: 'otto.de' },
+      { kind: 'header', header: 'subject', match: 'contains', value: 'Bestellung' },
+    ],
+    actions: { fileinto: 'Einkäufe', seen: true },
+  });
+  assert.deepEqual(steps.map((s) => s.kind), ['covered', 'append-key', 'wrap-anyof']);
+  assert.match(sieve, /anyof\(\n {4}address :domain :is "from" \["amazon\.de", "ebay\.de", "otto\.de"\],\n {4}header :contains "subject" "Bestellung"\n\) \{/);
+  assert.equal((sieve.match(/fileinto "Einkäufe"/g) ?? []).length, 1);
+  assert.deepEqual(errors(sieve), []);
+});
+
+test('conditions without a matching block end up in one new block', async () => {
+  const { mergeRuleIntoScript } = await import('../addon/lib/sieve-rules.js');
+  const { sieve, steps } = mergeRuleIntoScript(scripts[0], {
+    conditions: [
+      { kind: 'header', header: 'subject', match: 'contains', value: 'Rechnung' },
+      { kind: 'header', header: 'subject', match: 'contains', value: 'Invoice' },
+    ],
+    actions: { fileinto: 'Rechnungen' },
+  });
+  // the first condition creates nothing to merge into, the second then joins the first one's new block
+  assert.deepEqual(steps.map((s) => s.kind), ['new-block', 'new-block']);
+  assert.match(sieve, /if anyof\(\n {4}header :contains "subject" "Rechnung",\n {4}header :contains "subject" "Invoice"\n\) \{\n {4}fileinto "Rechnungen";\n\}\n$/);
+  assert.deepEqual(errors(sieve), []);
+});
+
+test('every template builds valid Sieve', async () => {
+  const { RULE_TEMPLATES, buildTemplate, templateDefaults } = await import('../addon/lib/sieve-templates.js');
+  const { mergeRuleIntoScript } = await import('../addon/lib/sieve-rules.js');
+  const { fixRequire } = await import('../addon/lib/sieve-analyzer.js');
+  const samples = { addresses: 'a@b.de', domains: 'b.de', ids: 'list.b.de', from: '2026-12-20', to: '2027-01-06' };
+  for (const t of RULE_TEMPLATES) {
+    const params = { ...templateDefaults(t), ...Object.fromEntries(Object.entries(samples).filter(([k]) => t.params.some((p) => p.id === k))) };
+    if (t.params.some((p) => p.id === 'folder')) params.folder ||= 'Ordner';
+    const built = buildTemplate(t, params);
+    const sieve = built.code
+      ? fixRequire(`${newScript()}\n${built.code}\n`)
+      : mergeRuleIntoScript({ id: 'n', name: 'n', sieve: newScript() }, built.rule).sieve;
+    assert.deepEqual(errors(sieve), [], `${t.id}: ${JSON.stringify(errors(sieve))}`);
+  }
+});

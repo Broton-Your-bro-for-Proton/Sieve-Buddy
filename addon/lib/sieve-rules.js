@@ -280,3 +280,40 @@ export function proposeRule(scripts, rule) {
   proposals.sort((a, b) => b.score - a.score);
   return { covered, conflicts, proposals };
 }
+
+/**
+ * Merges a (possibly multi-condition, anyof) rule into one script: each condition goes into the best
+ * matching existing block; whatever does not fit becomes one new block at the end.
+ * @returns {{sieve: string, steps: Array<{condition: object, kind: string, line?: number}>}}
+ */
+export function mergeRuleIntoScript(script, rule) {
+  if (rule.combine === 'allof' && rule.conditions.length > 1) {
+    const { proposals } = proposeRule([script], rule);
+    return { sieve: proposals[0].sieve, steps: [{ condition: null, kind: 'new-block' }] };
+  }
+  let sieve = script.sieve;
+  const steps = [];
+  const rest = [];
+  for (const condition of rule.conditions) {
+    const single = { conditions: [condition], actions: rule.actions };
+    const { covered, proposals } = proposeRule([{ ...script, sieve }], single);
+    if (covered.length) {
+      steps.push({ condition, kind: 'covered', line: covered[0].line });
+      continue;
+    }
+    const best = proposals[0];
+    if (best && best.kind !== 'new-block') {
+      sieve = best.sieve;
+      steps.push({ condition, kind: best.kind, line: best.line });
+    } else {
+      rest.push(condition);
+    }
+  }
+  if (rest.length) {
+    const { proposals } = proposeRule([{ ...script, sieve }], { ...rule, conditions: rest });
+    const block = proposals.find((p) => p.kind === 'new-block');
+    sieve = block.sieve;
+    for (const condition of rest) steps.push({ condition, kind: 'new-block', line: block.line });
+  }
+  return { sieve, steps };
+}
