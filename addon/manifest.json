@@ -14,8 +14,7 @@
     "storage",
     "webRequest",
     "webRequestBlocking",
-    "https://mail.proton.me/*",
-    "https://mail-api.proton.me/*"
+    "https://*.proton.me/*"
   ],
   "background": {
     "scripts": [

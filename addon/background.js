@@ -1,9 +1,9 @@
 // The manager is the add-on's options page (open_in_tab), so Thunderbird reuses an already open tab.
 browser.browserAction.onClicked.addListener(() => browser.runtime.openOptionsPage());
 
-// Proton's captcha page forbids being framed by other origins (X-Frame-Options / CSP frame-ancestors).
-// Proton's own web client embeds it as an iframe, so we allow exactly that page, and only when it is
-// framed by this add-on's manager. The captcha itself is still solved by the user.
+// Proton's captcha page (and the frames it nests) forbid being framed by other origins
+// (X-Frame-Options / CSP frame-ancestors). Proton's own web client embeds it as an iframe, so we allow
+// Proton frames only while this add-on's manager is their ancestor. The captcha is still solved by the user.
 const MANAGER_ORIGIN = new URL(browser.runtime.getURL('')).origin;
 
 browser.webRequest.onHeadersReceived.addListener(
@@ -26,7 +26,7 @@ browser.webRequest.onHeadersReceived.addListener(
     return { responseHeaders };
   },
   {
-    urls: ['https://mail.proton.me/api/core/v4/captcha*', 'https://mail-api.proton.me/core/v4/captcha*'],
+    urls: ['https://*.proton.me/*'],
     types: ['sub_frame'],
   },
   ['blocking', 'responseHeaders'],
