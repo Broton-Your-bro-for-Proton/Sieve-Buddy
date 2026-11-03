@@ -1,0 +1,29 @@
+{
+  "manifest_version": 2,
+  "name": "Proton Sieve Manager",
+  "version": "0.1.0",
+  "description": "Proton-Mail-Sieve-Filter direkt in Thunderbird verwalten – mit Syntax-Highlighting, Autovervollständigung und Prüfung.",
+  "author": "HyperCriSiS",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "proton-sieve-manager@hypercrisis.local",
+      "strict_min_version": "115.0"
+    }
+  },
+  "permissions": [
+    "storage",
+    "https://mail.proton.me/*",
+    "https://mail-api.proton.me/*"
+  ],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "browser_action": {
+    "default_title": "Proton Sieve",
+    "default_icon": "icons/icon.svg"
+  },
+  "icons": {
+    "32": "icons/icon.svg",
+    "64": "icons/icon.svg"
+  }
+}

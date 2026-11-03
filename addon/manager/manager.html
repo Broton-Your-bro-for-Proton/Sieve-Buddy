@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Proton Sieve Manager</title>
+  <link rel="stylesheet" href="../vendor/codemirror/codemirror.css">
+  <link rel="stylesheet" href="../vendor/codemirror/lint.css">
+  <link rel="stylesheet" href="../vendor/codemirror/show-hint.css">
+  <link rel="stylesheet" href="manager.css">
+  <script src="../vendor/bcrypt.min.js"></script>
+  <script src="../vendor/codemirror/codemirror.js"></script>
+  <script src="../vendor/codemirror/sieve.js"></script>
+  <script src="../vendor/codemirror/lint.js"></script>
+  <script src="../vendor/codemirror/show-hint.js"></script>
+  <script src="../vendor/codemirror/matchbrackets.js"></script>
+  <script src="../vendor/codemirror/closebrackets.js"></script>
+  <script src="../vendor/codemirror/comment.js"></script>
+  <script type="module" src="manager.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <h1>Proton Sieve Manager</h1>
+    <span id="account" class="account"></span>
+    <button id="logout" class="ghost" hidden>Abmelden</button>
+  </header>
+
+  <!-- Login -->
+  <section id="view-login" class="card narrow" hidden>
+    <h2>Mit Proton verbinden</h2>
+    <p class="muted">Das Passwort verlässt Thunderbird nie im Klartext (SRP). Gespeichert wird nur ein Sitzungs-Token.</p>
+    <form id="login-form">
+      <label>Benutzername / E-Mail<input id="username" autocomplete="username" required></label>
+      <label>Passwort<input id="password" type="password" autocomplete="current-password" required></label>
+      <details>
+        <summary>Erweitert</summary>
+        <label>API-Basis<input id="api-base"></label>
+        <label>App-Kennung (x-pm-appversion)<input id="app-version"></label>
+      </details>
+      <div class="row">
+        <button type="submit" id="login-submit">Anmelden</button>
+        <button type="button" id="offline" class="ghost">Ohne Anmeldung (nur Editor)</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- 2FA -->
+  <section id="view-2fa" class="card narrow" hidden>
+    <h2>Zwei-Faktor-Code</h2>
+    <form id="totp-form">
+      <label>Code aus der Authenticator-App<input id="totp" inputmode="numeric" autocomplete="one-time-code" required></label>
+      <div class="row">
+        <button type="submit">Bestätigen</button>
+        <button type="button" class="ghost" data-back>Abbrechen</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- Human verification -->
+  <section id="view-captcha" class="card" hidden>
+    <h2>Proton möchte bestätigen, dass du ein Mensch bist</h2>
+    <p class="muted">Löse das Captcha – danach wird die Anmeldung automatisch fortgesetzt.</p>
+    <iframe id="captcha-frame" title="Captcha" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
+    <div class="row"><button type="button" class="ghost" data-back>Abbrechen</button></div>
+  </section>
+
+  <!-- Main app -->
+  <main id="view-app" class="app" hidden>
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <h2>Filter</h2>
+        <button id="new-filter" title="Neuer Filter">＋ Neu</button>
+      </div>
+      <ul id="filter-list" class="filter-list"></ul>
+      <p id="offline-note" class="muted small" hidden>Offline-Modus: Skripte werden nicht bei Proton gespeichert.</p>
+      <button id="reload" class="ghost small">Neu laden</button>
+    </aside>
+
+    <section class="editor-pane">
+      <div class="editor-head">
+        <input id="filter-name" placeholder="Name des Filters">
+        <label class="switch"><input type="checkbox" id="filter-enabled" checked> aktiv</label>
+      </div>
+      <div class="toolbar">
+        <select id="templates"><option value="">Vorlage einfügen …</option></select>
+        <button id="fix-require" class="ghost" title="Fehlende Erweiterungen in ein require übernehmen">require ergänzen</button>
+        <button id="insert-guard" class="ghost" title="Proton-Spam-Schutz am Anfang einfügen">Spam-Schutz einfügen</button>
+        <button id="copy" class="ghost">Kopieren</button>
+        <span class="spacer"></span>
+        <button id="check" class="ghost">Bei Proton prüfen</button>
+        <button id="delete" class="danger">Löschen</button>
+        <button id="save">Speichern</button>
+      </div>
+      <div id="editor" class="editor"></div>
+      <div id="problems" class="problems"></div>
+      <p class="muted small">Strg+Leertaste: Vorschläge · Strg+S: speichern · Strg+/: Kommentar</p>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>
