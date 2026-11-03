@@ -105,7 +105,6 @@ label.switch { flex-direction: row; align-items: center; margin: 0; white-space:
 details { margin-bottom: 10px; }
 summary { cursor: pointer; color: var(--muted); margin-bottom: 8px; }
 
-#captcha-frame { width: 100%; height: 520px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
 
 .app { flex: 1; display: flex; min-height: 0; }
 

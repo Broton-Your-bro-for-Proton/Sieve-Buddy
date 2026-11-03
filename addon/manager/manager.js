@@ -452,26 +452,42 @@ function startCaptcha(details) {
     toast(`Proton verlangt eine Verifizierung per ${methods.join('/') || 'unbekannter Methode'}. Bitte einmal im Proton-Web-Login anmelden und es danach erneut versuchen.`, true);
     return;
   }
+  // Thunderbird blocks cookies/storage for third-party frames, so the captcha runs in its own window.
+  // captcha-relay.js (content script) forwards Proton's pm_captcha message back to us.
   const dark = matchMedia('(prefers-color-scheme: dark)').matches;
-  const url = state.client.captchaUrl(details.HumanVerificationToken, dark);
-  const frame = $('captcha-frame');
-  frame.src = url.toString();
+  const url = state.client.captchaUrl(details.HumanVerificationToken, dark).toString();
   show('captcha');
-
-  const onMessage = (event) => {
-    if (event.origin !== url.origin || event.source !== frame.contentWindow || !event.data) return;
-    if (event.data.type === 'pm_height') frame.style.height = `${event.data.height + 40}px`;
-    if (event.data.type === 'pm_captcha') {
-      window.removeEventListener('message', onMessage);
-      frame.src = 'about:blank';
-      attemptLogin({ token: event.data.token, type: 'captcha' }).catch((error) => {
-        show('login');
-        toast(error.message, true);
-      });
-    }
-  };
-  window.addEventListener('message', onMessage);
+  closeCaptchaWindow();
+  captcha.url = url;
+  openCaptchaWindow();
 }
+
+const captcha = { url: null, windowId: null };
+
+async function openCaptchaWindow() {
+  const win = await browser.windows.create({ url: captcha.url, type: 'popup', width: 520, height: 720 });
+  captcha.windowId = win.id;
+}
+
+function closeCaptchaWindow() {
+  if (captcha.windowId !== null) browser.windows.remove(captcha.windowId).catch(() => {});
+  captcha.windowId = null;
+}
+
+globalThis.browser?.runtime.onMessage.addListener((message, sender) => {
+  if (message?.type !== 'pm_captcha' || typeof message.token !== 'string' || !captcha.url) return;
+  if (!sender.url || new URL(sender.url).origin !== new URL(captcha.url).origin) return;
+  captcha.url = null;
+  closeCaptchaWindow();
+  attemptLogin({ token: message.token, type: 'captcha' }).catch((error) => {
+    show('login');
+    toast(error.message, true);
+  });
+});
+
+globalThis.browser?.windows.onRemoved.addListener((id) => {
+  if (id === captcha.windowId) captcha.windowId = null;
+});
 
 $('login-form').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -500,10 +516,17 @@ $('totp-form').addEventListener('submit', (e) => {
 for (const back of document.querySelectorAll('[data-back]')) {
   back.addEventListener('click', () => {
     state.pendingLogin = null;
-    $('captcha-frame').src = 'about:blank';
+    captcha.url = null;
+    closeCaptchaWindow();
     show('login');
   });
 }
+
+$('captcha-reopen').addEventListener('click', () => {
+  if (!captcha.url) return;
+  closeCaptchaWindow();
+  openCaptchaWindow().catch((e) => toast(e.message, true));
+});
 
 $('offline').addEventListener('click', () => enterOffline().catch((e) => toast(e.message, true)));
 

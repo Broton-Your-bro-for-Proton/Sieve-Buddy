@@ -58,9 +58,11 @@
   <!-- Human verification -->
   <section id="view-captcha" class="card" hidden>
     <h2>Proton möchte bestätigen, dass du ein Mensch bist</h2>
-    <p class="muted">Löse das Captcha – danach wird die Anmeldung automatisch fortgesetzt.</p>
-    <iframe id="captcha-frame" title="Captcha" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
-    <div class="row"><button type="button" class="ghost" data-back>Abbrechen</button></div>
+    <p class="muted">Das Captcha wurde in einem eigenen Fenster geöffnet. Löse es dort – das Fenster schließt sich danach und die Anmeldung wird automatisch fortgesetzt.</p>
+    <div class="row">
+      <button type="button" id="captcha-reopen">Captcha-Fenster erneut öffnen</button>
+      <button type="button" class="ghost" data-back>Abbrechen</button>
+    </div>
   </section>
 
   <!-- Main app -->
