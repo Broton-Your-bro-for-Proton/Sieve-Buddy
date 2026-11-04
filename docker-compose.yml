@@ -1,14 +1,15 @@
+# Sieve-Dienst (REST + MCP). Anbieter und Zugangsdaten in .env – siehe .env.example und README.
 services:
-  proton-sieve:
+  sieve:
     build: .
-    image: proton-sieve-service:latest
-    container_name: proton-sieve
+    image: sieve-service:latest
+    container_name: sieve
     restart: unless-stopped
     env_file: .env
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
-      - proton-sieve-data:/data
+      - sieve-data:/data
 
 volumes:
-  proton-sieve-data:
+  sieve-data:

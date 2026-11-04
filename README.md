@@ -1,144 +1,157 @@
-# Proton Sieve
+# Sieve-Manager für Proton und alle ManageSieve-Server
 
-Werkzeuge, mit denen du die Sieve-Filter deines Proton-Mail-Kontos verwaltest, ohne dich jedes Mal im Proton-Web-Login anzumelden:
+Sieve-Filter bequem verwalten, ohne sich jedes Mal im Webmail anzumelden. Unterstützt werden **Proton Mail** und **jeder Mailserver mit ManageSieve** (RFC 5804), etwa Dovecot/Pigeonhole, Stalwart, Cyrus, Mailcow, Mailu, mailbox.org oder Uberspace.
 
-- **Thunderbird-Add-on:** Sieve-Editor mit Protons Dialekt, „Regel aus Mail“ mit zwei Klicks, Simulator, Regel-Assistent
-- **Docker-Dienst:** Web-Login, REST-API und **MCP-Server**, zum Beispiel für Inbox Zero oder Claude
+- **Thunderbird-Add-on:** Sieve-Editor, der den Dialekt des Servers kennt, „Regel aus Mail“ mit zwei Klicks, Simulator, Regel-Assistent, Verlauf
+- **Docker-Dienst:** REST-API und **MCP-Server**, z. B. für Inbox Zero oder Claude
 
-Beide nutzen denselben Kern (`addon/lib/`).
-
-> **Inoffiziell.** Alles spricht dieselbe, undokumentierte Web-API wie Protons eigener Web-Client. Proton kann sie jederzeit ändern. Nutzung auf eigenes Risiko.
-
-## Aufbau
+Beide teilen sich denselben Kern (`addon/lib/`).
 
 ```
-addon/                 Thunderbird-Add-on (MV2, Thunderbird ≥ 115)
-  lib/                 gemeinsamer Kern – ohne Thunderbird-Abhängigkeit (nur fetch + WebCrypto)
-    srp.js             Proton-SRP-Login (Port von ProtonMail/go-srp)
-    proton-api.js      Login, 2FA, Captcha, Token-Refresh, Filter- und Label-Endpunkte
-    sieve-dialect.js   Protons Sieve-Dialekt (Erweiterungen, Befehle, Tags, Spam-Schutz)
-    sieve-analyzer.js  Tokenizer, Linter, Autovervollständigung, require-Fixer
-    sieve-ast.js       Parser mit exakten Textpositionen, Formatierer
-    sieve-rules.js     Regeln ↔ Sieve, Einreihen in bestehende Blöcke, Konflikte
-    sieve-sim.js       Simulator: Wo landet eine Mail?
-    rule-planner.js    beste Stelle über alle Filter finden + mit dem Simulator prüfen
-    sieve-templates.js 16 parametrisierte Vorlagen in 7 Kategorien
-    mail.js            Header-Parsing, Adressen, Regelvorschläge aus einer Mail
-    diff.js            Zeilen-Diff
-  manager/             Manager-Tab (Editor, Assistent, Simulator, Verlauf …)
-  rule/                Fenster „Sieve-Regel aus Mail“
-  shared/              gemeinsame UI-Helfer
-server/                Docker-Dienst (Node ≥ 20): Web-Login, REST, MCP
-test/                  Kern-Tests       server/test/   Server-Ende-zu-Ende-Test
+Thunderbird-Add-on ──┬─ direkt ─────────────────────────────▶ Proton (inoffizielle Web-API)
+                     └─ über den Dienst ─┐
+Inbox Zero / Claude ── MCP ──────────────┤
+                                         ▼
+                                  Docker-Dienst ──▶ Proton  oder  ManageSieve-Server (+ IMAP für Ordner)
 ```
+
+> **Proton:** Für Filter gibt es keine offizielle API. Der Zugriff nutzt dieselbe Web-API wie Protons eigener Web-Client, und Proton kann sie jederzeit ändern oder unbekannte Programme sperren (siehe [Schutz vor Konto-Sperren](#schutz-vor-konto-sperren)). **ManageSieve** ist dagegen ein offizieller Standard, dort gibt es dieses Risiko nicht.
 
 ## Thunderbird-Add-on
 
 ### Funktionen
 
-- **Proton-Login per SRP** mit TOTP-2FA. Verlangt Proton ein Captcha, öffnet sich wie bei der Proton Bridge verify.proton.me im Browser. Gespeichert werden nur UID und Refresh-Token, nie das Passwort.
-- **Filter verwalten:** anlegen, bearbeiten, löschen, aktivieren und Reihenfolge ändern. Vor jedem Speichern zeigt ein **Diff**, was sich ändert, und jede gespeicherte Version landet im **Verlauf** (letzte 25 pro Filter, wiederherstellbar).
-- **Sieve-Editor** (CodeMirror):
-  - Syntax-Highlighting und **kontextabhängige Vorschläge**: Befehle, Tags, Erweiterungen, Header, deine **Proton-Ordner und Labels**, Flags, Listen und Datumsteile
-  - **Live-Prüfung** für Protons Dialekt plus Prüfung durch Proton selbst
-  - **Hover-Hilfe** zu Befehlen und Tags, **Gliederung** aller Regeln, **Formatierer** (der Spam-Schutz bleibt unverändert), „require ergänzen“
-- **✨ Regel-Assistent:** 16 Vorlagen mit Formular, darunter Domains, Mailinglisten, Rechnungen, Shops, GitHub, Monitoring, Aufräumen, Abwesenheit und Kontaktschutz. Neue Werte werden **in passende bestehende Blöcke eingereiht**, statt Duplikate anzulegen.
-- **Mail testen:** Header einfügen oder die in Thunderbird ausgewählte Mail übernehmen. Der Simulator zeigt, wo sie landet und welche Regeln greifen.
-- **Sieve-Regel aus Mail**, über den Button in der Mail-Ansicht oder das Rechtsklick-Menü der Nachrichtenliste:
-  1. Schlägt Bedingungen vor: Mailingliste, Absender, Domain, Alias-Empfänger, Betreff ohne Nummern
-  2. Findet die beste Stelle über alle Filter:
-     - **in eine bestehende Liste einreihen**, also `["a.de", "b.de"]` → `["a.de", "b.de", "c.de"]`
-     - ein bestehendes `anyof(…)` erweitern
-     - einen Block mit gleicher Aktion zu `anyof` umbauen
-     - oder einen neuen Block anlegen
-  3. Prüft mit dem Simulator, ob die Mail danach wirklich dort landet. Fängt ein früherer Block (etwa mit `stop`) sie ab, kommt die Regel automatisch davor, bei Bedarf mit `stop`.
-  4. Zeigt den Diff und Konflikte („ebay.de wird schon anders behandelt“) und speichert mit einem Klick. Alternativ öffnet „Im Manager bearbeiten“ das Ergebnis im Editor.
+- **Verbindung:** direkt mit Proton (SRP-Login mit TOTP; Captcha über verify.proton.me wie bei der Bridge) **oder über den eigenen Dienst**, dann auch für ManageSieve-Server.
+- **Filter und Skripte verwalten:** anlegen, bearbeiten, löschen und aktivieren, bei Proton auch sortieren. Vor dem Speichern zeigt ein **Diff**, was sich ändert, und frühere Versionen liegen im **Verlauf**.
+- **Editor, der den Dialekt des Servers kennt:**
+  - Syntax-Highlighting und **Vorschläge** für Befehle, Tags und die vom Server angebotenen Erweiterungen, außerdem Header, deine **Ordner und Labels**, Flags und Datumsteile
+  - **Live-Prüfung**: fehlende `require`, `;`, Klammern, Erweiterungen, die der Server nicht kann, unbekannte Ordner. Proton-Fallen (`keep`, `discard`, Flags nach `fileinto`, Spam-Schutz) gelten nur bei Proton.
+  - Zusätzlich prüft **der Server selbst**: Proton bzw. `CHECKSCRIPT` per ManageSieve.
+  - **Hover-Hilfe**, **Gliederung**, **Formatierer**, „require ergänzen“
+- **✨ Regel-Assistent:** 16 Vorlagen, darunter Domains, Mailinglisten, Rechnungen, Shops, GitHub, Monitoring, Abwesenheit und Kontaktschutz. Neue Werte werden **in passende Blöcke eingereiht**. Vorlagen, die es nur bei Proton gibt, sind bei anderen Servern ausgeblendet.
+- **Mail testen:** Der Simulator zeigt, wo eine Mail landet, mit Protons Verhalten oder nach **RFC 5228** (implizites `keep`, `fileinto` als Kopie, `:copy`, `redirect`). Der RFC-Modus ist **gegen echte Dovecot-Zustellung geprüft**.
+- **Sieve-Regel aus Mail:** Button in der Mail-Ansicht oder Rechtsklick in der Nachrichtenliste.
+  - Bedingungen werden vorgeschlagen: Liste, Absender, Domain, Alias, Betreff ohne Nummern.
+  - Die Regel landet an der **besten Stelle**. Bevorzugt wird ein bestehender Block erweitert: in die Liste einreihen, `anyof` erweitern oder zu `anyof` umbauen. Sonst wird ein neuer Block angelegt.
+  - Der **Simulator prüft**, ob die Mail danach wirklich dort landet. Fängt ein früherer Block sie ab, wird die Regel davor gesetzt, bei Bedarf mit `stop`.
+  - Du siehst Diff und Konflikte und speicherst mit einem Klick.
 
 ### Installation (Entwicklung)
 
 ```bash
 npm install
-npm run vendor   # CodeMirror und bcryptjs nach addon/vendor kopieren
-npm test         # Kern-Tests (SRP, Analyzer, Parser, Einreihen, Simulator, Vorlagen)
+npm run vendor   # CodeMirror und bcryptjs nach addon/vendor
+npm test         # Kern-Tests
 npm run build    # dist/*.zip (als .xpi installierbar)
 ```
 
-In Thunderbird: Menü ☰ → **Add-ons und Themes** → Zahnrad ⚙ → **Add-ons debuggen** → „Temporäres Add-on laden“ → `addon/manifest.json`.
+In Thunderbird: Menü ☰ → **Add-ons und Themes** → Zahnrad ⚙ → **Add-ons debuggen** → „Temporäres Add-on laden“ → `addon/manifest.json`. Für ein Update dort **„Neu laden“** klicken, nicht entfernen, sonst ist die Anmeldung weg.
 
 ## Docker-Dienst mit MCP
 
-Ein eigenständiger Dienst für ein Proton-Konto. Er braucht kein laufendes Thunderbird.
-
 ```bash
-cp .env.example .env              # API_TOKEN setzen, z. B. openssl rand -hex 32
+cp .env.example .env          # API_TOKEN setzen (z. B. openssl rand -hex 32), PROVIDER wählen
 docker compose up -d --build
 ```
 
-Dann `http://localhost:8080` öffnen, das API-Token eingeben und dich bei Proton anmelden (gegebenenfalls mit 2FA und Captcha). Die Sitzung wird **AES-256-GCM-verschlüsselt** im Volume `/data` gespeichert und automatisch erneuert. Das Passwort wird nicht gespeichert.
+Danach `http://localhost:8080` öffnen und das API-Token eingeben. Die Weboberfläche zeigt den Status und die MCP-Konfiguration.
+
+### Mit einem ManageSieve-Server
+
+```env
+PROVIDER=managesieve
+MANAGESIEVE_HOST=mail.example.com
+MANAGESIEVE_USER=ich@example.com
+MANAGESIEVE_PASSWORD=…          # oder MANAGESIEVE_PASSWORD_FILE=/run/secrets/sieve
+# MANAGESIEVE_TLS=starttls      # Standard; tls oder none (none nur im eigenen Netz)
+# IMAP_HOST=…                   # Ordnerliste per IMAP (Standard: gleicher Host, 993/TLS); IMAP_HOST= leer = aus
+```
+
+Der Dienst übernimmt die Fähigkeiten des Servers, also die Erweiterungen, die er unter `SIEVE` meldet. Bei ManageSieve ist immer **genau ein Skript aktiv**:
+- Geplant und simuliert wird nur das aktive.
+- Neue Skripte bleiben inaktiv, solange nichts anderes verlangt ist.
+- Eine Reihenfolge gibt es nicht.
+
+### Mit Proton
+
+```env
+PROVIDER=proton
+```
+
+Der Dienst meldet sich **nicht selbst** bei Proton an. Stattdessen meldest du dich im Thunderbird-Add-on an und klickst dort **„An Dienst übergeben“** (Adresse und API-Token des Dienstes). Der Dienst übernimmt die Sitzung, und das Add-on arbeitet danach über den Dienst weiter. Die Sitzung wird AES-256-GCM-verschlüsselt in `/data` gespeichert. Ein Passwort-Login direkt im Dienst ist nur mit `ALLOW_PASSWORD_LOGIN=true` möglich (nicht empfohlen, siehe unten).
+
+### Variablen
 
 | Variable | Bedeutung |
 |---|---|
 | `API_TOKEN` | **Pflicht.** Bearer-Token für Weboberfläche, REST und MCP (≥ 24 Zeichen) |
-| `SESSION_SECRET` | Schlüssel für die gespeicherte Sitzung (Standard: `API_TOKEN`) |
-| `ALLOW_WRITE` | `false` = nur lesen, planen und simulieren |
-| `PROTON_API_BASE`, `PROTON_APP_VERSION` | Standard: `https://mail.proton.me/api`, `Other` |
+| `PROVIDER` | `proton` (Standard) oder `managesieve` |
+| `ALLOW_WRITE` | `false` = nur lesen, planen, simulieren |
+| `SESSION_SECRET` | Schlüssel der gespeicherten Proton-Sitzung (Standard: `API_TOKEN`) |
+| `CORS_ORIGINS` | weitere Browser-Ursprünge für die API; das Add-on (`moz-extension://`) ist immer erlaubt |
+| `MANAGESIEVE_*`, `IMAP_*` | siehe oben; `MANAGESIEVE_INSECURE=true` akzeptiert selbstsignierte Zertifikate |
+| `ALLOW_PASSWORD_LOGIN`, `PROTON_API_BASE`, `PROTON_APP_VERSION` | nur Proton |
+
+Jede Variable mit Geheimnis gibt es auch als `…_FILE` für Docker-Secrets.
 
 ### MCP
 
 Streamable HTTP unter `POST /mcp`, Header `Authorization: Bearer <API_TOKEN>`:
 
 ```json
-{ "mcpServers": { "proton-sieve": { "type": "http", "url": "http://localhost:8080/mcp",
+{ "mcpServers": { "sieve": { "type": "http", "url": "http://localhost:8080/mcp",
   "headers": { "Authorization": "Bearer <API_TOKEN>" } } } }
 ```
 
 | Tool | Zweck |
 |---|---|
-| `proton_status`, `list_filters`, `get_filter`, `list_folders` | Lesen |
-| `lint_sieve`, `check_sieve`, `format_sieve` | Prüfen (lokal / durch Proton), formatieren |
-| `simulate_message` | Wo landet eine Mail (optional mit geänderten Skripten)? |
+| `sieve_status`, `sieve_capabilities` | Anbieter, Verbindung, Schreibrecht, Erweiterungen des Servers |
+| `list_filters`, `get_filter`, `list_folders` | Lesen |
+| `lint_sieve`, `check_sieve`, `format_sieve` | Prüfen (lokal mit dem Dialekt des Servers / durch den Server), formatieren |
+| `simulate_message` | Wo landet eine Mail? (mit dem Verhalten des Servers, optional mit geänderten Skripten) |
 | `suggest_rule` | Bedingungen aus den Headern einer Mail vorschlagen |
 | `plan_rule` / `apply_rule` | Regel planen (beste Stelle, Diff, Konflikte, Simulation) bzw. speichern |
-| `list_templates`, `plan_template` / `apply_template` | Vorlagen |
-| `create_filter`, `update_filter`, `set_filter_enabled`, `reorder_filters`, `delete_filter` | Direkte Filterverwaltung |
+| `list_templates`, `plan_template` / `apply_template` | Vorlagen (passend zum Server gefiltert) |
+| `create_filter`, `update_filter`, `set_filter_enabled`, `reorder_filters`, `delete_filter` | Direkte Verwaltung |
 
-Gespeichert wird immer erst, nachdem Proton das Skript selbst geprüft hat. Dieselben Operationen gibt es als REST-Aufrufe unter `POST /api/ops/<name>`, etwa `plan-rule`, `apply-rule` oder `simulate`.
-
-```bash
-npm run test:server   # Ende-zu-Ende: Dienst + nachgebautes Proton + echter MCP-Client
-```
-
-Zielordner werden beim Planen und Speichern gegen die echten Ordner und Labels geprüft. Proton würde ein `fileinto` in einen nicht existierenden Ordner sonst still ignorieren. Bei Tippfehlern schlägt der Dienst ähnliche Namen vor („einkaeufe“ → „Einkäufe“).
-
-## Entwickeln und testen ohne echtes Proton-Konto
-
-`scripts/fake-proton.mjs` ist ein lokaler Proton-Ersatz mit **echtem SRP**, optional 2FA und Captcha (Code 9001 samt Verifizierungsseite), Token-Refresh, Filtern und Labels:
-
-```bash
-FAKE_TOTP=1 FAKE_CAPTCHA=1 npm run fake-proton   # http://127.0.0.1:8790/api, test@proton.local / test123, 2FA 123456
-npm run preview                                  # Add-on-Oberfläche unter http://localhost:8765/manager/manager.html
-```
-
-Im Manager unter *Erweitert* als API-Basis `http://127.0.0.1:8790/api` eintragen. Für den Docker-Dienst den Testserver mit `HOST=0.0.0.0` starten und `PROTON_API_BASE=http://host.docker.internal:8790/api` setzen.
+Gespeichert wird immer erst nach der Prüfung durch den Server. Zielordner werden gegen die echten Ordner geprüft, mit Vorschlägen bei Tippfehlern („Einkaufe“ → „Einkäufe“). Dieselben Operationen gibt es per REST unter `POST /api/ops/<name>`, z. B. `plan-rule`, `apply-rule`, `simulate`, `capabilities`.
 
 ## Schutz vor Konto-Sperren
 
-Protons Missbrauchsschutz reagiert auf wiederholte Anmeldungen unbekannter Clients. Bei einem Test am 04.11.2026 hat Proton das Free-Testkonto nach einem Login über den Docker-Dienst vorübergehend eingeschränkt (Meldung „unusual activity“). Der Web-Login ging weiterhin. Deshalb gilt für Add-on und Dienst ein **Login-Wächter** (`addon/lib/login-guard.js`):
+Proton hat ein Test-Konto zweimal vorübergehend eingeschränkt („unusual activity“), jeweils nach einem **Passwort-Login aus dem Docker-Dienst**. Die bestehende Sitzung im Add-on lief dabei weiter. Daraus folgt:
 
-- höchstens 3 Passwort-Anmeldungen in 15 Minuten (Captcha und 2FA zählen zum selben Versuch)
-- nach unerwarteten Fehlern wachsende Pausen (5 Min. → 6 Std.)
-- nach einer Missbrauchsmeldung **24 Stunden keine Anmeldeversuche**; blockierte Versuche erreichen Proton gar nicht
-- die Pause lässt sich in der Weboberfläche bewusst aufheben (`POST /api/login/reset-guard`)
-- Protons Fehlercodes landen im Log (`[proton] … Code …`), nie Tokens oder Passwörter
+- Der Dienst meldet sich standardmäßig **nicht** mit Passwort an. Die Sitzung kommt per Übergabe aus dem Add-on.
+- Ein **Login-Wächter** (`addon/lib/login-guard.js`) gilt für Add-on und Dienst:
+  - höchstens 3 Passwort-Anmeldungen in 15 Minuten
+  - wachsende Pausen nach Fehlern
+  - **24 Stunden Pause** nach einer Missbrauchsmeldung; blockierte Versuche erreichen Proton gar nicht
+- Protons Fehlercodes landen im Log (`[proton] … Code …`), nie Tokens oder Passwörter.
 
-Nach der ersten Anmeldung arbeiten beide nur noch mit dem Refresh-Token. **Der Dienst muss sich gar nicht selbst anmelden:** Im Manager des Add-ons übergibt „An Dienst übergeben“ die bestehende Sitzung (Adresse und API-Token des Dienstes eingeben). Das Add-on ist danach abgemeldet, weil Proton den Refresh-Token bei jeder Nutzung erneuert und zwei Programme ihn nicht teilen können. Am wenigsten auffällig ist es, sich **einmal** anzumelden und die Sitzung dann lange zu nutzen.
+Protons „Sign in with another device“ (Session Fork) wäre eleganter, verlangt aber die Client-Kennung einer offiziellen Proton-App und wird deshalb bewusst nicht genutzt.
 
-Protons eigenes Verfahren „Sign in with another device“ (Session Fork per Code) wäre eleganter, verlangt aber die Client-Kennung einer offiziellen Proton-App. Es wird deshalb bewusst nicht genutzt.
+## Entwickeln und testen
+
+| | |
+|---|---|
+| `npm test` | Kern: SRP, Linter (beide Dialekte), Parser, Einreihen, Planer, Simulator, Vorlagen, Login-Wächter |
+| `npm run test:server` | Dienst: MCP mit echtem Client, Login-Ablauf, Übergabe, Wächter, ManageSieve-Client und -Anbieter |
+| `npm run fake-proton` | lokaler Proton-Ersatz mit echtem SRP, 2FA und Captcha (`FAKE_TOTP=1 FAKE_CAPTCHA=1`) |
+| `npm run fake-managesieve` | kleiner ManageSieve-Server auf Port 4190 |
+| `npm run dovecot:up` | **echter Dovecot 2.3 + Pigeonhole** (STARTTLS, IMAPS, Ordner mit Umlauten) |
+| `npm run preview` | Add-on-Oberfläche unter `http://localhost:8765/manager/manager.html` |
+
+Tests gegen den echten Dovecot, inklusive Abgleich des Simulators mit echter Zustellung:
+
+```bash
+npm run dovecot:up
+cd server && DOVECOT_TEST=127.0.0.1:14190:10993 DOVECOT_CONTAINER=sieve-dovecot npm test
+```
 
 ## Bekannte Einschränkungen
 
-- **Getestet gegen ein echtes Proton-Konto ist der Login** (03.11.2026: SRP, App-Kennung `Other`, Captcha). Schreibzugriffe sind gegen einen nachgebauten Proton-Server getestet, aber noch nicht ausführlich gegen das echte.
+- **Proton:** Der Login ist gegen ein echtes Konto getestet. Schreibzugriffe sind bisher nur gegen den Proton-Ersatz getestet.
 - Die PGP-Signatur des SRP-Modulus wird noch nicht geprüft (go-srp prüft sie).
-- 2FA nur per TOTP, keine Sicherheitsschlüssel (FIDO2). Bei der menschlichen Verifizierung nur Captcha.
-- Der Simulator kennt Protons Kontaktlisten (`header :list`) nicht und wertet sie als „nicht enthalten“.
-- Im Add-on liegt das Refresh-Token unverschlüsselt im Thunderbird-Profil. Im Dienst ist es verschlüsselt.
+- Proton-2FA nur per TOTP; menschliche Verifizierung nur per Captcha.
+- ManageSieve-Anmeldung nur per SASL PLAIN, über TLS. Kein OAUTHBEARER oder SCRAM.
+- Der Simulator kennt Protons Kontaktlisten (`header :list`) sowie `body`, `include` und `duplicate` nicht und notiert das.
+- Im Add-on liegen Proton-Sitzung und Dienst-Token unverschlüsselt im Thunderbird-Profil; im Dienst ist die Proton-Sitzung verschlüsselt.
