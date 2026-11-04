@@ -3,6 +3,8 @@
 import { diffHunks, diffStats, lineDiff } from '../lib/diff.js';
 import { LoginGuard } from '../lib/login-guard.js';
 import { DEFAULT_SETTINGS, LABEL_TYPE, ProtonClient } from '../lib/proton-api.js';
+import { ServiceClient } from '../lib/service-client.js';
+import { makeDialect } from '../lib/sieve-dialect.js';
 
 export const $ = (id) => document.getElementById(id);
 
@@ -22,18 +24,48 @@ export async function loadSettings() {
   return { ...DEFAULT_SETTINGS, ...((await storage.get('settings')) ?? {}) };
 }
 
+/**
+ * The connection the add-on uses: Proton directly (default) or the user's Sieve service
+ * (settings.mode === 'service'), which may be connected to Proton or to any ManageSieve server.
+ */
 export async function makeClient() {
+  const settings = await loadSettings();
+  if (settings.mode === 'service' && settings.serviceUrl) {
+    return new ServiceClient({ baseUrl: settings.serviceUrl, token: settings.serviceToken ?? '' });
+  }
   return new ProtonClient({
     bcrypt: window.dcodeIO.bcrypt,
     store: { load: () => storage.get('session'), save: (s) => storage.set('session', s) },
-    settings: await loadSettings(),
+    settings,
     guard: new LoginGuard({ load: () => storage.get('loginGuard'), save: (s) => storage.set('loginGuard', s) }),
     onApiError: ({ method, path, status, code, message }) => console.warn(`[proton] ${method} ${path} → HTTP ${status}, Code ${code ?? '-'}: ${message ?? ''}`),
   });
 }
 
+/** Switches the add-on to "through my service" (or back to Proton directly with null). */
+export async function setServiceMode(service) {
+  const settings = await loadSettings();
+  if (service) await storage.set('settings', { ...settings, mode: 'service', serviceUrl: service.url, serviceToken: service.token });
+  else await storage.set('settings', { ...settings, mode: 'proton' });
+}
+
+/** Asks Thunderbird for access to the service's origin (optional host permission). */
+export async function requestOrigin(url) {
+  const origin = new URL(url).origin;
+  if (!globalThis.browser?.permissions) return origin; // preview outside Thunderbird
+  if (!(await browser.permissions.request({ origins: [`${origin}/*`] }))) throw new Error('Zugriff auf den Dienst wurde nicht erlaubt');
+  return origin;
+}
+
+/** The Sieve dialect of the current connection (Proton unless the service reports another server). */
+export const dialectOf = (client) => makeDialect(client?.capabilities?.dialect ?? { name: 'proton' });
+
+/** How the connection behaves: several active filters? ordering? labels? */
+export const capabilitiesOf = (client) => client?.capabilities ?? { multipleActive: true, ordering: true, labels: true, semantics: 'proton' };
+
 /** Filters with their Sieve text (the list endpoint may omit it) plus folder and label paths. */
 export async function loadAccountData(client) {
+  if (client.loadAccountData) return client.loadAccountData();
   const [filters, folders, labels] = await Promise.all([
     client.listFilters(),
     client.listLabels(LABEL_TYPE.FOLDER).catch(() => []),

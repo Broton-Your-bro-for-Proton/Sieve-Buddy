@@ -1,8 +1,8 @@
 {
   "name": "proton-sieve-thunderbird",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "Thunderbird add-on to manage Proton Mail Sieve filters",
+  "description": "Sieve filter manager: Thunderbird add-on and Docker/MCP service for Proton and ManageSieve servers",
   "type": "module",
   "scripts": {
     "vendor": "node scripts/vendor.mjs",
@@ -13,7 +13,9 @@
     "test:all": "npm test && npm run test:server",
     "docker:build": "docker build -t proton-sieve-service .",
     "fake-proton": "node scripts/fake-proton.mjs",
-    "preview": "node scripts/serve.mjs"
+    "preview": "node scripts/serve.mjs",
+    "fake-managesieve": "node scripts/fake-managesieve.mjs",
+    "dovecot:up": "docker build -t sieve-test-dovecot test/dovecot && docker run -d --name sieve-dovecot -p 127.0.0.1:14190:4190 -p 127.0.0.1:10993:993 sieve-test-dovecot"
   },
   "devDependencies": {
     "bcryptjs": "2.4.3",

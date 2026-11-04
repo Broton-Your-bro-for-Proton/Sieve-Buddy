@@ -42,6 +42,15 @@
         <button type="button" id="offline" class="ghost">Ohne Anmeldung (nur Editor)</button>
       </div>
     </form>
+
+    <hr class="sep">
+    <h2>Oder über meinen Sieve-Dienst</h2>
+    <p class="muted">Der Docker-Dienst ist mit Proton oder einem anderen Mailserver (ManageSieve, z. B. Dovecot) verbunden. Das Add-on arbeitet dann über ihn.</p>
+    <form id="service-form">
+      <label>Adresse des Dienstes<input id="service-url" placeholder="http://localhost:8080" required></label>
+      <label>API-Token des Dienstes<input id="service-token" type="password" autocomplete="off" required></label>
+      <div class="row"><button type="submit" id="service-submit" class="ghost">Über Dienst verbinden</button></div>
+    </form>
   </section>
 
   <!-- 2FA -->

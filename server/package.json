@@ -1,8 +1,8 @@
 {
   "name": "proton-sieve-server",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "Proton Sieve service: web login, REST API and MCP server on top of the shared core",
+  "description": "Sieve service: REST API and MCP server for Proton and ManageSieve servers, sharing the core with the Thunderbird add-on",
   "type": "module",
   "main": "src/index.js",
   "scripts": {

@@ -1,8 +1,8 @@
 {
   "manifest_version": 2,
   "name": "Proton Sieve Manager",
-  "version": "0.2.0",
-  "description": "Proton-Mail-Sieve-Filter direkt in Thunderbird verwalten – mit Syntax-Highlighting, Autovervollständigung und Prüfung.",
+  "version": "0.3.0",
+  "description": "Sieve-Filter für Proton Mail und andere Mailserver direkt in Thunderbird verwalten – mit Syntax-Prüfung, Simulator und Regeln aus Mails.",
   "author": "HyperCriSiS",
   "browser_specific_settings": {
     "gecko": {

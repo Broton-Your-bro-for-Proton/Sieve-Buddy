@@ -141,16 +141,17 @@ function assertFolderExists(data, folder) {
   const known = [...data.folders, ...data.labels];
   const system = data.dialect.proton ? ['inbox', 'archive', 'trash', 'spam', 'starred'] : ['inbox'];
   if (known.includes(folder) || system.includes(folder.toLowerCase())) return;
-  const norm = (s) =>
-    s
-      .toLowerCase()
-      .replace(/ä/g, 'ae')
-      .replace(/ö/g, 'oe')
-      .replace(/ü/g, 'ue')
-      .replace(/ß/g, 'ss')
-      .normalize('NFKD')
-      .replace(/[^\p{L}\p{N}/.]/gu, '');
-  const similar = known.filter((k) => norm(k).includes(norm(folder)) || norm(folder).includes(norm(k)));
+  // two spellings of umlauts: "Einkaeufe" and "Einkaufe" should both find "Einkäufe"
+  const clean = (s) => s.replace(/[^\p{L}\p{N}/.]/gu, '');
+  const variants = (s) => {
+    const lower = s.toLowerCase();
+    return [
+      clean(lower.replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')),
+      clean(lower.normalize('NFKD').replace(/\p{M}/gu, '').replace(/ß/g, 'ss')),
+    ];
+  };
+  const close = (a, b) => variants(a).some((x) => variants(b).some((y) => x.includes(y) || y.includes(x)));
+  const similar = known.filter((k) => close(k, folder));
   throw new Error(
     `Ordner/Label „${folder}“ existiert nicht${similar.length ? ` – meintest du ${similar.map((s) => `„${s}“`).join(', ')}?` : ''} (siehe list_folders; der Ordner muss vorher angelegt werden)`,
   );

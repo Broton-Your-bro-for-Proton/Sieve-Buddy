@@ -1,16 +1,11 @@
 // Hands the add-on's Proton session to the Docker service, so the service never needs a password login
-// of its own. Proton rotates refresh tokens, so after a successful handover the add-on forgets the session
-// (without logging out, which would end it at Proton).
+// of its own. Proton rotates refresh tokens, so afterwards the add-on forgets its copy (without logging out,
+// which would end the session at Proton) and continues to work through the service.
 
-import { $, el, openModal, storage, toast } from '../shared/env.js';
-
-async function requestOrigin(origin) {
-  if (!globalThis.browser?.permissions) return true; // preview outside Thunderbird
-  return browser.permissions.request({ origins: [`${origin}/*`] });
-}
+import { $, el, openModal, requestOrigin, storage, toast } from '../shared/env.js';
 
 /**
- * @param {{getClient: () => object, onHandedOver: () => void}} hooks
+ * @param {{getClient: () => object, onHandedOver: (service: {url: string, token: string}) => void}} hooks
  */
 export function installHandover({ getClient, onHandedOver }) {
   $('handover').addEventListener('click', async () => {
@@ -26,7 +21,7 @@ export function installHandover({ getClient, onHandedOver }) {
     await openModal({
       title: 'Sitzung an den Docker-Dienst übergeben',
       body: [
-        el('p', { class: 'muted small' }, 'Der Dienst übernimmt diese Proton-Sitzung und muss sich nicht selbst mit Passwort anmelden. Danach ist das Add-on abgemeldet, weil Proton den Refresh-Token bei jeder Nutzung erneuert und zwei Programme ihn nicht teilen können.'),
+        el('p', { class: 'muted small' }, 'Der Dienst übernimmt diese Proton-Sitzung und muss sich nicht selbst mit Passwort anmelden. Das Add-on arbeitet danach über den Dienst weiter – zwei Programme können eine Proton-Sitzung nicht gleichzeitig nutzen.'),
         el('label', {}, 'Adresse des Dienstes', urlInput),
         el('label', {}, 'API-Token des Dienstes', tokenInput),
         status,
@@ -38,13 +33,9 @@ export function installHandover({ getClient, onHandedOver }) {
           onClick: async (close) => {
             let origin;
             try {
-              origin = new URL(urlInput.value.trim()).origin;
-            } catch {
-              status.textContent = 'Ungültige Adresse';
-              return;
-            }
-            if (!(await requestOrigin(origin))) {
-              status.textContent = 'Zugriff auf den Dienst wurde nicht erlaubt';
+              origin = await requestOrigin(urlInput.value.trim());
+            } catch (error) {
+              status.textContent = error instanceof TypeError ? 'Ungültige Adresse' : error.message;
               return;
             }
             status.textContent = 'Übergebe …';
@@ -62,8 +53,8 @@ export function installHandover({ getClient, onHandedOver }) {
               client.session = null;
               await storage.set('session', null);
               close(true);
-              toast(`Sitzung an den Dienst übergeben (${data.username ?? 'angemeldet'}) – das Add-on ist jetzt abgemeldet`);
-              onHandedOver();
+              toast(`Sitzung an den Dienst übergeben (${data.username ?? 'angemeldet'}) – das Add-on arbeitet jetzt über den Dienst`);
+              onHandedOver({ url: origin, token: tokenInput.value.trim() });
             } catch (error) {
               status.textContent = `Fehlgeschlagen: ${error.message}`;
             }

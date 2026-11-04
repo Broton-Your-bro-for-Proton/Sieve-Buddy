@@ -1,6 +1,19 @@
 import { fixRequire, getCompletions, lintSieve } from '../lib/sieve-analyzer.js';
-import { SPAM_GUARD, SPAM_GUARD_REQUIRE, formatList, newScript } from '../lib/sieve-dialect.js';
-import { $, busy, loadAccountData, loadSettings, makeClient, pushHistory, storage, toast } from '../shared/env.js';
+import { PROTON_DIALECT, SPAM_GUARD, SPAM_GUARD_REQUIRE, formatList, newScript } from '../lib/sieve-dialect.js';
+import {
+  $,
+  busy,
+  capabilitiesOf,
+  dialectOf,
+  loadAccountData,
+  loadSettings,
+  makeClient,
+  pushHistory,
+  requestOrigin,
+  setServiceMode,
+  storage,
+  toast,
+} from '../shared/env.js';
 import { DEFAULT_SETTINGS } from '../lib/proton-api.js';
 import { installHandover } from './handover.js';
 import { confirmDiff, installTools } from './tools.js';
@@ -19,6 +32,9 @@ const state = {
   folders: [],
   labels: [],
   pendingLogin: null, // {username, password} while 2FA/captcha is in progress
+  dialect: PROTON_DIALECT, // Proton, or the server behind the service
+  caps: capabilitiesOf(null),
+  foldersKnown: true,
 };
 
 function show(view) {
@@ -51,7 +67,8 @@ const tools = installTools(editor, state);
 
 function annotations(text) {
   const toPos = (i) => editor.posFromIndex(i);
-  const local = lintSieve(text, { folders: state.offline ? undefined : [...state.folders, ...state.labels] }).map((i) => ({
+  const folders = state.offline || !state.foldersKnown ? undefined : [...state.folders, ...state.labels];
+  const local = lintSieve(text, { folders, dialect: state.dialect }).map((i) => ({
     from: toPos(i.start),
     to: toPos(Math.max(i.end, i.start + 1)),
     message: i.message,
@@ -60,7 +77,7 @@ function annotations(text) {
   const remote = state.remoteIssues.map((i) => ({
     from: i.from ?? CodeMirror.Pos(0, 0),
     to: i.to ?? i.from ?? CodeMirror.Pos(0, 1),
-    message: `Proton: ${i.message ?? JSON.stringify(i)}`,
+    message: `${state.dialect.proton ? 'Proton' : 'Server'}: ${i.message ?? JSON.stringify(i)}`,
     severity: i.severity ?? 'error',
   }));
   const all = [...local, ...remote];
@@ -86,7 +103,7 @@ function renderProblems(list) {
 
 CodeMirror.registerHelper('hint', 'sieve', (cm) => {
   const cursor = cm.indexFromPos(cm.getCursor());
-  const result = getCompletions(cm.getValue(), cursor, { folders: state.folders, labels: state.labels });
+  const result = getCompletions(cm.getValue(), cursor, { folders: state.folders, labels: state.labels, dialect: state.dialect });
   if (!result.list.length) return null;
   return { list: result.list, from: cm.posFromIndex(result.from), to: cm.posFromIndex(result.to) };
 });
@@ -147,6 +164,7 @@ function renderFilters() {
 
       const order = document.createElement('span');
       order.className = 'order';
+      order.hidden = !state.caps.ordering;
       for (const [label, delta] of [['▲', -1], ['▼', 1]]) {
         const b = document.createElement('button');
         b.textContent = label;
@@ -172,9 +190,10 @@ function confirmDiscard() {
 function loadIntoEditor(filter) {
   state.selectedId = filter?.ID ?? null;
   $('filter-name').value = filter?.Name ?? '';
-  $('filter-enabled').checked = filter ? isEnabled(filter) : true;
+  // with a single active script (ManageSieve) a new script would replace the running one – so not by default
+  $('filter-enabled').checked = filter ? isEnabled(filter) : state.caps.multipleActive;
   state.remoteIssues = [];
-  editor.setValue(filter?.Sieve ?? newScript());
+  editor.setValue(filter?.Sieve ?? newScript('', state.dialect));
   editor.clearHistory();
   state.dirty = false;
   $('delete').disabled = !filter;
@@ -197,6 +216,7 @@ async function reloadFilters() {
     state.filters = account.filters;
     state.folders = account.folders;
     state.labels = account.labels;
+    state.foldersKnown = account.foldersKnown !== false;
   }
   const current = state.filters.find((f) => f.ID === state.selectedId) ?? state.filters[0] ?? null;
   state.dirty = false;
@@ -214,7 +234,7 @@ async function saveFilter() {
   const Sieve = editor.getValue();
   const Status = $('filter-enabled').checked ? 1 : 0;
 
-  const errors = lintSieve(Sieve).filter((i) => i.severity === 'error');
+  const errors = lintSieve(Sieve, { dialect: state.dialect }).filter((i) => i.severity === 'error');
   if (errors.length && !confirm(`Der Editor findet ${errors.length} Fehler. Trotzdem an Proton senden?`)) return;
 
   const previous = state.filters.find((f) => f.ID === state.selectedId);
@@ -264,6 +284,11 @@ async function toggleFilter(filter, enabled) {
     } else {
       await state.client.setFilterEnabled(filter.ID, enabled);
       filter.Status = enabled ? 1 : 0;
+      // ManageSieve: activating one script deactivates the others
+      if (!state.caps.multipleActive) {
+        await reloadFilters();
+        return;
+      }
     }
     if (filter.ID === state.selectedId) $('filter-enabled').checked = enabled;
     renderFilters();
@@ -364,11 +389,18 @@ globalThis.browser?.storage?.onChanged.addListener((changes) => {
 
 async function enterApp() {
   state.offline = false;
+  state.dialect = dialectOf(state.client);
+  state.caps = capabilitiesOf(state.client);
+  const via = state.client.viaService;
+  const serverName = via ? (state.client.kind === 'managesieve' ? 'ManageSieve' : 'Proton') : 'Proton';
   $('offline-note').hidden = true;
   $('check').hidden = false;
-  $('account').textContent = state.client.session?.username ?? '';
+  $('check').textContent = `Bei ${serverName === 'Proton' ? 'Proton' : 'Server'} prüfen`;
+  $('insert-guard').hidden = !state.dialect.proton;
+  $('account').textContent = `${state.client.session?.username ?? ''}${via ? ` · über Dienst (${serverName})` : ''}`;
   $('logout').hidden = false;
-  $('handover').hidden = false;
+  $('logout').textContent = via ? 'Dienst trennen' : 'Abmelden';
+  $('handover').hidden = via;
   show('app');
   await reloadFilters();
   await loadDraft();
@@ -376,6 +408,8 @@ async function enterApp() {
 
 async function enterOffline() {
   state.offline = true;
+  state.dialect = PROTON_DIALECT;
+  state.caps = capabilitiesOf(null);
   $('offline-note').hidden = false;
   $('check').hidden = true;
   $('account').textContent = 'Offline';
@@ -438,6 +472,8 @@ $('login-form').addEventListener('submit', (e) => {
   e.preventDefault();
   busy($('login-submit'), async () => {
     const settings = {
+      ...(await loadSettings()),
+      mode: 'proton',
       apiBase: $('api-base').value.trim() || DEFAULT_SETTINGS.apiBase,
       appVersion: $('app-version').value.trim() || DEFAULT_SETTINGS.appVersion,
     };
@@ -481,21 +517,41 @@ $('captcha-continue').addEventListener('click', (e) =>
 
 $('offline').addEventListener('click', () => enterOffline().catch((e) => toast(e.message, true)));
 
+async function connectService(url, token) {
+  const origin = await requestOrigin(url);
+  await setServiceMode({ url: origin, token });
+  state.client = await makeClient();
+  if (!(await state.client.restore())) {
+    const why = state.client.status?.error ?? (state.client.kind === 'proton' ? 'Der Dienst hat noch keine Proton-Sitzung – erst hier anmelden und „An Dienst übergeben“' : 'Der Dienst ist nicht mit seinem Mailserver verbunden');
+    throw new Error(why);
+  }
+  await enterApp();
+}
+
+$('service-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  busy($('service-submit'), () => connectService($('service-url').value.trim(), $('service-token').value.trim()));
+});
+
 installHandover({
   getClient: () => state.client,
-  onHandedOver: () => {
-    state.filters = [];
+  // after the hand-over the add-on keeps working – now through the service that holds the session
+  onHandedOver: async ({ url, token }) => {
     state.dirty = false;
-    $('logout').hidden = true;
-    $('handover').hidden = true;
-    $('account').textContent = '';
-    show('login');
+    try {
+      await connectService(url, token);
+    } catch (error) {
+      toast(error.message, true);
+      show('login');
+    }
   },
 });
 
 $('logout').addEventListener('click', async () => {
   if (!confirmDiscard()) return;
-  if (!state.offline) await state.client.logout();
+  if (state.client?.viaService) await setServiceMode(null);
+  else if (!state.offline) await state.client.logout();
+  state.client = await makeClient();
   state.filters = [];
   state.dirty = false;
   $('logout').hidden = true;
@@ -510,8 +566,16 @@ $('logout').addEventListener('click', async () => {
   const settings = await loadSettings();
   $('api-base').value = settings.apiBase;
   $('app-version').value = settings.appVersion;
+  $('service-url').value = settings.serviceUrl ?? 'http://localhost:8080';
+  $('service-token').value = settings.serviceToken ?? '';
   state.client = await makeClient();
-  if (await state.client.restore()) {
+  let restored = false;
+  try {
+    restored = await state.client.restore();
+  } catch (error) {
+    toast(error.message, true);
+  }
+  if (restored) {
     try {
       await enterApp();
       return;

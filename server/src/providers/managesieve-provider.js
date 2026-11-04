@@ -12,7 +12,8 @@ function parseIssues(message) {
   for (const raw of String(message).split(/\r?\n/)) {
     const m = /line (\d+):\s*(?:error:\s*)?(.*)/i.exec(raw);
     if (m) issues.push({ line: Number(m[1]), message: m[2].trim() });
-    else if (raw.trim()) issues.push({ line: null, message: raw.trim() });
+    // Dovecot ends with a summary line ("error: validation failed." / "error: parse failed.") that adds nothing
+    else if (raw.trim() && !/^error: (validation|parse) failed\.?$/i.test(raw.trim())) issues.push({ line: null, message: raw.trim() });
   }
   return issues.length ? issues : [{ line: null, message: String(message) }];
 }

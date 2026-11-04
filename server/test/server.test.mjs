@@ -213,6 +213,11 @@ test('unknown folders are rejected with close matches', async () => {
   });
   assert.equal(r.isError, true);
   assert.match(r.content[0].text, /„einkaeufe“ existiert nicht – meintest du „Einkäufe“\?/);
-  const ok = await call('plan_rule', { rule: { conditions: [{ kind: 'address', header: 'from', value: 'a@b.de' }], actions: { fileinto: 'archive' } } });
+  const plain = await mcp.callTool({
+    name: 'plan_rule',
+    arguments: { rule: { conditions: [{ kind: 'address', header: 'from', value: 'a@b.de' }], actions: { fileinto: 'Einkaufe' } } },
+  });
+  assert.match(plain.content[0].text, /meintest du „Einkäufe“\?/);
+  const ok =await call('plan_rule', { rule: { conditions: [{ kind: 'address', header: 'from', value: 'a@b.de' }], actions: { fileinto: 'archive' } } });
   assert.deepEqual(ok.errors, []);
 });

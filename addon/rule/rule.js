@@ -12,6 +12,8 @@ import {
   busy,
   describeSimulation,
   el,
+  capabilitiesOf,
+  dialectOf,
   loadAccountData,
   makeClient,
   pushHistory,
@@ -119,9 +121,9 @@ function renderFolderSelect() {
   const select = $('folder');
   const options = [
     el('option', { value: '' }, '— nicht verschieben —'),
-    el('optgroup', { label: 'Ordner' }, ...state.folders.map((f) => el('option', { value: f }, f))),
+    el('optgroup', { label: 'Ordner' }, ...state.folders.filter((f) => f !== 'INBOX').map((f) => el('option', { value: f }, f))),
     el('optgroup', { label: 'Labels' }, ...state.labels.map((l) => el('option', { value: l }, l))),
-    el('optgroup', { label: 'System' }, ...SYSTEM_FOLDERS.map((f) => el('option', { value: f }, SYSTEM_LABELS[f] ?? f))),
+    el('optgroup', { label: 'System' }, ...(dialectOf(state.client).proton ? SYSTEM_FOLDERS : ['INBOX']).map((f) => el('option', { value: f }, SYSTEM_LABELS[f] ?? f))),
   ];
   select.replaceChildren(...options);
 }
@@ -185,8 +187,12 @@ function render() {
 
   const target = $('target').value;
   $('new-name').hidden = target !== 'new';
+  const caps = capabilitiesOf(state.client);
+  const all = asScripts(state.filters);
   const { plan, after, notes, conflicts, errors } = planRule({
-    scripts: asScripts(state.filters),
+    dialect: dialectOf(state.client),
+    // with a single active script (ManageSieve) only that one runs and is worth changing
+    scripts: caps.multipleActive || target !== 'auto' ? all : all.filter((x) => x.enabled),
     rule,
     target,
     newName: $('new-name').value,
@@ -235,7 +241,11 @@ async function applyPlan() {
     await pushHistory(filter.ID, filter.Name, filter.Sieve);
     await state.client.updateFilter(filter.ID, { Name: filter.Name, Sieve: plan.sieve, Status: filter.Status });
   } else {
-    await state.client.createFilter({ Name: plan.name, Sieve: plan.sieve, Status: 1 });
+    // with a single active script (ManageSieve) a new one must not silently replace the active one
+    const caps = capabilitiesOf(state.client);
+    const activate = caps.multipleActive || !state.filters.some((f) => f.Status === 1);
+    await state.client.createFilter({ Name: plan.name, Sieve: plan.sieve, Status: activate ? 1 : 0 });
+    if (!activate) toast('Neues Skript angelegt, aber nicht aktiviert – es läuft nur ein aktives Skript');
   }
   toast('Regel gespeichert ✓');
   setTimeout(() => window.close(), 1200);
@@ -271,7 +281,9 @@ async function editInManager() {
     const subject = decodeEncodedWords(state.message.headers.subject?.[0] ?? '(kein Betreff)');
     $('mail-subject').textContent = subject;
     $('mail-from').textContent = `${senderName(state.message) || ''} ${state.message.headers.from?.[0] ? `<${state.message.headers.from[0].replace(/^.*<|>.*$/g, '')}>` : ''}`.trim();
-    const current = simulate(asScripts(state.filters), state.message, { labels: state.labels });
+    const caps = capabilitiesOf(state.client);
+    const runnable = asScripts(state.filters).filter((x) => caps.multipleActive || x.enabled);
+    const current = simulate(runnable, state.message, { labels: state.labels, semantics: caps.semantics ?? 'proton' });
     $('current').replaceChildren(
       el('span', {}, `Aktuell: ${describeSimulation(current)}`),
       ...current.fired.filter((f) => !f.test.includes('vnd.proton.spam-threshold')).map((f) => el('div', { class: 'muted small' }, `↳ Filter „${f.script}“, Zeile ${f.line}: ${f.test}`)),

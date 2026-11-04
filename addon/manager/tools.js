@@ -224,7 +224,9 @@ export function installTools(editor, state) {
       const idx = scripts.findIndex((x) => x.id === current.id);
       if (idx === -1) scripts.push(current);
       else scripts[idx] = current;
-      const r = simulate(scripts, message, { labels: state.labels, spamScore: Number(spamInput.value || 0) });
+      // on servers with a single active script only one runs: test the one in the editor as if it were active
+      const runnable = state.caps.multipleActive ? scripts : [{ ...current, enabled: true }];
+      const r = simulate(runnable, message, { labels: state.labels, spamScore: Number(spamInput.value || 0), semantics: state.caps.semantics ?? 'proton' });
       result.replaceChildren(
         el('div', { class: 'sim-headline' }, describeSimulation(r)),
         ...r.fired
@@ -288,7 +290,8 @@ export function installTools(editor, state) {
   // ---------- rule assistant ----------
 
   function folderInput(value) {
-    const options = [...state.folders, ...state.labels, 'inbox', 'archive', 'trash', 'spam'];
+    const system = state.dialect.proton ? ['inbox', 'archive', 'trash', 'spam'] : ['INBOX'];
+    const options = [...new Set([...state.folders, ...state.labels, ...system])];
     if (state.offline || !state.folders.length) {
       const id = `folders-${Math.random().toString(36).slice(2)}`;
       const input = el('input', { value: value ?? '' });
@@ -304,7 +307,8 @@ export function installTools(editor, state) {
   }
 
   $('assistant').addEventListener('click', async () => {
-    let template = RULE_TEMPLATES[0];
+    const templates = RULE_TEMPLATES.filter((t) => state.dialect.proton || !t.protonOnly);
+    let template = templates[0];
     let inputs = {};
     let result = null;
     const form = el('div', { class: 'tpl-form' });
@@ -322,7 +326,9 @@ export function installTools(editor, state) {
 
     const refresh = () => {
       try {
-        const built = buildTemplate(template, values());
+        const params = values();
+        if (!state.dialect.proton) delete params.expireDays;
+        const built = buildTemplate(template, params);
         const current = editor.getValue();
         if (built.code) {
           result = fixRequire(`${current.replace(/\s+$/, '')}\n\n${built.code}\n`);
@@ -353,7 +359,7 @@ export function installTools(editor, state) {
       form.replaceChildren(
         el('h3', {}, t.name),
         el('p', { class: 'muted small' }, t.description),
-        ...t.params.map((p) => {
+        ...t.params.filter((p) => state.dialect.proton || p.id !== 'expireDays').map((p) => {
           let input;
           if (p.type === 'bool') input = el('input', { type: 'checkbox', checked: Boolean(defaults[p.id]) });
           else if (p.type === 'folder') input = folderInput(defaults[p.id]);
@@ -372,7 +378,7 @@ export function installTools(editor, state) {
     list.append(
       ...TEMPLATE_CATEGORIES.flatMap((cat) => [
         el('li', { class: 'tpl-cat' }, cat),
-        ...RULE_TEMPLATES.filter((t) => t.category === cat).map((t) => {
+        ...templates.filter((t) => t.category === cat).map((t) => {
           const li = el('li', { onclick: () => showTemplate(t) }, t.name);
           li.dataset.id = t.id;
           return li;

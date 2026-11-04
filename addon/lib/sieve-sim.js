@@ -41,8 +41,11 @@ export function simulate(scripts, message, options = {}) {
     copies: [], // {folder, flags}
     redirects: [],
   };
+  // the same mailbox twice is stored once; its flags are combined (as Dovecot/Pigeonhole does)
   const storeCopy = (folder, flags) => {
-    if (!state.copies.some((c) => c.folder === folder)) state.copies.push({ folder, flags: [...flags] });
+    const existing = state.copies.find((c) => c.folder === folder);
+    if (existing) existing.flags = [...new Set([...existing.flags, ...flags])];
+    else state.copies.push({ folder, flags: [...flags] });
   };
 
   for (const script of scripts) {

@@ -69,3 +69,9 @@ test('planner on a standard server: merges, no expire, verifies with RFC semanti
   assert.equal(fresh.plan.sieve.includes('spam-threshold'), false);
   assert.match(fresh.plan.sieve, /^require \["fileinto"\];/m);
 });
+
+test('RFC: the same mailbox twice is stored once with combined flags (verified against Dovecot)', () => {
+  const sieve = 'require ["fileinto", "imap4flags"];\nif address :domain :is "from" "otto.de" { fileinto "Shop"; }\nif address :domain :is "from" "otto.de" { addflag "\\Seen"; fileinto "Shop"; }\n';
+  const r = simulate([{ id: 's', name: 'S', sieve }], msg('From: a@otto.de\n'), { semantics: 'rfc' });
+  assert.deepEqual(r.copies, [{ folder: 'Shop', flags: ['\Seen'] }]);
+});
