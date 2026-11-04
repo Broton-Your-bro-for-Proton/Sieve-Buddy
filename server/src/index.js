@@ -94,7 +94,7 @@ export async function startServer(config = loadConfig()) {
   }
 
   async function handleApi(req, res, path) {
-    if (path === '/api/status' && req.method === 'GET') return send(res, 200, account.status());
+    if (path === '/api/status' && req.method === 'GET') return send(res, 200, await account.status());
     if (req.method !== 'POST') return send(res, 405, { error: 'Methode nicht erlaubt' });
     const body = await readBody(req);
     switch (path) {
@@ -104,6 +104,9 @@ export async function startServer(config = loadConfig()) {
         return send(res, 200, await account.submitTotp(String(body.code ?? '')));
       case '/api/login/continue':
         return send(res, 200, await account.continueAfterCaptcha());
+      case '/api/login/reset-guard':
+        await account.guard.reset();
+        return send(res, 200, await account.status());
       case '/api/logout':
         await account.logout();
         return send(res, 200, { ok: true });

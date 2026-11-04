@@ -1,6 +1,7 @@
 // Shared by the manager and the rule-from-mail page: storage, Proton session, toasts, diff rendering.
 
 import { diffHunks, diffStats, lineDiff } from '../lib/diff.js';
+import { LoginGuard } from '../lib/login-guard.js';
 import { DEFAULT_SETTINGS, LABEL_TYPE, ProtonClient } from '../lib/proton-api.js';
 
 export const $ = (id) => document.getElementById(id);
@@ -26,6 +27,8 @@ export async function makeClient() {
     bcrypt: window.dcodeIO.bcrypt,
     store: { load: () => storage.get('session'), save: (s) => storage.set('session', s) },
     settings: await loadSettings(),
+    guard: new LoginGuard({ load: () => storage.get('loginGuard'), save: (s) => storage.set('loginGuard', s) }),
+    onApiError: ({ method, path, status, code, message }) => console.warn(`[proton] ${method} ${path} → HTTP ${status}, Code ${code ?? '-'}: ${message ?? ''}`),
   });
 }
 

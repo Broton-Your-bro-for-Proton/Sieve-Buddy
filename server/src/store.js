@@ -4,6 +4,24 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
+/** Plain JSON file (for non-secret state such as the login guard). */
+export function jsonFileStore(path) {
+  return {
+    async load() {
+      try {
+        return JSON.parse(await readFile(path, 'utf8'));
+      } catch {
+        return null;
+      }
+    },
+    async save(value) {
+      await mkdir(dirname(path), { recursive: true });
+      await writeFile(`${path}.tmp`, JSON.stringify(value));
+      await rename(`${path}.tmp`, path);
+    },
+  };
+}
+
 export function encryptedFileStore(path, secret) {
   const key = scryptSync(secret, 'proton-sieve-session', 32);
   return {

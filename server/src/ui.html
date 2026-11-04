@@ -47,6 +47,11 @@
       <button class="ghost" id="logout" hidden>Proton abmelden</button>
     </div>
     <div id="msg" class="muted"></div>
+    <div id="guard-box" hidden>
+      <p class="bad" id="guard-text"></p>
+      <p class="muted">Bitte zuerst im offiziellen Proton-Login prüfen, ob das Konto normal erreichbar ist. Erst danach die Pause aufheben.</p>
+      <button class="ghost" id="guard-reset">Pause aufheben</button>
+    </div>
 
     <form id="login-form" hidden>
       <label>Proton-Benutzername / E-Mail<input id="username" autocomplete="username" required></label>
@@ -120,6 +125,10 @@
     if (status.captchaUrl) $('captcha-link').href = status.captchaUrl;
     $('filters-box').hidden = !status.loggedIn;
     if (!status.allowWrite) msg('Schreibzugriffe sind deaktiviert (ALLOW_WRITE=false).');
+    const g = status.loginGuard || {};
+    $('guard-box').hidden = !g.blockedUntil || status.loggedIn;
+    if (g.blockedUntil) $('guard-text').textContent = `Anmeldung pausiert bis ${new Date(g.blockedUntil).toLocaleString('de-DE')}: ${g.reason}`;
+    if (g.blockedUntil && !status.loggedIn) $('login-form').hidden = true;
     $('mcp-config').textContent = JSON.stringify({
       mcpServers: { 'proton-sieve': { type: 'http', url: `${location.origin}/mcp`, headers: { Authorization: 'Bearer <API_TOKEN>' } } },
     }, null, 2);
@@ -162,6 +171,11 @@
   });
   $('totp-form').addEventListener('submit', (e) => { e.preventDefault(); step(api('/api/login/totp', { code: $('totp').value })); });
   $('captcha-continue').addEventListener('click', () => step(api('/api/login/continue', {})));
+  $('guard-reset').addEventListener('click', async () => {
+    if (!confirm('Pause wirklich aufheben? Weitere Anmeldungen kurz nach einer Proton-Sperre können das Konto länger sperren.')) return;
+    await api('/api/login/reset-guard', {});
+    refresh();
+  });
   $('logout').addEventListener('click', async () => { await api('/api/logout', {}); msg('Abgemeldet'); refresh(); });
   refresh();
 </script>

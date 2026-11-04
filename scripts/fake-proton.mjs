@@ -46,7 +46,7 @@ export function defaultFilters() {
 }
 
 /**
- * @param {{username?: string, password?: string, totp?: string|null, captcha?: boolean, filters?: object[]}} [options]
+ * @param {{username?: string, password?: string, totp?: string|null, captcha?: boolean, abuse?: boolean, filters?: object[]}} [options]
  */
 export function createFakeProton(options = {}) {
   const username = options.username ?? 'test@proton.local';
@@ -112,6 +112,9 @@ export function createFakeProton(options = {}) {
         const session = id();
         state.srp.set(session, { b, B });
         return reply(200, { Code: 1000, Version: 4, Modulus: fixtures.signedModulus, ServerEphemeral: bytesToBase64(B), Salt: fixtures.salt, SRPSession: session });
+      }
+      if (path === 'core/v4/auth' && options.abuse) {
+        return reply(422, { Code: 2028, Error: 'Our systems detected unusual activity targeting your account. To protect you from potential compromise, we have temporarily limited access to it. If this persists or you believe this is in error, please contact us at https://proton.me/support/appeal-abuse' });
       }
       if (path === 'core/v4/auth') {
         // like Proton: 9001 until the token was solved on the verify page and is sent back as a header

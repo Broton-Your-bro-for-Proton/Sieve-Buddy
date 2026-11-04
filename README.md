@@ -121,6 +121,20 @@ npm run preview                                  # Add-on-Oberfläche unter http
 
 Im Manager unter *Erweitert* als API-Basis `http://127.0.0.1:8790/api` eintragen. Für den Docker-Dienst den Testserver mit `HOST=0.0.0.0` starten und `PROTON_API_BASE=http://host.docker.internal:8790/api` setzen.
 
+## Schutz vor Konto-Sperren
+
+Protons Missbrauchsschutz reagiert auf wiederholte Anmeldungen unbekannter Clients. Bei einem Test am 04.11.2026 hat Proton das Free-Testkonto nach einem Login über den Docker-Dienst vorübergehend eingeschränkt (Meldung „unusual activity“). Der Web-Login ging weiterhin. Deshalb gilt für Add-on und Dienst ein **Login-Wächter** (`addon/lib/login-guard.js`):
+
+- höchstens 3 Passwort-Anmeldungen in 15 Minuten (Captcha und 2FA zählen zum selben Versuch)
+- nach unerwarteten Fehlern wachsende Pausen (5 Min. → 6 Std.)
+- nach einer Missbrauchsmeldung **24 Stunden keine Anmeldeversuche**; blockierte Versuche erreichen Proton gar nicht
+- die Pause lässt sich in der Weboberfläche bewusst aufheben (`POST /api/login/reset-guard`)
+- Protons Fehlercodes landen im Log (`[proton] … Code …`), nie Tokens oder Passwörter
+
+Nach der ersten Anmeldung arbeiten beide nur noch mit dem Refresh-Token. Am wenigsten auffällig ist es, sich **einmal** anzumelden und die Sitzung dann lange zu nutzen.
+
+Protons eigenes Verfahren „Sign in with another device“ (Session Fork per Code) wäre eleganter, verlangt aber die Client-Kennung einer offiziellen Proton-App. Es wird deshalb bewusst nicht genutzt.
+
 ## Bekannte Einschränkungen
 
 - **Getestet gegen ein echtes Proton-Konto ist der Login** (03.11.2026: SRP, App-Kennung `Other`, Captcha). Schreibzugriffe sind gegen einen nachgebauten Proton-Server getestet, aber noch nicht ausführlich gegen das echte.

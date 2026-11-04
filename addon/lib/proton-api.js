@@ -1,6 +1,7 @@
 // Minimal client for the (undocumented) Proton web API: SRP login, 2FA, token refresh and mail filters.
 // Endpoints follow ProtonMail/WebClients (packages/shared/lib/api/{auth,filters}.ts).
 
+import { isAbuseError, noopGuard } from './login-guard.js';
 import { getSrpProofs } from './srp.js';
 
 export const DEFAULT_SETTINGS = {
@@ -35,10 +36,17 @@ export class ProtonClient {
    * @param {object} options.bcrypt  bcryptjs instance
    * @param {{load: () => Promise<object|null>, save: (session: object|null) => Promise<void>}} options.store
    */
-  constructor({ bcrypt, store, settings = {} }) {
+  /**
+   * @param {import('./login-guard.js').LoginGuard} [options.guard] limits password logins (see login-guard.js)
+   * @param {(info: {method: string, path: string, status: number, code?: number, message?: string}) => void} [options.onApiError]
+   *        called for every failed Proton response (never with tokens or passwords)
+   */
+  constructor({ bcrypt, store, settings = {}, guard = noopGuard, onApiError = () => {} }) {
     this.bcrypt = bcrypt;
     this.store = store;
     this.settings = { ...DEFAULT_SETTINGS, ...settings };
+    this.guard = guard;
+    this.onApiError = onApiError;
     this.session = null;
     this.refreshing = null;
   }
@@ -87,6 +95,11 @@ export class ProtonClient {
     }
 
     if (!response.ok || (data && 'Code' in data && !SUCCESS_CODES.has(data.Code))) {
+      try {
+        this.onApiError({ method, path, status: response.status, code: data?.Code, message: data?.Error });
+      } catch {
+        // logging must never break a request
+      }
       throw new ProtonApiError(data?.Error || `HTTP ${response.status}`, {
         status: response.status,
         code: data?.Code,
@@ -103,6 +116,19 @@ export class ProtonClient {
    * Throws ProtonApiError with needsHumanVerification when Proton asks for a captcha.
    */
   async login(username, password, humanVerification) {
+    // the captcha continuation belongs to the same attempt
+    if (!humanVerification) await this.guard.beforeAttempt();
+    try {
+      const result = await this.#login(username, password, humanVerification);
+      await this.guard.onSuccess();
+      return result;
+    } catch (error) {
+      await this.guard.onError(error);
+      throw error;
+    }
+  }
+
+  async #login(username, password, humanVerification) {
     const hvHeaders = humanVerification
       ? {
           'x-pm-human-verification-token': humanVerification.token,
@@ -163,7 +189,12 @@ export class ProtonClient {
 
   async submitTotp(code) {
     if (!this.session?.pending2FA) throw new ProtonApiError('Keine Anmeldung wartet auf einen 2FA-Code');
-    await this.request('POST', 'core/v4/auth/2fa', { body: { TwoFactorCode: code.trim() }, retry: false });
+    try {
+      await this.request('POST', 'core/v4/auth/2fa', { body: { TwoFactorCode: code.trim() }, retry: false });
+    } catch (error) {
+      await this.guard.onError(error);
+      throw error;
+    }
     this.session.pending2FA = false;
     await this.store.save(this.session);
   }
@@ -190,6 +221,7 @@ export class ProtonClient {
           };
           await this.store.save(this.session);
         } catch (error) {
+          if (isAbuseError(error)) await this.guard.onError(error);
           if (error.status === 400 || error.status === 401 || error.status === 422) {
             this.session = null;
             await this.store.save(null);

@@ -3,8 +3,9 @@
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 
+import { LoginGuard } from '../../addon/lib/login-guard.js';
 import { LABEL_TYPE, ProtonClient } from '../../addon/lib/proton-api.js';
-import { encryptedFileStore } from './store.js';
+import { encryptedFileStore, jsonFileStore } from './store.js';
 
 const bcrypt = createRequire(import.meta.url)('bcryptjs');
 const CACHE_MS = 30_000;
@@ -14,7 +15,14 @@ export class Account {
   constructor(config) {
     this.config = config;
     this.store = encryptedFileStore(join(config.dataDir, 'session.json'), config.secret);
-    this.client = new ProtonClient({ bcrypt, store: this.store, settings: config.proton });
+    this.guard = new LoginGuard(jsonFileStore(join(config.dataDir, 'login-guard.json')));
+    this.client = new ProtonClient({
+      bcrypt,
+      store: this.store,
+      settings: config.proton,
+      guard: this.guard,
+      onApiError: ({ method, path, status, code, message }) => console.warn(`[proton] ${method} ${path} → HTTP ${status}, Code ${code ?? '-'}: ${message ?? ''}`),
+    });
     this.pending = null; // {username, password, hv?, expires}
     this.cache = null;
     this.writeLock = Promise.resolve();
@@ -24,8 +32,9 @@ export class Account {
     await this.client.restore();
   }
 
-  status() {
+  async status() {
     return {
+      loginGuard: await this.guard.status(),
       loggedIn: this.client.isLoggedIn,
       username: this.client.session?.username ?? null,
       pending: this.pending && Date.now() < this.pending.expires ? this.pending.step : null,
