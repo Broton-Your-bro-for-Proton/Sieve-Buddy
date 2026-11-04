@@ -149,7 +149,7 @@ cd server && DOVECOT_TEST=127.0.0.1:14190:10993 DOVECOT_CONTAINER=sieve-dovecot 
 
 ## Bekannte Einschränkungen
 
-- **Proton:** Der Login ist gegen ein echtes Konto getestet. Schreibzugriffe sind bisher nur gegen den Proton-Ersatz getestet.
+- **Proton:** gegen ein echtes (Free-)Konto getestet (04.11.2026): Sitzungsübergabe ans Add-on/den Dienst, Lesen, Protons Prüfung, Einreihen, Umbenennen, Ablehnen kaputter Skripte, Löschen. Free-Konten erlauben nur **einen aktiven Filter**; über dem Limit legt Proton neue Filter deaktiviert an (Code 50016) – der Dienst meldet das als „angelegt, aber deaktiviert“.
 - Die PGP-Signatur des SRP-Modulus wird noch nicht geprüft (go-srp prüft sie).
 - Proton-2FA nur per TOTP; menschliche Verifizierung nur per Captcha.
 - ManageSieve-Anmeldung nur per SASL PLAIN, über TLS. Kein OAUTHBEARER oder SCRAM.

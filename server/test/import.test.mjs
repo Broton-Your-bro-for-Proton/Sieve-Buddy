@@ -90,3 +90,22 @@ test('password login in the service is off by default', async () => {
   assert.equal(r.status, 400);
   assert.match(r.body.error, /Passwort-Login im Dienst ist abgeschaltet/);
 });
+
+test('free-plan limit: Proton creates the filter disabled and answers 50016 – reported as created', async () => {
+  const { createFakeProton } = await import('../../scripts/fake-proton.mjs');
+  const { ProtonClient } = await import('../../addon/lib/proton-api.js');
+  const { ProtonProvider } = await import('../../addon/lib/providers/proton-provider.js');
+  const limited = createFakeProton({ maxActive: 1 });
+  const api = await limited.listen();
+  try {
+    const client = new ProtonClient({ bcrypt, store: memory(), settings: { apiBase: api } });
+    await client.login('test@proton.local', 'test123');
+    const provider = new ProtonProvider(client);
+    const r = await provider.createScript({ name: 'zz', sieve: '# x\n', enabled: true });
+    assert.equal(r.enabled, false);
+    assert.match(r.warning, /deaktiviert/);
+    assert.equal(limited.state.filters.filter((f) => f.Name === 'zz').length, 1, 'no duplicate');
+  } finally {
+    await limited.close();
+  }
+});

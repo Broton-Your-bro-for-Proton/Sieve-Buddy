@@ -232,7 +232,12 @@ async function savePlanned(account, planned) {
     }
     const enabled = account.provider.capabilities.multipleActive ? true : Boolean(planned.activate);
     const created = await account.provider.createScript({ name: planned.target.name, sieve: planned.sieve, enabled });
-    return { saved: true, ...planned, target: { id: created?.id ?? null, name: planned.target.name, enabled } };
+    return {
+      saved: true,
+      ...planned,
+      target: { id: created?.id ?? null, name: planned.target.name, enabled: created?.enabled ?? enabled },
+      ...(created?.warning ? { warning: created.warning } : {}),
+    };
   });
 }
 

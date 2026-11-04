@@ -46,7 +46,7 @@ export function defaultFilters() {
 }
 
 /**
- * @param {{username?: string, password?: string, totp?: string|null, captcha?: boolean, abuse?: boolean, filters?: object[]}} [options]
+ * @param {{username?: string, password?: string, totp?: string|null, captcha?: boolean, abuse?: boolean, maxActive?: number, filters?: object[]}} [options]
  */
 export function createFakeProton(options = {}) {
   const username = options.username ?? 'test@proton.local';
@@ -190,6 +190,11 @@ export function createFakeProton(options = {}) {
       if (path === 'mail/v4/filters' && req.method === 'POST') {
         if (lintSieve(body.Sieve ?? '').some((i) => i.severity === 'error')) return reply(422, { Code: 2001, Error: 'Invalid sieve' });
         const f = { ID: `f-${id()}`, Name: body.Name, Status: body.Status ?? 1, Priority: state.filters.length + 1, Version: 2, Sieve: body.Sieve };
+        // like Proton's free plan: over the limit the filter is still created, but disabled, and 50016 is returned
+        if (options.maxActive !== undefined && state.filters.filter((x) => x.Status === 1).length >= options.maxActive) {
+          state.filters.push({ ...f, Status: 0 });
+          return reply(422, { Code: 50016, Error: 'Too many active filters' });
+        }
         state.filters.push(f);
         return reply(200, { Code: 1000, Filter: f });
       }
