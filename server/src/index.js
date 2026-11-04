@@ -104,6 +104,8 @@ export async function startServer(config = loadConfig()) {
         return send(res, 200, await account.submitTotp(String(body.code ?? '')));
       case '/api/login/continue':
         return send(res, 200, await account.continueAfterCaptcha());
+      case '/api/session/import':
+        return send(res, 200, await account.importSession(body));
       case '/api/login/reset-guard':
         await account.guard.reset();
         return send(res, 200, await account.status());
@@ -120,6 +122,18 @@ export async function startServer(config = loadConfig()) {
 
   const server = createServer(async (req, res) => {
     const path = new URL(req.url, 'http://local').pathname;
+    // the Thunderbird add-on hands its session over from a moz-extension:// page
+    const origin = req.headers.origin ?? '';
+    const allowedOrigin = origin.startsWith('moz-extension://') || config.corsOrigins?.includes(origin);
+    if (allowedOrigin && (path === '/api/session/import' || path === '/api/status')) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204);
+        return res.end();
+      }
+    }
     try {
       if (path === '/health') return send(res, 200, { ok: true, loggedIn: account.client.isLoggedIn });
       if (path === '/' && req.method === 'GET') return send(res, 200, ui, 'text/html; charset=utf-8');

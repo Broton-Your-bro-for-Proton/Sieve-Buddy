@@ -2,6 +2,7 @@ import { fixRequire, getCompletions, lintSieve } from '../lib/sieve-analyzer.js'
 import { SPAM_GUARD, SPAM_GUARD_REQUIRE, formatList, newScript } from '../lib/sieve-dialect.js';
 import { $, busy, loadAccountData, loadSettings, makeClient, pushHistory, storage, toast } from '../shared/env.js';
 import { DEFAULT_SETTINGS } from '../lib/proton-api.js';
+import { installHandover } from './handover.js';
 import { confirmDiff, installTools } from './tools.js';
 
 const CodeMirror = window.CodeMirror;
@@ -367,6 +368,7 @@ async function enterApp() {
   $('check').hidden = false;
   $('account').textContent = state.client.session?.username ?? '';
   $('logout').hidden = false;
+  $('handover').hidden = false;
   show('app');
   await reloadFilters();
   await loadDraft();
@@ -378,6 +380,7 @@ async function enterOffline() {
   $('check').hidden = true;
   $('account').textContent = 'Offline';
   $('logout').hidden = false;
+  $('handover').hidden = true;
   show('app');
   await reloadFilters();
   await loadDraft();
@@ -478,12 +481,25 @@ $('captcha-continue').addEventListener('click', (e) =>
 
 $('offline').addEventListener('click', () => enterOffline().catch((e) => toast(e.message, true)));
 
+installHandover({
+  getClient: () => state.client,
+  onHandedOver: () => {
+    state.filters = [];
+    state.dirty = false;
+    $('logout').hidden = true;
+    $('handover').hidden = true;
+    $('account').textContent = '';
+    show('login');
+  },
+});
+
 $('logout').addEventListener('click', async () => {
   if (!confirmDiscard()) return;
   if (!state.offline) await state.client.logout();
   state.filters = [];
   state.dirty = false;
   $('logout').hidden = true;
+  $('handover').hidden = true;
   $('account').textContent = '';
   show('login');
 });

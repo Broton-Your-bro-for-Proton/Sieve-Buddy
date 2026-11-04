@@ -131,7 +131,7 @@ Protons Missbrauchsschutz reagiert auf wiederholte Anmeldungen unbekannter Clien
 - die Pause lässt sich in der Weboberfläche bewusst aufheben (`POST /api/login/reset-guard`)
 - Protons Fehlercodes landen im Log (`[proton] … Code …`), nie Tokens oder Passwörter
 
-Nach der ersten Anmeldung arbeiten beide nur noch mit dem Refresh-Token. Am wenigsten auffällig ist es, sich **einmal** anzumelden und die Sitzung dann lange zu nutzen.
+Nach der ersten Anmeldung arbeiten beide nur noch mit dem Refresh-Token. **Der Dienst muss sich gar nicht selbst anmelden:** Im Manager des Add-ons übergibt „An Dienst übergeben“ die bestehende Sitzung (Adresse und API-Token des Dienstes eingeben). Das Add-on ist danach abgemeldet, weil Proton den Refresh-Token bei jeder Nutzung erneuert und zwei Programme ihn nicht teilen können. Am wenigsten auffällig ist es, sich **einmal** anzumelden und die Sitzung dann lange zu nutzen.
 
 Protons eigenes Verfahren „Sign in with another device“ (Session Fork per Code) wäre eleganter, verlangt aber die Client-Kennung einer offiziellen Proton-App. Es wird deshalb bewusst nicht genutzt.
 

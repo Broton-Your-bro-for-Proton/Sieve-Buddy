@@ -96,6 +96,30 @@ export class Account {
     await this.client.logout();
   }
 
+  /**
+   * Takes over a session from another client (the Thunderbird add-on), so the service never has to do a
+   * password login of its own. Proton rotates refresh tokens, so the sender must stop using it afterwards.
+   * The session is checked with one cheap call before it is stored.
+   */
+  async importSession({ UID, AccessToken, RefreshToken, username }) {
+    if (typeof UID !== 'string' || typeof RefreshToken !== 'string' || !UID || !RefreshToken) {
+      throw new Error('UID und RefreshToken der Sitzung fehlen');
+    }
+    const previous = this.client.session;
+    this.client.session = { UID, AccessToken: AccessToken ?? null, RefreshToken, username: username ?? null, pending2FA: false };
+    try {
+      // without an access token the first call refreshes, which also takes ownership of the session
+      await this.client.listLabels(LABEL_TYPE.FOLDER);
+    } catch (error) {
+      this.client.session = previous;
+      throw new Error(`Die Sitzung wurde von Proton nicht angenommen: ${error.message}`);
+    }
+    await this.store.save(this.client.session);
+    this.pending = null;
+    this.cache = null;
+    return { imported: true, username: this.client.session.username };
+  }
+
   // ---------- data ----------
 
   requireLogin() {

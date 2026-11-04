@@ -38,5 +38,9 @@
   "icons": {
     "32": "icons/icon.svg",
     "64": "icons/icon.svg"
-  }
+  },
+  "optional_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ]
 }

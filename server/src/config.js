@@ -25,6 +25,8 @@ export function loadConfig() {
     // encrypts the stored Proton session; falls back to the API token
     secret: env.SESSION_SECRET || apiToken,
     allowWrite: env.ALLOW_WRITE !== 'false',
+    // extra origins allowed to hand over a session (the add-on's moz-extension:// origin always is)
+    corsOrigins: (env.CORS_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     proton: {
       apiBase: env.PROTON_API_BASE ?? 'https://mail.proton.me/api',
       appVersion: env.PROTON_APP_VERSION ?? 'Other',
