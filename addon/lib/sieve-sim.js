@@ -1,11 +1,16 @@
-// Sieve simulator for Proton's dialect: runs the user's filters against a message's headers and reports
-// where it would end up and which rules fired. Mirrors Proton's documented semantics (keep, discard, stop,
-// labels vs. folders, flags applied at fileinto time). Contact lists are unknown unless a resolver is given.
+// Sieve simulator: runs the user's filters against a message's headers and reports where it would end up
+// and which rules fired. Two semantics:
+//   proton – Proton's documented behaviour (one folder, labels, keep only cancels discard, flags at fileinto)
+//   rfc    – RFC 5228 (implicit keep, every fileinto/keep stores a copy, discard cancels the implicit keep)
+// Contact lists are unknown unless a resolver is given.
 
 import { lineOf, parseSieve } from './sieve-ast.js';
 import { addressPart, decodeEncodedWords, parseAddresses } from './mail.js';
 
 const SYSTEM = { inbox: 'Posteingang', archive: 'Archiv', trash: 'Papierkorb', spam: 'Spam', starred: 'Markiert' };
+
+// tagged arguments that are followed by their own value
+const VALUE_TAGS = new Set([':comparator', ':value', ':count', ':zone', ':days', ':subject', ':handle', ':flags', ':from', ':addresses', ':seconds', ':importance', ':options', ':message', ':header', ':uniqueid', ':index', ':specialuse']);
 
 class Stop extends Error {}
 class Return extends Error {}
@@ -13,9 +18,10 @@ class Return extends Error {}
 /**
  * @param {Array<{id: string, name: string, sieve: string, enabled?: boolean}>} scripts in Proton's order
  * @param {import('./mail.js').SieveMessage} message
- * @param {{labels?: string[], spamScore?: number, spamThreshold?: string, now?: Date, isInList?: (spec: string, address: string) => boolean|undefined}} [options]
+ * @param {{semantics?: 'proton'|'rfc', labels?: string[], spamScore?: number, spamThreshold?: string, now?: Date, isInList?: (spec: string, address: string) => boolean|undefined}} [options]
  */
 export function simulate(scripts, message, options = {}) {
+  const rfc = options.semantics === 'rfc';
   const labels = new Set(options.labels ?? []);
   const state = {
     folder: null,
@@ -30,6 +36,13 @@ export function simulate(scripts, message, options = {}) {
     stoppedBy: null,
     fired: [],
     notes: [],
+    // rfc
+    implicitKeep: true,
+    copies: [], // {folder, flags}
+    redirects: [],
+  };
+  const storeCopy = (folder, flags) => {
+    if (!state.copies.some((c) => c.folder === folder)) state.copies.push({ folder, flags: [...flags] });
   };
 
   for (const script of scripts) {
@@ -49,6 +62,13 @@ export function simulate(scripts, message, options = {}) {
       if (e instanceof Stop) stopped = true;
       else if (!(e instanceof Return)) throw e;
     }
+    if (rfc) {
+      if (state.rejected || stopped) {
+        state.stoppedBy ??= { script: script.name, reason: state.rejected ? 'reject' : 'stop' };
+        break;
+      }
+      continue;
+    }
     if (ctx.discard && !ctx.keep) {
       if (!state.filedOrKept) state.discarded = true;
       state.stoppedBy ??= { script: script.name, reason: 'discard' };
@@ -60,8 +80,37 @@ export function simulate(scripts, message, options = {}) {
     }
   }
 
+  if (rfc) {
+    if (state.implicitKeep && !state.rejected) storeCopy('INBOX', state.flags);
+    const folders = state.copies.map((c) => c.folder);
+    const location = state.rejected
+      ? 'abgewiesen'
+      : folders.length
+        ? folders.join(' + ')
+        : state.redirects.length
+          ? `weitergeleitet an ${state.redirects.join(', ')}`
+          : 'gelöscht';
+    return {
+      location,
+      folder: folders.find((f) => f !== 'INBOX') ?? folders[0] ?? null,
+      folders,
+      copies: state.copies,
+      labels: [],
+      flags: state.copies[0]?.flags ?? [...state.flags],
+      expireDays: null,
+      rejected: state.rejected,
+      redirects: state.redirects,
+      vacation: state.vacation,
+      discarded: !folders.length && !state.redirects.length && !state.rejected,
+      stoppedBy: state.stoppedBy,
+      fired: state.fired,
+      notes: state.notes,
+    };
+  }
+
   const location = state.rejected ? 'abgewiesen' : state.discarded ? 'gelöscht' : SYSTEM[state.folder ?? 'inbox'] ?? state.folder;
   return {
+    folders: state.discarded || state.rejected ? [] : [state.folder ?? 'inbox'],
     location,
     folder: state.folder,
     labels: [...state.labels],
@@ -112,15 +161,35 @@ export function simulate(scripts, message, options = {}) {
       case 'return':
         throw new Return();
       case 'keep':
+        if (rfc) {
+          state.implicitKeep = false;
+          storeCopy('INBOX', tags[':flags'] ? strs(c.args[c.args.findIndex((a) => a.value === ':flags') + 1]) : state.flags);
+          return;
+        }
         ctx.keep = true;
         state.filedOrKept = true;
         state.filedFlags = new Set(state.flags);
         return;
       case 'discard':
+        if (rfc) {
+          state.implicitKeep = false;
+          return;
+        }
         ctx.discard = true;
         return;
+      case 'redirect': {
+        state.redirects.push(str(0));
+        if (!tags[':copy']) state.implicitKeep = false;
+        return;
+      }
       case 'fileinto': {
         const target = str(0);
+        if (rfc) {
+          const flagsIdx = c.args.findIndex((a) => a.value === ':flags');
+          storeCopy(target, flagsIdx >= 0 ? strs(c.args[flagsIdx + 1]).map((x) => expand(x, ctx)) : state.flags);
+          if (!tags[':copy']) state.implicitKeep = false;
+          return;
+        }
         const lower = target.toLowerCase();
         if (lower === 'drafts' || lower === 'sent') {
           state.notes.push(`fileinto „${target}“ wird von Proton ignoriert`);
@@ -312,7 +381,7 @@ function tagsOf(args) {
     const a = args[i];
     if (a.type !== 'tag') continue;
     const next = args[i + 1];
-    if ([':comparator', ':value', ':count', ':zone', ':days', ':subject', ':handle'].includes(a.value) && next && next.type !== 'tag') {
+    if (VALUE_TAGS.has(a.value) && next && next.type !== 'tag') {
       tags[a.value] = next.type === 'list' ? next.items[0]?.value : next.value;
       i++;
     } else {
@@ -327,7 +396,7 @@ function positional(args) {
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a.type === 'tag') {
-      if ([':comparator', ':value', ':count', ':zone', ':days', ':subject', ':handle'].includes(a.value)) i++;
+      if (VALUE_TAGS.has(a.value)) i++;
       continue;
     }
     out.push(a);

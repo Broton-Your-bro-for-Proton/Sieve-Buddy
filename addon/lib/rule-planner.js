@@ -2,7 +2,7 @@
 // Shared by the Thunderbird "rule from mail" window and the MCP server.
 
 import { fixRequire, lintSieve } from './sieve-analyzer.js';
-import { newScript } from './sieve-dialect.js';
+import { PROTON_DIALECT, newScript } from './sieve-dialect.js';
 import { insertRuleBefore, mergeRuleIntoScript, proposeRule, ruleReached, ruleToSieve } from './sieve-rules.js';
 import { simulate } from './sieve-sim.js';
 
@@ -33,17 +33,22 @@ const defaultName = (rule) => (rule.actions.fileinto ? `→ ${rule.actions.filei
  * @param {string} [p.newName]
  * @param {import('./mail.js').SieveMessage} [p.message]  sample mail to verify the result with
  * @param {string[]} [p.labels]
+ * @param {object} [p.dialect]  see makeDialect – template for new scripts, simulation semantics, linting
  * @returns {{plan: object, after: object|null, notes: string[], conflicts: object[], errors: object[]}}
  */
-export function planRule({ scripts, rule, target = 'auto', newName, message, labels = [] }) {
+export function planRule({ scripts, rule, target = 'auto', newName, message, labels = [], dialect = PROTON_DIALECT }) {
   if (!rule.conditions?.length) throw new Error('Mindestens eine Bedingung angeben');
+  if (!dialect.proton && rule.actions?.expireDays) throw new Error('Automatisches Löschen (expire) gibt es nur bei Proton');
+  if (!dialect.proton && (rule.actions?.seen || rule.actions?.flagged) && !dialect.extensions.has('imap4flags')) {
+    throw new Error('Der Server bietet imap4flags nicht an – „als gelesen“ und „Stern“ gehen nicht');
+  }
   let plan;
   if (target === 'new' || !scripts.length) {
     plan = {
       targetId: null,
       name: newName?.trim() || defaultName(rule),
       before: '',
-      sieve: fixRequire(`${newScript()}\n${ruleToSieve(rule)}\n`),
+      sieve: fixRequire(`${newScript('', dialect)}\n${ruleToSieve(rule)}\n`),
       steps: rule.conditions.map((condition) => ({ condition, kind: 'new-block' })),
     };
   } else if (target !== 'auto') {
@@ -60,7 +65,7 @@ export function planRule({ scripts, rule, target = 'auto', newName, message, lab
     const run = (p) => {
       const all = scripts.map((s) => (s.id === p.targetId ? { ...s, sieve: p.sieve } : s));
       if (!p.targetId) all.push({ id: 'new', name: p.name, sieve: p.sieve, enabled: true });
-      return simulate(all, message, { labels });
+      return simulate(all, message, { labels, semantics: dialect.proton ? 'proton' : 'rfc' });
     };
     after = run(plan);
     if (!ruleReached(after, rule.actions)) {
@@ -81,7 +86,7 @@ export function planRule({ scripts, rule, target = 'auto', newName, message, lab
   }
 
   const conflicts = rule.conditions.length === 1 ? proposeRule(scripts, rule).conflicts : [];
-  const errors = lintSieve(plan.sieve).filter((i) => i.severity === 'error');
+  const errors = lintSieve(plan.sieve, { dialect }).filter((i) => i.severity === 'error');
   return { plan, after, notes, conflicts, errors };
 }
 

@@ -1,11 +1,13 @@
-// Tokenizer, linter, autocompletion and require-fixer for Proton's Sieve dialect.
+// Tokenizer, linter, autocompletion and require-fixer for Sieve (Proton's dialect or a standard server's).
 // Pure functions on plain text and character offsets, so they run in Node tests and in the add-on.
 
 import {
   COMMANDS,
   DATE_PARTS,
   EXPIRE_UNITS,
-  EXTENSIONS,
+  ALL_EXTENSIONS,
+  PROTON_DIALECT,
+  PROTON_ONLY_COMMANDS,
   FLAGS,
   HEADERS,
   LIST_SPECS,
@@ -122,7 +124,7 @@ function stringsOf(tokens, from) {
 }
 
 /** Splits the token stream into statements and records which extensions each feature needs. */
-function analyze(tokens) {
+function analyze(tokens, dialect = PROTON_DIALECT) {
   const issues = [];
   const used = new Map(); // extension -> first token using it
   const required = new Map(); // extension -> token
@@ -204,7 +206,9 @@ function analyze(tokens) {
         if (sawNonRequire) issue(t, 'require muss am Anfang des Skripts stehen');
         requireStatements.push(t);
         for (const s of stringsOf(tokens, i + 1)) {
-          if (!EXTENSIONS[s.value]) issue(s, `Erweiterung „${s.value}“ wird von Proton nicht unterstützt`);
+          if (!dialect.extensions.has(s.value.toLowerCase())) {
+            issue(s, dialect.proton ? `Erweiterung „${s.value}“ wird von Proton nicht unterstützt` : `Erweiterung „${s.value}“ wird von diesem Server nicht angeboten`);
+          }
           required.set(s.value, s);
         }
       } else {
@@ -257,7 +261,7 @@ function analyze(tokens) {
       current.argsEnd = i;
       const block = blocks[blocks.length - 1];
       if (current.command === 'fileinto' || current.command === 'keep') block.sawFileinto = true;
-      if (['addflag', 'setflag', 'removeflag'].includes(current.command) && block.sawFileinto) {
+      if (dialect.proton && ['addflag', 'setflag', 'removeflag'].includes(current.command) && block.sawFileinto) {
         issue(current.token, 'Flag-Änderungen nach fileinto/keep werden von Proton ignoriert – vorher setzen', 'warning');
       }
       finishStatement();
@@ -284,7 +288,7 @@ function analyze(tokens) {
   return { issues, used, required, requireStatements, statements };
 }
 
-function statementChecks(tokens, statements, { folders } = {}) {
+function statementChecks(tokens, statements, { folders, dialect = PROTON_DIALECT } = {}) {
   const issues = [];
   const issue = (token, message, severity = 'warning') =>
     issues.push({ start: token.start, end: token.end, message, severity });
@@ -299,15 +303,17 @@ function statementChecks(tokens, statements, { folders } = {}) {
         if (!target) break;
         const name = target.value;
         const lower = name.toLowerCase();
-        if (lower === 'drafts' || lower === 'sent') issue(target, `„${name}“ wird von Proton bei fileinto ignoriert`);
-        else if (folders && !name.includes('${') && !SYSTEM_FOLDERS.includes(lower) && !folders.includes(name)) {
-          issue(target, `Ordner/Label „${name}“ existiert in Proton nicht – fileinto würde nichts tun`);
+        const createsIt = dialect.proton ? false : st.tags.includes(':create');
+        if (dialect.proton && (lower === 'drafts' || lower === 'sent')) issue(target, `„${name}“ wird von Proton bei fileinto ignoriert`);
+        else if (folders && !createsIt && !name.includes('${') && !(dialect.proton ? SYSTEM_FOLDERS.includes(lower) : lower === 'inbox') && !folders.includes(name)) {
+          issue(target, dialect.proton ? `Ordner/Label „${name}“ existiert in Proton nicht – fileinto würde nichts tun` : `Ordner „${name}“ existiert nicht – :create ergänzen oder Ordner anlegen`);
         }
         break;
       }
       case 'addflag':
       case 'removeflag':
       case 'setflag':
+        if (!dialect.proton) break;
         for (const s of strings) {
           if (!s.value.includes('${') && s.value !== '\\Seen' && s.value !== '\\Flagged') {
             issue(s, `Proton unterstützt nur die Flags \\\\Seen und \\\\Flagged, nicht „${s.value}“`);
@@ -315,6 +321,7 @@ function statementChecks(tokens, statements, { folders } = {}) {
         }
         break;
       case 'expire': {
+        if (!dialect.proton) break;
         const [unit, amount] = strings;
         if (unit && !EXPIRE_UNITS.includes(unit.value)) issue(unit, `Einheit muss eine von ${EXPIRE_UNITS.join(', ')} sein`, 'error');
         if (unit?.value === 'day' && amount && Number(amount.value) > MAX_EXPIRE_DAYS) {
@@ -323,13 +330,13 @@ function statementChecks(tokens, statements, { folders } = {}) {
         break;
       }
       case 'keep':
-        issue(st.token, 'keep hebt bei Proton nur ein discard auf – es legt keine Kopie im Posteingang ab', 'info');
+        if (dialect.proton) issue(st.token, 'keep hebt bei Proton nur ein discard auf – es legt keine Kopie im Posteingang ab', 'info');
         break;
       case 'discard':
-        issue(st.token, 'Nach discard laufen keine weiteren Proton-Filter mehr', 'info');
+        if (dialect.proton) issue(st.token, 'Nach discard laufen keine weiteren Proton-Filter mehr', 'info');
         break;
       case 'stop':
-        issue(st.token, 'stop beendet auch alle nachfolgenden Filter', 'info');
+        if (dialect.proton) issue(st.token, 'stop beendet auch alle nachfolgenden Filter', 'info');
         break;
       default:
         break;
@@ -338,7 +345,7 @@ function statementChecks(tokens, statements, { folders } = {}) {
 
   // :regex shorthands Proton does not support
   for (let i = 0; i < tokens.length; i++) {
-    if (tokens[i].value !== ':regex') continue;
+    if (tokens[i].value !== ':regex' || !dialect.proton) continue;
     for (let j = i + 1; j < tokens.length && tokens[j].value !== '{' && tokens[j].value !== ';'; j++) {
       const t = tokens[j];
       if (t.type === 'string' && /\\[dwWb]/.test(t.value)) {
@@ -361,7 +368,7 @@ function statementChecks(tokens, statements, { folders } = {}) {
 /**
  * Lints a Proton Sieve script.
  * @param {string} text
- * @param {{folders?: string[]}} [options] known Proton folder/label paths, to flag unknown fileinto targets
+ * @param {{folders?: string[], dialect?: object}} [options] known folder/label paths (flags unknown fileinto targets) and the dialect (see makeDialect)
  * @returns {Array<{start: number, end: number, message: string, severity: 'error'|'warning'|'info'}>}
  */
 export function lintSieve(text, options = {}) {
@@ -369,9 +376,20 @@ export function lintSieve(text, options = {}) {
   const issues = errors.map((e) => ({ ...e, severity: 'error' }));
   if (!tokens.length) return issues;
 
-  const result = analyze(tokens);
+  const dialect = options.dialect ?? PROTON_DIALECT;
+  const result = analyze(tokens, dialect);
   issues.push(...result.issues);
-  issues.push(...statementChecks(tokens, result.statements, options));
+  issues.push(...statementChecks(tokens, result.statements, { ...options, dialect }));
+  if (!dialect.proton) {
+    for (const st of result.statements) {
+      if (PROTON_ONLY_COMMANDS.has(st.command)) issues.push({ start: st.token.start, end: st.token.end, message: `„${st.command}“ gibt es nur bei Proton`, severity: 'error' });
+    }
+    for (const t of tokens) {
+      if (t.type === 'identifier' && PROTON_ONLY_COMMANDS.has(t.value) && !result.statements.some((st) => st.token === t)) {
+        issues.push({ start: t.start, end: t.end, message: `„${t.value}“ gibt es nur bei Proton`, severity: 'error' });
+      }
+    }
+  }
 
   for (const [ext, token] of result.used) {
     if (!result.required.has(ext)) {
@@ -383,11 +401,11 @@ export function lintSieve(text, options = {}) {
       });
     }
   }
-  if (result.requireStatements.length > 1) {
+  if (dialect.proton && result.requireStatements.length > 1) {
     const second = result.requireStatements[1];
     issues.push({ start: second.start, end: second.end, message: 'Proton erwartet ein einziges require – mit „require ergänzen“ zusammenführen', severity: 'warning' });
   }
-  if (!text.includes('vnd.proton.spam-threshold')) {
+  if (dialect.proton && !text.includes('vnd.proton.spam-threshold')) {
     issues.push({ start: 0, end: Math.min(text.length, 1), message: 'Spam-Schutz-Block fehlt – der Filter läuft dann auch auf Spam', severity: 'warning' });
   }
 
@@ -425,6 +443,9 @@ export function fixRequire(text) {
 // ---------- Autocompletion ----------
 
 const item = (text, displayText, className) => ({ text, displayText: displayText ?? text, className });
+
+const extensionsFor = (context) =>
+  [...(context.dialect ?? PROTON_DIALECT).extensions].sort().map((ext) => [ext, ALL_EXTENSIONS[ext] ?? 'Erweiterung des Servers']);
 
 function filterByPrefix(items, prefix) {
   const p = prefix.toLowerCase();
@@ -466,7 +487,7 @@ export function getCompletions(text, cursor, context = {}) {
     return {
       from,
       to: cursor,
-      list: Object.entries(EXTENSIONS).map(([ext, doc]) => item(`"${ext}"`, `${ext} — ${doc}`, 'cm-hint-ext')),
+      list: extensionsFor(context).map(([ext, doc]) => item(`"${ext}"`, `${ext} — ${doc}`, 'cm-hint-ext')),
     };
   }
 
@@ -508,7 +529,8 @@ function isInTest(tokens) {
 }
 
 /** Candidates for the string being typed at tokens[index]. */
-function stringCandidates(tokens, index, { folders = [], labels = [] }) {
+function stringCandidates(tokens, index, context) {
+  const { folders = [], labels = [] } = context;
   const prev = tokens[index - 1];
   if (prev?.value === ':value' || prev?.value === ':count') return RELATIONAL_OPS.map((op) => item(op));
   if (prev?.value === ':comparator') return COMPARATORS.map((c) => item(c));
@@ -545,10 +567,10 @@ function stringCandidates(tokens, index, { folders = [], labels = [] }) {
 
   switch (owner) {
     case 'require':
-      return Object.entries(EXTENSIONS).map(([ext, doc]) => item(ext, `${ext} — ${doc}`, 'cm-hint-ext'));
+      return extensionsFor(context).map(([ext, doc]) => item(ext, `${ext} — ${doc}`, 'cm-hint-ext'));
     case 'fileinto':
       return [
-        ...SYSTEM_FOLDERS.map((f) => item(f, `${f} (System)`, 'cm-hint-folder')),
+        ...((context.dialect ?? PROTON_DIALECT).proton ? SYSTEM_FOLDERS : ['INBOX']).map((f) => item(f, `${f} (System)`, 'cm-hint-folder')),
         ...folders.map((f) => item(f, `${f} (Ordner)`, 'cm-hint-folder')),
         ...labels.map((l) => item(l, `${l} (Label)`, 'cm-hint-label')),
       ];

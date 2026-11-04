@@ -350,7 +350,8 @@ export function insertRuleBefore(sieve, line, rule, { stop = false } = {}) {
 /** Whether a simulation result shows the rule's actions took effect. */
 export function ruleReached(result, actions) {
   const a = normaliseActions(actions);
-  if (a.fileinto && result.folder !== a.fileinto && !result.labels.includes(a.fileinto)) return false;
+  const folders = result.folders ?? [result.folder];
+  if (a.fileinto && !folders.includes(a.fileinto) && result.folder !== a.fileinto && !result.labels.includes(a.fileinto)) return false;
   if (a.seen && !result.flags.includes('\Seen')) return false;
   if (a.flagged && !result.flags.includes('\Flagged')) return false;
   if (a.expireDays && result.expireDays !== a.expireDays) return false;

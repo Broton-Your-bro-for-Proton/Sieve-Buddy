@@ -1,5 +1,6 @@
-// Proton's Sieve dialect: extensions, commands, tagged arguments and the spam-guard prologue.
-// Based on https://proton.me/support/sieve-advanced-custom-filters and Proton's web client.
+// Sieve dialects: Proton's (https://proton.me/support/sieve-advanced-custom-filters) and standard servers
+// (RFC 5228 plus extensions, e.g. Dovecot/Pigeonhole, Stalwart, Cyrus) – extensions, commands, tags,
+// and Proton's spam-guard prologue.
 
 export const SPAM_GUARD_REQUIRE = ['include', 'environment', 'variables', 'relational', 'comparator-i;ascii-numeric', 'spamtest'];
 
@@ -28,6 +29,45 @@ export const EXTENSIONS = {
   environment: 'Umgebungswerte lesen (Spam-Schutz)',
   spamtest: 'Spam-Score testen (Spam-Schutz)',
 };
+
+/** Extensions Proton accepts – exactly the list above. */
+export const PROTON_EXTENSIONS = Object.keys(EXTENSIONS);
+
+/** Further standard extensions found on Dovecot/Pigeonhole, Stalwart, Cyrus and others. */
+export const STANDARD_EXTENSIONS = {
+  copy: 'fileinto/redirect :copy – Kopie, Original bleibt',
+  mailbox: 'fileinto :create und Test mailboxexists',
+  body: 'Test body – Nachrichtentext durchsuchen',
+  editheader: 'addheader / deleteheader',
+  enotify: 'notify – Benachrichtigung senden',
+  duplicate: 'Test duplicate – doppelte Nachrichten erkennen',
+  subaddress: 'Adressteile :user und :detail (name+detail@…)',
+  ihave: 'Test ihave – Erweiterung vorhanden?',
+  'encoded-character': '${hex:…} / ${unicode:…} in Strings',
+  'spamtestplus': 'spamtest :percent',
+  virustest: 'Virus-Score testen',
+  'special-use': 'fileinto :specialuse',
+  imapflags: 'Veraltete Vorgängerin von imap4flags',
+  index: ':index / :last bei header/address/date',
+  'comparator-i;unicode-casemap': 'Unicode-Vergleich ohne Groß-/Kleinschreibung',
+  'vnd.dovecot.debug': 'debug_log (Dovecot)',
+  'vnd.dovecot.duplicate': 'Ältere Dovecot-Variante von duplicate',
+};
+
+/** Documentation for every known extension (for hints and hover help). */
+export const ALL_EXTENSIONS = { ...STANDARD_EXTENSIONS, ...EXTENSIONS };
+
+/**
+ * A dialect decides which extensions are valid and whether Proton's special rules apply.
+ * @param {{name: 'proton'} | {name: 'rfc', extensions?: string[]}} spec
+ */
+export function makeDialect(spec = { name: 'proton' }) {
+  if (spec.name === 'proton') return { name: 'proton', proton: true, extensions: new Set(PROTON_EXTENSIONS) };
+  const extensions = spec.extensions?.length ? spec.extensions : Object.keys(STANDARD_EXTENSIONS).concat(['fileinto', 'imap4flags', 'reject', 'vacation', 'date', 'envelope', 'variables', 'relational', 'comparator-i;ascii-numeric', 'regex', 'include', 'environment', 'spamtest']);
+  return { name: 'rfc', proton: false, extensions: new Set(extensions.map((e) => e.toLowerCase())) };
+}
+
+export const PROTON_DIALECT = makeDialect({ name: 'proton' });
 
 /** Commands and tests, each with the extension it needs (null = core Sieve). */
 export const COMMANDS = {
@@ -69,7 +109,24 @@ export const COMMANDS = {
   expiration: { ext: 'vnd.proton.expire', kind: 'test', doc: 'Ablauf vergleichen' },
   environment: { ext: 'environment', kind: 'test', doc: 'Umgebungswert' },
   spamtest: { ext: 'spamtest', kind: 'test', doc: 'Spam-Score' },
+  // standard extensions (not on Proton)
+  redirect: { ext: null, kind: 'action', doc: 'An andere Adresse weiterleiten' },
+  include: { ext: 'include', kind: 'action', doc: 'Anderes Skript einbinden' },
+  global: { ext: 'include', kind: 'action', doc: 'Globale Variable (include)' },
+  notify: { ext: 'enotify', kind: 'action', doc: 'Benachrichtigung senden' },
+  addheader: { ext: 'editheader', kind: 'action', doc: 'Header hinzufügen' },
+  deleteheader: { ext: 'editheader', kind: 'action', doc: 'Header entfernen' },
+  debug_log: { ext: 'vnd.dovecot.debug', kind: 'action', doc: 'Debug-Ausgabe (Dovecot)' },
+  body: { ext: 'body', kind: 'test', doc: 'Nachrichtentext durchsuchen' },
+  mailboxexists: { ext: 'mailbox', kind: 'test', doc: 'Ordner vorhanden?' },
+  duplicate: { ext: 'duplicate', kind: 'test', doc: 'Schon einmal zugestellt?' },
+  ihave: { ext: 'ihave', kind: 'test', doc: 'Erweiterung vorhanden?' },
+  virustest: { ext: 'virustest', kind: 'test', doc: 'Virus-Score' },
+  valid_notify_method: { ext: 'enotify', kind: 'test', doc: 'Benachrichtigungsweg gültig?' },
 };
+
+/** Commands that only exist (or behave as documented here) on Proton. */
+export const PROTON_ONLY_COMMANDS = new Set(['expire', 'unexpire', 'hasexpiration', 'expiration']);
 
 /** Tagged arguments, with the extension they need. */
 export const TAGS = {
@@ -99,6 +156,27 @@ export const TAGS = {
   ':quotewildcard': { ext: 'variables', doc: 'Wildcards maskieren' },
   ':length': { ext: 'variables', doc: 'Länge' },
   ':eval': { ext: 'vnd.proton.eval', doc: 'Arithmetik auswerten' },
+  // standard extensions
+  ':copy': { ext: 'copy', doc: 'Kopie ablegen, Original bleibt im Posteingang' },
+  ':create': { ext: 'mailbox', doc: 'Ordner anlegen, falls er fehlt' },
+  ':specialuse': { ext: 'special-use', doc: 'Ordner über Sonderfunktion wählen (\\\\Junk …)' },
+  ':raw': { ext: 'body', doc: 'Rohtext durchsuchen' },
+  ':content': { ext: 'body', doc: 'Bestimmte MIME-Typen durchsuchen' },
+  ':text': { ext: 'body', doc: 'Dekodierten Text durchsuchen' },
+  ':user': { ext: 'subaddress', doc: 'Teil vor dem + (name+detail@…)' },
+  ':detail': { ext: 'subaddress', doc: 'Teil nach dem + (name+detail@…)' },
+  ':from': { ext: null, doc: 'Absender (vacation/notify)' },
+  ':addresses': { ext: 'vacation', doc: 'Eigene Adressen für vacation' },
+  ':seconds': { ext: 'vacation', doc: 'Antwort-Intervall in Sekunden' },
+  ':importance': { ext: 'enotify', doc: 'Wichtigkeit 1–3' },
+  ':options': { ext: 'enotify', doc: 'Optionen der Benachrichtigung' },
+  ':message': { ext: 'enotify', doc: 'Text der Benachrichtigung' },
+  ':header': { ext: 'duplicate', doc: 'Header für duplicate' },
+  ':uniqueid': { ext: 'duplicate', doc: 'Eindeutige ID für duplicate' },
+  ':last': { ext: 'editheader', doc: 'Am Ende hinzufügen / letzten wählen' },
+  ':index': { ext: 'index', doc: 'n-ten Header wählen' },
+  ':percent': { ext: 'spamtestplus', doc: 'Spam-Score in Prozent' },
+  ':flags': { ext: 'imap4flags', doc: 'Flags direkt beim fileinto/keep setzen' },
 };
 
 export const HEADERS = [
@@ -185,7 +263,9 @@ export const TEMPLATES = [
   },
 ];
 
-export function newScript(rules = '') {
+/** A fresh script: Proton's starts with the spam guard, a standard one with an (empty) header comment. */
+export function newScript(rules = '', dialect = PROTON_DIALECT) {
+  if (!dialect.proton) return `# Sieve-Filter\n${rules ? `\n${rules}\n` : ''}`;
   return `require ${formatList(SPAM_GUARD_REQUIRE)};\n\n${SPAM_GUARD}\n${rules ? `\n${rules}\n` : ''}`;
 }
 
