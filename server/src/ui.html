@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Proton Sieve Service</title>
+  <title>Sieve-Dienst</title>
   <style>
     :root { --bg:#f6f5fb; --panel:#fff; --text:#1c1b22; --muted:#6b6880; --border:#dcd9e8; --accent:#6d4aff; --ok:#1a7f4b; --bad:#d6334a; color-scheme: light; }
     @media (prefers-color-scheme: dark) { :root { --bg:#17161d; --panel:#201f28; --text:#ecebf3; --muted:#9c99ad; --border:#35333f; --accent:#8b6dff; --ok:#6fd69f; --bad:#ff6b81; color-scheme: dark; } }
@@ -30,7 +30,7 @@
 </head>
 <body>
 <main>
-  <h1>Proton Sieve Service</h1>
+  <h1>Sieve-Dienst</h1>
 
   <section class="card" id="token-card">
     <h2>Zugang</h2>
@@ -51,6 +51,16 @@
       <p class="bad" id="guard-text"></p>
       <p class="muted">Bitte zuerst im offiziellen Proton-Login prüfen, ob das Konto normal erreichbar ist. Erst danach die Pause aufheben.</p>
       <button class="ghost" id="guard-reset">Pause aufheben</button>
+    </div>
+
+    <div id="handover-box" hidden>
+      <p>So verbindest du den Dienst mit Proton, <strong>ohne</strong> dass er sich selbst mit Passwort anmeldet:</p>
+      <ol>
+        <li>In Thunderbird den <strong>Proton Sieve Manager</strong> öffnen und dort anmelden (falls noch nicht).</li>
+        <li>Oben rechts auf <strong>„An Dienst übergeben“</strong> klicken.</li>
+        <li>Adresse <code id="handover-url"></code> und das API-Token eintragen.</li>
+      </ol>
+      <p class="muted">Der Passwort-Login direkt im Dienst ist abgeschaltet, weil Proton neue Anmeldungen unbekannter Programme sperren kann (ALLOW_PASSWORD_LOGIN=true schaltet ihn wieder ein).</p>
     </div>
 
     <form id="login-form" hidden>
@@ -115,11 +125,18 @@
     }
     $('token-card').hidden = true;
     $('status-card').hidden = $('mcp-card').hidden = false;
+    const esc = (v) => String(v ?? '').replace(/[<>&]/g, '');
+    const managesieve = status.provider === 'managesieve';
     $('status-text').innerHTML = status.loggedIn
-      ? `<span class="ok">●</span> Verbunden als ${status.username.replace(/[<>&]/g, '')}`
-      : '<span class="bad">●</span> Nicht bei Proton angemeldet';
-    $('logout').hidden = !status.loggedIn;
-    $('login-form').hidden = status.loggedIn || status.pending === 'totp' || status.pending === 'captcha';
+      ? `<span class="ok">●</span> ${managesieve ? `ManageSieve ${esc(status.server)}` : 'Proton'} – ${esc(status.username)}`
+      : managesieve
+        ? `<span class="bad">●</span> ManageSieve ${esc(status.server)} nicht erreichbar`
+        : '<span class="bad">●</span> Nicht bei Proton angemeldet';
+    if (managesieve && status.error) msg(status.error, 'bad');
+    $('logout').hidden = managesieve || !status.loggedIn;
+    $('handover-box').hidden = managesieve || status.loggedIn || status.allowPasswordLogin;
+    $('handover-url').textContent = location.origin;
+    $('login-form').hidden = managesieve || !status.allowPasswordLogin || status.loggedIn || status.pending === 'totp' || status.pending === 'captcha';
     $('totp-form').hidden = status.pending !== 'totp';
     $('captcha-box').hidden = status.pending !== 'captcha';
     if (status.captchaUrl) $('captcha-link').href = status.captchaUrl;
@@ -130,7 +147,7 @@
     if (g.blockedUntil) $('guard-text').textContent = `Anmeldung pausiert bis ${new Date(g.blockedUntil).toLocaleString('de-DE')}: ${g.reason}`;
     if (g.blockedUntil && !status.loggedIn) $('login-form').hidden = true;
     $('mcp-config').textContent = JSON.stringify({
-      mcpServers: { 'proton-sieve': { type: 'http', url: `${location.origin}/mcp`, headers: { Authorization: 'Bearer <API_TOKEN>' } } },
+      mcpServers: { sieve: { type: 'http', url: `${location.origin}/mcp`, headers: { Authorization: 'Bearer <API_TOKEN>' } } },
     }, null, 2);
     if (status.loggedIn) {
       const { filters } = await api('/api/ops/list-filters', {});

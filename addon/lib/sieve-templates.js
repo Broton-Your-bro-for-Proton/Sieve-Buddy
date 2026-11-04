@@ -151,6 +151,7 @@ export const RULE_TEMPLATES = [
   },
   {
     id: 'expire-folder-mails',
+    protonOnly: true,
     category: 'Aufräumen',
     name: 'Absender automatisch löschen lassen',
     description: 'Mails bestimmter Domains nach X Tagen entfernen.',
@@ -162,6 +163,7 @@ export const RULE_TEMPLATES = [
   },
   {
     id: 'expire-non-contacts',
+    protonOnly: true,
     category: 'Aufräumen',
     name: 'Nicht-Kontakte nach X Tagen löschen',
     description: 'Alles, was nicht von deinen Kontakten kommt.',
@@ -188,6 +190,7 @@ export const RULE_TEMPLATES = [
   },
   {
     id: 'contacts-only-inbox',
+    protonOnly: true,
     category: 'Kontakte & Schutz',
     name: 'Unbekannte Absender in Ordner',
     description: 'Nur Kontakte und Allow-Liste bleiben im Posteingang.',

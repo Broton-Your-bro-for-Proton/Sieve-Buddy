@@ -14,10 +14,10 @@ const condition = z.object({
 });
 
 const actions = z.object({
-  fileinto: z.string().optional().describe('Zielordner oder Label (Pfad wie in list_folders, oder inbox/archive/trash/spam)'),
+  fileinto: z.string().optional().describe('Zielordner oder Label (Name wie in list_folders; Proton zusätzlich inbox/archive/trash/spam, andere Server INBOX)'),
   seen: z.boolean().optional().describe('als gelesen markieren'),
   flagged: z.boolean().optional().describe('mit Stern markieren'),
-  expireDays: z.number().int().min(1).max(730).optional().describe('nach n Tagen automatisch löschen'),
+  expireDays: z.number().int().min(1).max(730).optional().describe('nach n Tagen automatisch löschen (nur Proton)'),
   stop: z.boolean().optional().describe('danach keine weiteren Filter ausführen'),
 });
 
@@ -31,12 +31,12 @@ const headers = z
   .union([z.string(), z.record(z.string(), z.union([z.string(), z.array(z.string())]))])
   .describe('Header der Mail: Roh-Text ("From: …\\nSubject: …") oder Objekt {name: wert|[werte]}');
 
-const target = z.string().optional().describe('"auto" (beste Stelle, Standard), "new" (neuer Filter) oder eine Filter-ID');
+const target = z.string().optional().describe('"auto" (beste Stelle, Standard), "new" (neuer Filter/neues Skript) oder eine Filter-/Skript-ID');
 
 const json = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }], structuredContent: value });
 
 export function createMcpServer(account) {
-  const server = new McpServer({ name: 'proton-sieve', version: '0.1.0' });
+  const server = new McpServer({ name: 'sieve', version: '0.3.0' });
 
   const tool = (name, description, inputSchema, run, annotations = {}) =>
     server.registerTool(name, { description, inputSchema, annotations }, async (args) => {
@@ -50,12 +50,13 @@ export function createMcpServer(account) {
   const read = { readOnlyHint: true, openWorldHint: true };
   const write = { readOnlyHint: false, destructiveHint: false, openWorldHint: true };
 
-  tool('proton_status', 'Anmeldestatus beim Proton-Konto und ob Schreibzugriffe erlaubt sind.', {}, ops.status, read);
-  tool('list_filters', 'Alle Sieve-Filter des Proton-Kontos in Ausführungsreihenfolge.', { includeSieve: z.boolean().optional() }, ops.listFilters, read);
+  tool('sieve_status', 'Status des Sieve-Dienstes: Anbieter (proton/managesieve), angemeldet, Schreibzugriff, Fähigkeiten.', {}, ops.status, read);
+  tool('sieve_capabilities', 'Fähigkeiten des Servers: unterstützte Sieve-Erweiterungen, mehrere aktive Filter?, Reihenfolge?, Labels?', {}, ops.capabilities, read);
+  tool('list_filters', 'Alle Sieve-Filter (Proton) bzw. Skripte (ManageSieve) in Ausführungsreihenfolge; bei ManageSieve läuft nur das aktive.', { includeSieve: z.boolean().optional() }, ops.listFilters, read);
   tool('get_filter', 'Einen Filter mit vollständigem Sieve-Skript und lokalen Prüfhinweisen.', { id: z.string() }, ops.getFilter, read);
   tool('list_folders', 'Ordner und Labels des Kontos (gültige Ziele für fileinto).', {}, ops.listFolders, read);
-  tool('lint_sieve', 'Prüft ein Sieve-Skript lokal gegen Protons Dialekt; liefert ggf. ein Skript mit ergänztem require.', { sieve: z.string() }, ops.lintSieve, read);
-  tool('check_sieve', 'Lässt Proton selbst prüfen, ob es das Skript annehmen würde.', { sieve: z.string() }, ops.checkSieve, read);
+  tool('lint_sieve', 'Prüft ein Sieve-Skript lokal gegen den Dialekt des Servers; liefert ggf. ein Skript mit ergänztem require.', { sieve: z.string() }, ops.lintSieve, read);
+  tool('check_sieve', 'Lässt den Server selbst prüfen, ob er das Skript annehmen würde.', { sieve: z.string() }, ops.checkSieve, read);
   tool('format_sieve', 'Rückt ein Sieve-Skript einheitlich ein (Spam-Schutz bleibt unverändert).', { sieve: z.string() }, ops.formatSieve, { readOnlyHint: true });
   tool(
     'simulate_message',
@@ -79,7 +80,7 @@ export function createMcpServer(account) {
   );
   tool(
     'apply_rule',
-    'Wie plan_rule, speichert das Ergebnis aber bei Proton (nach Protons eigener Prüfung).',
+    'Wie plan_rule, speichert das Ergebnis aber auf dem Server (nach dessen eigener Prüfung).',
     { rule, target, newName: z.string().optional(), headers: headers.optional(), size: z.number().optional() },
     ops.applyRule,
     write,
@@ -94,12 +95,12 @@ export function createMcpServer(account) {
   );
   tool(
     'apply_template',
-    'Wie plan_template, speichert das Ergebnis aber bei Proton.',
+    'Wie plan_template, speichert das Ergebnis aber auf dem Server.',
     { templateId: z.string(), params: z.record(z.string(), z.any()).optional(), target, newName: z.string().optional() },
     ops.applyTemplate,
     write,
   );
-  tool('create_filter', 'Legt einen neuen Filter mit vollständigem Sieve-Skript an (nach Protons Prüfung).', { name: z.string(), sieve: z.string(), enabled: z.boolean().optional() }, ops.createFilter, write);
+  tool('create_filter', 'Legt einen neuen Filter/ein neues Skript an (nach Prüfung durch den Server). Bei ManageSieve wird es nur mit enabled=true aktiv – und ersetzt dann das bisher aktive.', { name: z.string(), sieve: z.string(), enabled: z.boolean().optional() }, ops.createFilter, write);
   tool(
     'update_filter',
     'Ändert Name, Sieve-Skript oder Status eines Filters. Liefert den Diff.',
@@ -107,8 +108,8 @@ export function createMcpServer(account) {
     ops.updateFilter,
     write,
   );
-  tool('set_filter_enabled', 'Aktiviert oder deaktiviert einen Filter.', { id: z.string(), enabled: z.boolean() }, ops.setFilterEnabled, write);
-  tool('reorder_filters', 'Setzt die Ausführungsreihenfolge der Filter (vollständige Liste der IDs).', { ids: z.array(z.string()) }, ops.reorderFilters, write);
+  tool('set_filter_enabled', 'Aktiviert oder deaktiviert einen Filter (ManageSieve: aktiviert genau dieses Skript).', { id: z.string(), enabled: z.boolean() }, ops.setFilterEnabled, write);
+  tool('reorder_filters', 'Setzt die Ausführungsreihenfolge der Filter (nur Proton; vollständige Liste der IDs).', { ids: z.array(z.string()) }, ops.reorderFilters, write);
   tool('delete_filter', 'Löscht einen Filter endgültig.', { id: z.string() }, ops.deleteFilter, { ...write, destructiveHint: true });
 
   return server;

@@ -1,10 +1,15 @@
-// One Proton account per service instance: login flow (SRP, TOTP, captcha), cached account data and writes.
+// One mail account per service instance, behind a Sieve provider:
+//   proton      – Proton's web API; session handed over from the add-on (or, if enabled, a password login)
+//   managesieve – any ManageSieve server (Dovecot/Pigeonhole, Stalwart, Cyrus, …), credentials from the config
 
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 
 import { LoginGuard } from '../../addon/lib/login-guard.js';
 import { LABEL_TYPE, ProtonClient } from '../../addon/lib/proton-api.js';
+import { ProtonProvider } from '../../addon/lib/providers/proton-provider.js';
+import { makeDialect } from '../../addon/lib/sieve-dialect.js';
+import { ManageSieveProvider } from './providers/managesieve-provider.js';
 import { encryptedFileStore, jsonFileStore } from './store.js';
 
 const bcrypt = createRequire(import.meta.url)('bcryptjs');
@@ -14,43 +19,84 @@ const PENDING_MS = 10 * 60_000;
 export class Account {
   constructor(config) {
     this.config = config;
-    this.store = encryptedFileStore(join(config.dataDir, 'session.json'), config.secret);
-    this.guard = new LoginGuard(jsonFileStore(join(config.dataDir, 'login-guard.json')));
-    this.client = new ProtonClient({
-      bcrypt,
-      store: this.store,
-      settings: config.proton,
-      guard: this.guard,
-      onApiError: ({ method, path, status, code, message }) => console.warn(`[proton] ${method} ${path} → HTTP ${status}, Code ${code ?? '-'}: ${message ?? ''}`),
-    });
-    this.pending = null; // {username, password, hv?, expires}
+    this.kind = config.provider ?? 'proton';
     this.cache = null;
     this.writeLock = Promise.resolve();
+    this.pending = null; // proton password login in progress: {username, password, step, hv?, expires}
+    this.initError = null;
+
+    if (this.kind === 'managesieve') {
+      this.provider = new ManageSieveProvider(config.managesieve);
+    } else {
+      this.store = encryptedFileStore(join(config.dataDir, 'session.json'), config.secret);
+      this.guard = new LoginGuard(jsonFileStore(join(config.dataDir, 'login-guard.json')));
+      this.client = new ProtonClient({
+        bcrypt,
+        store: this.store,
+        settings: config.proton,
+        guard: this.guard,
+        onApiError: ({ method, path, status, code, message }) => console.warn(`[proton] ${method} ${path} → HTTP ${status}, Code ${code ?? '-'}: ${message ?? ''}`),
+      });
+      this.provider = new ProtonProvider(this.client);
+    }
   }
 
   async init() {
-    await this.client.restore();
+    if (this.kind === 'managesieve') {
+      try {
+        await this.provider.init();
+        this.initError = null;
+      } catch (error) {
+        this.initError = error.message;
+        console.warn(`[managesieve] Verbindung fehlgeschlagen: ${error.message}`);
+      }
+    } else {
+      await this.client.restore();
+    }
+  }
+
+  dialect() {
+    return makeDialect(this.provider.capabilities.dialect);
   }
 
   async status() {
+    const base = {
+      provider: this.kind,
+      loggedIn: this.provider.isReady,
+      allowWrite: this.config.allowWrite,
+      capabilities: this.provider.capabilities,
+    };
+    if (this.kind === 'managesieve') {
+      const { host, port, user } = this.config.managesieve;
+      return { ...base, username: user, server: `${host}:${port ?? 4190}`, error: this.initError };
+    }
     return {
-      loginGuard: await this.guard.status(),
-      loggedIn: this.client.isLoggedIn,
+      ...base,
       username: this.client.session?.username ?? null,
+      allowPasswordLogin: this.config.allowPasswordLogin,
+      loginGuard: await this.guard.status(),
       pending: this.pending && Date.now() < this.pending.expires ? this.pending.step : null,
       captchaUrl: this.pending?.step === 'captcha' ? this.pending.webUrl : null,
-      allowWrite: this.config.allowWrite,
     };
   }
 
-  // ---------- login ----------
+  // ---------- Proton: password login (off by default) and session hand-over ----------
+
+  #requireProton() {
+    if (this.kind !== 'proton') throw new Error('Nur bei PROVIDER=proton verfügbar');
+  }
 
   async login(username, password) {
+    this.#requireProton();
+    if (!this.config.allowPasswordLogin) {
+      throw new Error('Der Passwort-Login im Dienst ist abgeschaltet. Melde dich im Thunderbird-Add-on an und nutze dort „An Dienst übergeben“ (oder ALLOW_PASSWORD_LOGIN=true setzen).');
+    }
     this.pending = { username, password, step: 'password', expires: Date.now() + PENDING_MS };
     return this.#attempt();
   }
 
   async submitTotp(code) {
+    this.#requireProton();
     if (this.pending?.step !== 'totp') throw new Error('Keine Anmeldung wartet auf einen 2FA-Code');
     await this.client.submitTotp(code);
     this.pending = null;
@@ -58,6 +104,7 @@ export class Account {
   }
 
   async continueAfterCaptcha() {
+    this.#requireProton();
     if (this.pending?.step !== 'captcha' || Date.now() > this.pending.expires) throw new Error('Keine Anmeldung wartet auf das Captcha');
     return this.#attempt(this.pending.hv);
   }
@@ -91,17 +138,18 @@ export class Account {
   }
 
   async logout() {
+    this.#requireProton();
     this.pending = null;
     this.cache = null;
     await this.client.logout();
   }
 
   /**
-   * Takes over a session from another client (the Thunderbird add-on), so the service never has to do a
-   * password login of its own. Proton rotates refresh tokens, so the sender must stop using it afterwards.
-   * The session is checked with one cheap call before it is stored.
+   * Takes over a session from the Thunderbird add-on, so the service never has to do a password login.
+   * Proton rotates refresh tokens, so the sender must stop using it afterwards. Checked with one call first.
    */
   async importSession({ UID, AccessToken, RefreshToken, username }) {
+    this.#requireProton();
     if (typeof UID !== 'string' || typeof RefreshToken !== 'string' || !UID || !RefreshToken) {
       throw new Error('UID und RefreshToken der Sitzung fehlen');
     }
@@ -122,40 +170,42 @@ export class Account {
 
   // ---------- data ----------
 
-  requireLogin() {
-    if (!this.client.isLoggedIn) throw new Error('Nicht bei Proton angemeldet – bitte zuerst in der Weboberfläche des Dienstes anmelden');
+  requireReady() {
+    if (this.provider.isReady) return;
+    if (this.kind === 'managesieve') throw new Error(`ManageSieve-Server nicht erreichbar oder Anmeldung fehlgeschlagen${this.initError ? `: ${this.initError}` : ''}`);
+    throw new Error('Nicht bei Proton angemeldet – Sitzung im Thunderbird-Add-on über „An Dienst übergeben“ übertragen');
   }
 
   requireWrite() {
     if (!this.config.allowWrite) throw new Error('Schreibzugriffe sind deaktiviert (ALLOW_WRITE=false)');
   }
 
-  /** Filters (with Sieve text) in Proton order, plus folder and label paths. Cached briefly. */
+  /** Scripts (in execution order) and folders; folders/labels are null when the server cannot list them. */
   async data({ fresh = false } = {}) {
-    this.requireLogin();
+    if (this.kind === 'managesieve' && !this.provider.isReady) await this.init();
+    this.requireReady();
     if (!fresh && this.cache && Date.now() - this.cache.at < CACHE_MS) return this.cache;
-    const [filters, folders, labels] = await Promise.all([
-      this.client.listFilters(),
-      this.client.listLabels(LABEL_TYPE.FOLDER).catch(() => []),
-      this.client.listLabels(LABEL_TYPE.LABEL).catch(() => []),
+    const [scripts, folderInfo] = await Promise.all([
+      this.provider.listScripts(),
+      this.provider.listFolders().catch((error) => {
+        console.warn(`[folders] ${error.message}`);
+        return null;
+      }),
     ]);
-    const full = await Promise.all(filters.map(async (f) => (f.Sieve === undefined ? this.client.getFilter(f.ID) : f)));
     this.cache = {
       at: Date.now(),
-      filters: full.sort((a, b) => (a.Priority ?? 0) - (b.Priority ?? 0)),
-      folders: folders.map((l) => l.Path ?? l.Name),
-      labels: labels.map((l) => l.Path ?? l.Name),
+      scripts,
+      folders: folderInfo?.folders ?? null,
+      labels: folderInfo?.labels ?? [],
+      capabilities: this.provider.capabilities,
+      dialect: this.dialect(),
     };
     return this.cache;
   }
 
-  scripts(data) {
-    return data.filters.map((f) => ({ id: f.ID, name: f.Name, sieve: f.Sieve ?? '', enabled: f.Status === 1 }));
-  }
-
   /** Serialises writes and invalidates the cache afterwards. */
   async write(fn) {
-    this.requireLogin();
+    this.requireReady();
     this.requireWrite();
     const run = this.writeLock.then(fn, fn);
     this.writeLock = run.catch(() => {});
@@ -166,11 +216,12 @@ export class Account {
     }
   }
 
-  /** Validates with Proton before saving; throws with the issues when Proton rejects the script. */
+  /** Validates with the server before saving; throws with the issues when the server rejects the script. */
   async checkOrThrow(sieve) {
-    const issues = await this.client.checkSieve(sieve);
+    const issues = await this.provider.check(sieve);
     if (issues.length) {
-      const err = new Error(`Proton lehnt das Skript ab: ${issues.map((i) => i.message ?? JSON.stringify(i)).join('; ')}`);
+      const who = this.kind === 'proton' ? 'Proton' : 'Der Server';
+      const err = new Error(`${who} lehnt das Skript ab: ${issues.map((i) => `${i.line ? `Zeile ${i.line}: ` : ''}${i.message}`).join('; ')}`);
       err.issues = issues;
       throw err;
     }

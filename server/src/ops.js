@@ -1,14 +1,14 @@
 // Operations of the service. Each takes (account, args) and returns plain JSON; used by the MCP tools
-// and the REST API alike, so both always behave the same.
+// and the REST API alike, so both always behave the same. Provider-neutral: Proton or any ManageSieve server.
 
 import { diffHunks, diffStats, lineDiff } from '../../addon/lib/diff.js';
 import { parseHeaderBlock, suggestConditions } from '../../addon/lib/mail.js';
 import { planRule as planRuleCore } from '../../addon/lib/rule-planner.js';
 import { fixRequire, lintSieve as lintCore } from '../../addon/lib/sieve-analyzer.js';
 import { formatSieve as formatCore, lineOf } from '../../addon/lib/sieve-ast.js';
+import { newScript } from '../../addon/lib/sieve-dialect.js';
 import { describeRule } from '../../addon/lib/sieve-rules.js';
 import { simulate as simulateCore } from '../../addon/lib/sieve-sim.js';
-import { newScript } from '../../addon/lib/sieve-dialect.js';
 import { RULE_TEMPLATES, buildTemplate as buildTemplateCore, templateDefaults } from '../../addon/lib/sieve-templates.js';
 
 // ---------- helpers ----------
@@ -29,16 +29,9 @@ function toMessage(headers, size) {
   return { headers: normalized, size };
 }
 
-function withLines(text, issues) {
-  return issues.map((i) => ({ line: lineOf(text, i.start), severity: i.severity, message: i.message }));
-}
-
-const filterSummary = (f, includeSieve) => ({
-  id: f.ID,
-  name: f.Name,
-  enabled: f.Status === 1,
-  ...(includeSieve ? { sieve: f.Sieve } : {}),
-});
+const withLines = (text, issues) => issues.map((i) => ({ line: lineOf(text, i.start), severity: i.severity, message: i.message }));
+const knownFolders = (data) => (data.folders ? [...data.folders, ...data.labels] : undefined);
+const summary = (s, includeSieve) => ({ id: s.id, name: s.name, enabled: s.enabled, ...(includeSieve ? { sieve: s.sieve } : {}) });
 
 function planToJson(result) {
   const { plan, after, notes, conflicts, errors } = result;
@@ -49,7 +42,9 @@ function planToJson(result) {
     conflicts,
     errors: withLines(plan.sieve, errors),
     diff: unifiedDiff(plan.before, plan.sieve),
-    result: after ? { location: after.location, labels: after.labels, flags: after.flags, expireDays: after.expireDays } : null,
+    result: after
+      ? { location: after.location, folders: after.folders, labels: after.labels, flags: after.flags, expireDays: after.expireDays }
+      : null,
     sieve: plan.sieve,
   };
 }
@@ -60,46 +55,57 @@ export const status = (account) => account.status();
 
 export async function listFilters(account, { includeSieve = false } = {}) {
   const data = await account.data();
-  return { filters: data.filters.map((f) => filterSummary(f, includeSieve)) };
+  return { provider: account.provider.kind, filters: data.scripts.map((s) => summary(s, includeSieve)) };
 }
 
 export async function getFilter(account, { id }) {
   const data = await account.data();
-  const f = data.filters.find((x) => x.ID === id);
-  if (!f) throw new Error(`Filter ${id} nicht gefunden`);
-  return { ...filterSummary(f, true), issues: withLines(f.Sieve, lintCore(f.Sieve, { folders: [...data.folders, ...data.labels] })) };
+  const s = data.scripts.find((x) => x.id === id);
+  if (!s) throw new Error(`Filter/Skript ${id} nicht gefunden`);
+  return { ...summary(s, true), issues: withLines(s.sieve, lintCore(s.sieve, { folders: knownFolders(data), dialect: data.dialect })) };
 }
 
 export async function listFolders(account) {
-  const { folders, labels } = await account.data();
-  return { folders, labels, system: ['inbox', 'archive', 'trash', 'spam', 'starred'] };
+  const data = await account.data();
+  return {
+    folders: data.folders,
+    labels: data.labels,
+    system: data.dialect.proton ? ['inbox', 'archive', 'trash', 'spam', 'starred'] : ['INBOX'],
+    known: data.folders !== null,
+  };
+}
+
+export async function capabilities(account) {
+  const data = await account.data();
+  return { provider: account.provider.kind, ...data.capabilities, extensions: [...data.dialect.extensions].sort() };
 }
 
 export async function lintSieve(account, { sieve }) {
-  let known;
+  let data = null;
   try {
-    const data = account.client.isLoggedIn ? await account.data() : null;
-    known = data ? [...data.folders, ...data.labels] : undefined;
+    data = account.provider.isReady ? await account.data() : null;
   } catch {
-    known = undefined;
+    data = null;
   }
-  return { issues: withLines(sieve, lintCore(sieve, { folders: known })), fixedRequire: fixRequire(sieve) !== sieve ? fixRequire(sieve) : null };
+  const issues = lintCore(sieve, { folders: data ? knownFolders(data) : undefined, dialect: data?.dialect ?? account.dialect() });
+  const fixed = fixRequire(sieve);
+  return { issues: withLines(sieve, issues), fixedRequire: fixed !== sieve ? fixed : null };
 }
 
 export async function checkSieve(account, { sieve }) {
-  account.requireLogin();
-  return { issues: await account.client.checkSieve(sieve) };
+  account.requireReady();
+  return { issues: await account.provider.check(sieve) };
 }
 
 export const formatSieve = (_account, { sieve }) => ({ sieve: formatCore(sieve) });
 
 export async function simulateMessage(account, { headers, size, spamScore, overrides = [] }) {
   const data = await account.data();
-  const scripts = account.scripts(data).map((s) => {
+  const scripts = data.scripts.map((s) => {
     const o = overrides.find((x) => x.id === s.id);
     return o ? { ...s, sieve: o.sieve } : s;
   });
-  const r = simulateCore(scripts, toMessage(headers, size), { labels: data.labels, spamScore });
+  const r = simulateCore(scripts, toMessage(headers, size), { labels: data.labels, spamScore, semantics: data.capabilities.semantics });
   return { ...r, fired: r.fired.filter((f) => !f.test.includes('vnd.proton.spam-threshold')) };
 }
 
@@ -107,29 +113,34 @@ export function suggestRule(_account, { headers }) {
   return { suggestions: suggestConditions(toMessage(headers)) };
 }
 
-export const listTemplates = () => ({
-  templates: RULE_TEMPLATES.map((t) => ({
-    id: t.id,
-    category: t.category,
-    name: t.name,
-    description: t.description,
-    mergeable: !t.code,
-    params: t.params.map((p) => ({ id: p.id, label: p.label, type: p.type, default: p.default })),
-  })),
-});
+const templatesFor = (dialect) => RULE_TEMPLATES.filter((t) => dialect.proton || !t.protonOnly);
+
+export function listTemplates(account) {
+  return {
+    templates: templatesFor(account.dialect()).map((t) => ({
+      id: t.id,
+      category: t.category,
+      name: t.name,
+      description: t.description,
+      mergeable: !t.code,
+      params: t.params
+        .filter((p) => account.dialect().proton || p.id !== 'expireDays')
+        .map((p) => ({ id: p.id, label: p.label, type: p.type, default: p.default })),
+    })),
+  };
+}
 
 // ---------- planning ----------
 
-const SYSTEM_TARGETS = ['inbox', 'archive', 'trash', 'spam', 'starred'];
-
 /**
- * Proton silently ignores fileinto into a folder that does not exist, and agents may invent names –
- * so targets are checked against the real folders/labels, with close matches as suggestions.
+ * fileinto into a folder that does not exist is silently ignored (Proton) or fails delivery (most servers),
+ * and agents may invent names – so targets are checked against the real folders, with close matches.
  */
 function assertFolderExists(data, folder) {
-  if (!folder || folder.includes('${')) return;
+  if (!folder || folder.includes('${') || !data.folders) return;
   const known = [...data.folders, ...data.labels];
-  if (known.includes(folder) || SYSTEM_TARGETS.includes(folder.toLowerCase())) return;
+  const system = data.dialect.proton ? ['inbox', 'archive', 'trash', 'spam', 'starred'] : ['inbox'];
+  if (known.includes(folder) || system.includes(folder.toLowerCase())) return;
   const norm = (s) =>
     s
       .toLowerCase()
@@ -138,50 +149,70 @@ function assertFolderExists(data, folder) {
       .replace(/ü/g, 'ue')
       .replace(/ß/g, 'ss')
       .normalize('NFKD')
-      .replace(/[^\p{L}\p{N}/]/gu, '');
-  const similar = known.filter((k) => norm(k).includes(norm(folder)) || norm(folder).includes(norm(k)) || norm(k) === norm(folder));
+      .replace(/[^\p{L}\p{N}/.]/gu, '');
+  const similar = known.filter((k) => norm(k).includes(norm(folder)) || norm(folder).includes(norm(k)));
   throw new Error(
-    `Ordner/Label „${folder}“ existiert nicht${similar.length ? ` – meintest du ${similar.map((s) => `„${s}“`).join(', ')}?` : ''} (siehe list_folders; Ordner muss vorher in Proton angelegt werden)`,
+    `Ordner/Label „${folder}“ existiert nicht${similar.length ? ` – meintest du ${similar.map((s) => `„${s}“`).join(', ')}?` : ''} (siehe list_folders; der Ordner muss vorher angelegt werden)`,
   );
+}
+
+/** Scripts the planner may change: on servers with a single active script only that one runs. */
+function planningScripts(data) {
+  if (data.capabilities.multipleActive) return data.scripts;
+  return data.scripts.filter((s) => s.enabled);
 }
 
 export async function planRule(account, { rule, target = 'auto', newName, headers, size }) {
   const data = await account.data();
   assertFolderExists(data, rule.actions?.fileinto);
+  const scripts = planningScripts(data);
   const result = planRuleCore({
-    scripts: account.scripts(data),
+    scripts: target !== 'auto' && target !== 'new' ? data.scripts : scripts,
     rule,
-    target,
+    target: target === 'auto' && !scripts.length ? 'new' : target,
     newName,
     message: toMessage(headers, size) ?? undefined,
     labels: data.labels,
+    dialect: data.dialect,
   });
-  return { description: describeRule(rule), ...planToJson(result) };
+  const json = planToJson(result);
+  if (!json.target.id && !data.capabilities.multipleActive) {
+    json.notes.push(
+      scripts.length
+        ? 'Neues Skript wird angelegt, aber nicht aktiviert – auf diesem Server läuft nur ein aktives Skript.'
+        : 'Neues Skript wird angelegt und aktiviert (bisher war kein Skript aktiv).',
+    );
+    json.activate = !scripts.length;
+  }
+  return { description: describeRule(rule), ...json };
 }
 
 export async function buildTemplate(account, { templateId, params = {}, target = 'auto', newName }) {
-  const template = RULE_TEMPLATES.find((t) => t.id === templateId);
+  const data = await account.data();
+  const template = templatesFor(data.dialect).find((t) => t.id === templateId);
   if (!template) throw new Error(`Vorlage ${templateId} nicht gefunden – siehe list_templates`);
   const merged = { ...templateDefaults(template), ...params };
+  if (!data.dialect.proton) delete merged.expireDays;
   const built = buildTemplateCore(template, merged);
   if (built.rule) return { rule: built.rule, ...(await planRule(account, { rule: built.rule, target, newName })) };
-  if (template.params.some((p) => p.type === 'folder')) assertFolderExists(await account.data(), merged.folder);
+  if (template.params.some((p) => p.type === 'folder')) assertFolderExists(data, merged.folder);
 
-  // finished snippets are appended to the chosen (or first) filter, or become a new filter
-  const data = await account.data();
-  const filter = target === 'new' ? null : data.filters.find((f) => f.ID === target) ?? (target === 'auto' ? data.filters[0] : null);
-  const before = filter?.Sieve ?? '';
-  const base = filter ? before.replace(/\s+$/, '') : newScript().replace(/\s+$/, '');
+  // finished snippets are appended to the chosen (or first runnable) script, or become a new one
+  const runnable = planningScripts(data);
+  const script = target === 'new' ? null : data.scripts.find((s) => s.id === target) ?? (target === 'auto' ? runnable[0] : null);
+  const before = script?.sieve ?? '';
+  const base = (script ? before : newScript('', data.dialect)).replace(/\s+$/, '');
   const sieve = fixRequire(`${base}\n\n${built.code}\n`);
   return {
-    target: filter ? { id: filter.ID, name: filter.Name } : { id: null, name: newName || template.name, newFilter: true },
+    target: script ? { id: script.id, name: script.name } : { id: null, name: newName || template.name, newFilter: true },
     steps: [{ kind: 'new-block' }],
     notes: [],
     conflicts: [],
-    errors: withLines(sieve, lintCore(sieve).filter((i) => i.severity === 'error')),
+    errors: withLines(sieve, lintCore(sieve, { dialect: data.dialect }).filter((i) => i.severity === 'error')),
     diff: unifiedDiff(before, sieve),
     result: null,
     sieve,
+    activate: !script && !data.capabilities.multipleActive && !runnable.length,
   };
 }
 
@@ -194,13 +225,13 @@ async function savePlanned(account, planned) {
     await account.checkOrThrow(planned.sieve);
     if (planned.target.id) {
       const data = await account.data({ fresh: true });
-      const filter = data.filters.find((f) => f.ID === planned.target.id);
-      if (!filter) throw new Error('Der Zielfilter existiert nicht mehr');
-      await account.client.updateFilter(filter.ID, { Name: filter.Name, Sieve: planned.sieve, Status: filter.Status });
+      if (!data.scripts.some((s) => s.id === planned.target.id)) throw new Error('Der Zielfilter existiert nicht mehr');
+      await account.provider.updateScript(planned.target.id, { sieve: planned.sieve });
       return { saved: true, ...planned };
     }
-    const created = await account.client.createFilter({ Name: planned.target.name, Sieve: planned.sieve, Status: 1 });
-    return { saved: true, ...planned, target: { id: created?.ID ?? null, name: planned.target.name } };
+    const enabled = account.provider.capabilities.multipleActive ? true : Boolean(planned.activate);
+    const created = await account.provider.createScript({ name: planned.target.name, sieve: planned.sieve, enabled });
+    return { saved: true, ...planned, target: { id: created?.id ?? null, name: planned.target.name, enabled } };
   });
 }
 
@@ -217,40 +248,38 @@ export async function applyTemplate(account, args) {
 export async function createFilter(account, { name, sieve, enabled = true }) {
   return account.write(async () => {
     await account.checkOrThrow(sieve);
-    const created = await account.client.createFilter({ Name: name, Sieve: sieve, Status: enabled ? 1 : 0 });
-    return { id: created?.ID ?? null, name };
+    return account.provider.createScript({ name, sieve, enabled });
   });
 }
 
 export async function updateFilter(account, { id, name, sieve, enabled }) {
   return account.write(async () => {
     const data = await account.data({ fresh: true });
-    const filter = data.filters.find((f) => f.ID === id);
-    if (!filter) throw new Error(`Filter ${id} nicht gefunden`);
-    const next = { Name: name ?? filter.Name, Sieve: sieve ?? filter.Sieve, Status: enabled === undefined ? filter.Status : enabled ? 1 : 0 };
-    if (sieve !== undefined) await account.checkOrThrow(next.Sieve);
-    await account.client.updateFilter(id, next);
-    return { id, name: next.Name, enabled: next.Status === 1, diff: unifiedDiff(filter.Sieve, next.Sieve) };
+    const current = data.scripts.find((s) => s.id === id);
+    if (!current) throw new Error(`Filter/Skript ${id} nicht gefunden`);
+    if (sieve !== undefined) await account.checkOrThrow(sieve);
+    const result = await account.provider.updateScript(id, { name, sieve, enabled });
+    return { id: result?.id ?? id, name: name ?? current.name, enabled: enabled ?? current.enabled, diff: unifiedDiff(current.sieve, sieve ?? current.sieve) };
   });
 }
 
 export async function deleteFilter(account, { id }) {
   return account.write(async () => {
-    await account.client.deleteFilter(id);
+    await account.provider.deleteScript(id);
     return { deleted: id };
   });
 }
 
 export async function setFilterEnabled(account, { id, enabled }) {
   return account.write(async () => {
-    await account.client.setFilterEnabled(id, enabled);
+    await account.provider.setEnabled(id, enabled);
     return { id, enabled };
   });
 }
 
 export async function reorderFilters(account, { ids }) {
   return account.write(async () => {
-    await account.client.reorderFilters(ids);
+    await account.provider.reorder(ids);
     return { order: ids };
   });
 }

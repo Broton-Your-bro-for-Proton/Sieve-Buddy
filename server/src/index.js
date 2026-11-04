@@ -20,6 +20,7 @@ const OPERATIONS = {
   'list-filters': ops.listFilters,
   'get-filter': ops.getFilter,
   'list-folders': ops.listFolders,
+  capabilities: ops.capabilities,
   lint: ops.lintSieve,
   check: ops.checkSieve,
   format: ops.formatSieve,
@@ -107,6 +108,7 @@ export async function startServer(config = loadConfig()) {
       case '/api/session/import':
         return send(res, 200, await account.importSession(body));
       case '/api/login/reset-guard':
+        if (!account.guard) return send(res, 404, { error: 'Nur bei PROVIDER=proton' });
         await account.guard.reset();
         return send(res, 200, await account.status());
       case '/api/logout':
@@ -125,17 +127,19 @@ export async function startServer(config = loadConfig()) {
     // the Thunderbird add-on hands its session over from a moz-extension:// page
     const origin = req.headers.origin ?? '';
     const allowedOrigin = origin.startsWith('moz-extension://') || config.corsOrigins?.includes(origin);
-    if (allowedOrigin && (path === '/api/session/import' || path === '/api/status')) {
+    // the add-on (moz-extension://) talks to the whole API when it works through the service
+    if (allowedOrigin && path.startsWith('/api/')) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
+      res.setHeader('Access-Control-Max-Age', '600');
       if (req.method === 'OPTIONS') {
         res.writeHead(204);
         return res.end();
       }
     }
     try {
-      if (path === '/health') return send(res, 200, { ok: true, loggedIn: account.client.isLoggedIn });
+      if (path === '/health') return send(res, 200, { ok: true, provider: account.kind, loggedIn: account.provider.isReady });
       if (path === '/' && req.method === 'GET') return send(res, 200, ui, 'text/html; charset=utf-8');
       if (!authorized(req)) return send(res, 401, { error: 'Bearer-Token fehlt oder ist falsch' });
       if (path === '/mcp') return await handleMcp(req, res);
@@ -156,7 +160,7 @@ export async function startServer(config = loadConfig()) {
 
   await new Promise((resolve) => server.listen(config.port, config.host, resolve));
   const { port } = server.address();
-  console.log(`Proton Sieve Service läuft auf http://${config.host}:${port} (MCP: /mcp)`);
+  console.log(`Sieve-Dienst (${account.kind}) läuft auf http://${config.host}:${port} (MCP: /mcp)`);
   return { server, account, port };
 }
 

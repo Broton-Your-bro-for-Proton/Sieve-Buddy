@@ -73,12 +73,20 @@ test('a valid session is taken over without any password login', async () => {
   assert.equal(filters.body.filters.length, 2);
 });
 
-test('CORS allows the add-on origin only for import and status', async () => {
+test('CORS allows the add-on origin for the API, but not other web origins', async () => {
   const pre = await fetch(`${base}/api/session/import`, { method: 'OPTIONS', headers: { Origin: 'moz-extension://abc', 'Access-Control-Request-Method': 'POST' } });
   assert.equal(pre.status, 204);
   assert.equal(pre.headers.get('access-control-allow-origin'), 'moz-extension://abc');
-  const other = await fetch(`${base}/api/ops/list-filters`, { method: 'OPTIONS', headers: { Origin: 'moz-extension://abc' } });
-  assert.equal(other.headers.get('access-control-allow-origin'), null);
+  const ops = await fetch(`${base}/api/ops/list-filters`, { method: 'OPTIONS', headers: { Origin: 'moz-extension://abc' } });
+  assert.equal(ops.headers.get('access-control-allow-origin'), 'moz-extension://abc');
+  const ui = await fetch(`${base}/mcp`, { method: 'OPTIONS', headers: { Origin: 'moz-extension://abc' } });
+  assert.equal(ui.headers.get('access-control-allow-origin'), null);
   const web = await fetch(`${base}/api/session/import`, { method: 'OPTIONS', headers: { Origin: 'https://evil.example' } });
   assert.equal(web.headers.get('access-control-allow-origin'), null);
+});
+
+test('password login in the service is off by default', async () => {
+  const r = await call('/api/login', { username: 'test@proton.local', password: 'test123' });
+  assert.equal(r.status, 400);
+  assert.match(r.body.error, /Passwort-Login im Dienst ist abgeschaltet/);
 });

@@ -16,7 +16,7 @@ let dataDir;
 let service;
 let base;
 
-const config = () => ({ host: '127.0.0.1', port: 0, dataDir, apiToken: TOKEN, secret: 's3cret', allowWrite: true, proton: { apiBase, appVersion: 'Other' } });
+const config = () => ({ host: '127.0.0.1', port: 0, dataDir, apiToken: TOKEN, secret: 's3cret', allowWrite: true, allowPasswordLogin: true, proton: { apiBase, appVersion: 'Other' } });
 const post = async (path, body = {}) => {
   const res = await fetch(`${base}${path}`, { method: 'POST', headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   return { status: res.status, body: await res.json() };

@@ -23,7 +23,7 @@ before(async () => {
   fake = createFakeProton({ abuse: true });
   const apiBase = await fake.listen();
   dataDir = await mkdtemp(join(tmpdir(), 'pss-guard-'));
-  service = await startServer({ host: '127.0.0.1', port: 0, dataDir, apiToken: TOKEN, secret: 's', allowWrite: true, proton: { apiBase, appVersion: 'Other' } });
+  service = await startServer({ host: '127.0.0.1', port: 0, dataDir, apiToken: TOKEN, secret: 's', allowWrite: true, allowPasswordLogin: true, proton: { apiBase, appVersion: 'Other' } });
   base = `http://127.0.0.1:${service.port}`;
 });
 
