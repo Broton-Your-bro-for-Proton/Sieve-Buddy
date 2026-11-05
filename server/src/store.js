@@ -3,6 +3,7 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
+import { t } from '../../addon/lib/i18n.js';
 
 /** Plain JSON file (for non-secret state such as the login guard). */
 export function jsonFileStore(path) {
@@ -39,7 +40,7 @@ export function encryptedFileStore(path, secret) {
         const plain = Buffer.concat([decipher.update(Buffer.from(data, 'base64')), decipher.final()]);
         return JSON.parse(plain.toString('utf8'));
       } catch {
-        console.warn('Gespeicherte Sitzung konnte nicht entschlüsselt werden (anderes SESSION_SECRET?) – bitte neu anmelden');
+        console.warn(t('Gespeicherte Sitzung konnte nicht entschlüsselt werden (anderes SESSION_SECRET?) – bitte neu anmelden'));
         return null;
       }
     },

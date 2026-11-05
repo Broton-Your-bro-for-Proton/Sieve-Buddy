@@ -1,6 +1,7 @@
 // Structured rules on top of the AST: describe a rule as conditions + actions, find where it fits into
 // existing scripts (append a key to a matching block, extend an anyof, ...) and produce minimal patches.
 
+import { t } from './i18n.js';
 import { fixRequire } from './sieve-analyzer.js';
 import { applyPatches, lineOf, parseSieve, quoteSieve, walkCommands } from './sieve-ast.js';
 
@@ -163,20 +164,20 @@ export function ruleToSieve({ conditions, combine = 'anyof', actions }) {
 export function describeRule({ conditions, actions }) {
   const what = conditions
     .map((c) => {
-      if (c.kind === 'exists') return `Header „${c.header}“ vorhanden`;
-      const part = c.kind === 'address' ? { domain: 'Domain', localpart: 'Name vor @', all: 'Adresse' }[c.part ?? 'all'] : 'Header';
-      return `${part} ${c.header} ${{ is: 'ist', contains: 'enthält', matches: 'passt auf' }[c.match ?? 'is']} „${c.value}“`;
+      if (c.kind === 'exists') return t('Header „{header}“ vorhanden', { header: c.header });
+      const part = c.kind === 'address' ? { domain: t('Domain'), localpart: t('Name vor @'), all: t('Adresse') }[c.part ?? 'all'] : t('Header');
+      return t('{part} {header} {match} „{value}“', { part, header: c.header, match: { is: t('ist'), contains: t('enthält'), matches: t('passt auf') }[c.match ?? 'is'], value: c.value });
     })
-    .join(' oder ');
+    .join(t(' oder '));
   const a = normaliseActions(actions);
   const todo = [
-    a.fileinto && `nach „${a.fileinto}“`,
-    a.seen && 'als gelesen',
-    a.flagged && 'mit Stern',
-    a.expireDays && `nach ${a.expireDays} Tagen löschen`,
-    a.stop && 'danach stoppen',
+    a.fileinto && t('nach „{folder}“', { folder: a.fileinto }),
+    a.seen && t('als gelesen'),
+    a.flagged && t('mit Stern'),
+    a.expireDays && t('nach {days} Tagen löschen', { days: a.expireDays }),
+    a.stop && t('danach stoppen'),
   ].filter(Boolean);
-  return `${what} → ${todo.join(', ') || 'keine Aktion'}`;
+  return `${what} → ${todo.join(', ') || t('keine Aktion')}`;
 }
 
 /** Patch adding `value` to a string or string list argument, following the list's own layout. */
@@ -246,7 +247,7 @@ export function proposeRule(scripts, rule) {
           if (d && sameForm(d, single) && keyCovered(d, single.value)) {
             const entry = { scriptId: script.id, scriptName: script.name, line: lineOf(text, d.test.start) };
             if (actions && sameActions(actions, rule.actions)) covered.push(entry);
-            else conflicts.push({ ...entry, message: `„${single.value}“ wird hier bereits anders behandelt` });
+            else conflicts.push({ ...entry, message: t('„{value}“ wird hier bereits anders behandelt', { value: single.value }) });
           }
         }
       }
@@ -261,13 +262,13 @@ export function proposeRule(scripts, rule) {
           command.test.name === 'anyof' ? 90 : 100,
           appendKeyPatch(text, target.keysArg, single.value),
           target.test,
-          `„${single.value}“ zur bestehenden Liste hinzufügen`,
+          t('„{value}“ zur bestehenden Liste hinzufügen', { value: single.value }),
         );
       } else if (command.test.name === 'anyof') {
         const lastTest = command.test.tests[command.test.tests.length - 1];
         const multiline = text.slice(command.test.start, command.test.end).includes('\n');
         const sep = multiline ? `,\n${indentOf(text, lastTest.start)}` : ', ';
-        push('extend-anyof', 70, { start: lastTest.end, end: lastTest.end, text: sep + conditionToSieve(single) }, command.test, 'Bedingung zum bestehenden anyof(…) hinzufügen');
+        push('extend-anyof', 70, { start: lastTest.end, end: lastTest.end, text: sep + conditionToSieve(single) }, command.test, t('Bedingung zum bestehenden anyof(…) hinzufügen'));
       } else if (descs[0]) {
         const inner = `${indentOf(text, command.start)}    `;
         const original = text.slice(command.test.start, command.test.end);
@@ -276,7 +277,7 @@ export function proposeRule(scripts, rule) {
           60,
           { start: command.test.start, end: command.test.end, text: `anyof(\n${inner}${original},\n${inner}${conditionToSieve(single)}\n${indentOf(text, command.start)})` },
           command.test,
-          'Bestehende Regel mit gleicher Aktion zu anyof(…) erweitern',
+          t('Bestehende Regel mit gleicher Aktion zu anyof(…) erweitern'),
         );
       }
     }
@@ -288,7 +289,7 @@ export function proposeRule(scripts, rule) {
       10,
       { start: trimmedEnd, end: text.length, text: `\n\n${ruleToSieve(rule)}\n` },
       { start: trimmedEnd },
-      'Als neuen Block am Ende anhängen',
+      t('Als neuen Block am Ende anhängen'),
     );
   }
 
@@ -369,7 +370,7 @@ export function mergeRuleIntoScript(script, rule, options = {}) {
 export function insertRuleBefore(sieve, line, rule, { stop = false } = {}) {
   const ast = parseSieve(sieve);
   const command = ast.commands.find((c) => lineOf(sieve, c.start) === line);
-  if (!command) throw new Error(`Kein Block beginnt in Zeile ${line}`);
+  if (!command) throw new Error(t('Kein Block beginnt in Zeile {line}', { line }));
   const indent = indentOf(sieve, command.start);
   const placed = stop ? { ...rule, actions: { ...rule.actions, stop: true } } : rule;
   const block = ruleToSieve(placed).replace(/\n/g, `\n${indent}`);

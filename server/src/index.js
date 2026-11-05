@@ -12,6 +12,7 @@ import { Account } from './account.js';
 import { loadConfig } from './config.js';
 import { createMcpServer } from './mcp.js';
 import * as ops from './ops.js';
+import { getLocale, t } from '../../addon/lib/i18n.js';
 
 const MAX_BODY = 1024 * 1024;
 
@@ -41,7 +42,10 @@ const OPERATIONS = {
 export async function startServer(config = loadConfig()) {
   const account = new Account(config);
   await account.init();
-  const ui = await readFile(fileURLToPath(new URL('./ui.html', import.meta.url)), 'utf8');
+  const ui = (await readFile(fileURLToPath(new URL('./ui.html', import.meta.url)), 'utf8')).replace('<html lang="de">', `<html lang="${getLocale()}">`);
+  // the page translates itself with the shared i18n module
+  const lib = (file) => readFile(fileURLToPath(new URL(`../../addon/lib/${file}`, import.meta.url)), 'utf8');
+  const scripts = { '/i18n.js': await lib('i18n.js'), '/locales/en.js': await lib('locales/en.js') };
   const expected = Buffer.from(`Bearer ${config.apiToken}`);
 
   const authorized = (req) => {
@@ -66,7 +70,7 @@ export async function startServer(config = loadConfig()) {
       req.on('data', (c) => {
         size += c.length;
         if (size > MAX_BODY) {
-          reject(Object.assign(new Error('Anfrage zu groß'), { status: 413 }));
+          reject(Object.assign(new Error(t('Anfrage zu groß')), { status: 413 }));
           req.destroy();
         } else chunks.push(c);
       });
@@ -75,14 +79,14 @@ export async function startServer(config = loadConfig()) {
         try {
           resolve(raw ? JSON.parse(raw) : {});
         } catch {
-          reject(Object.assign(new Error('Ungültiges JSON'), { status: 400 }));
+          reject(Object.assign(new Error(t('Ungültiges JSON')), { status: 400 }));
         }
       });
       req.on('error', reject);
     });
 
   async function handleMcp(req, res) {
-    if (req.method !== 'POST') return send(res, 405, { error: 'Nur POST (zustandsloses Streamable HTTP)' });
+    if (req.method !== 'POST') return send(res, 405, { error: t('Nur POST (zustandsloses Streamable HTTP)') });
     const body = await readBody(req);
     const server = createMcpServer(account);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
@@ -96,7 +100,7 @@ export async function startServer(config = loadConfig()) {
 
   async function handleApi(req, res, path) {
     if (path === '/api/status' && req.method === 'GET') return send(res, 200, await account.status());
-    if (req.method !== 'POST') return send(res, 405, { error: 'Methode nicht erlaubt' });
+    if (req.method !== 'POST') return send(res, 405, { error: t('Methode nicht erlaubt') });
     const body = await readBody(req);
     switch (path) {
       case '/api/login':
@@ -108,7 +112,7 @@ export async function startServer(config = loadConfig()) {
       case '/api/session/import':
         return send(res, 200, await account.importSession(body));
       case '/api/login/reset-guard':
-        if (!account.guard) return send(res, 404, { error: 'Nur bei PROVIDER=proton' });
+        if (!account.guard) return send(res, 404, { error: t('Nur bei PROVIDER=proton') });
         await account.guard.reset();
         return send(res, 200, await account.status());
       case '/api/logout':
@@ -116,7 +120,7 @@ export async function startServer(config = loadConfig()) {
         return send(res, 200, { ok: true });
       default: {
         const op = OPERATIONS[path.replace(/^\/api\/ops\//, '')];
-        if (!path.startsWith('/api/ops/') || !op) return send(res, 404, { error: 'Unbekannte Operation' });
+        if (!path.startsWith('/api/ops/') || !op) return send(res, 404, { error: t('Unbekannte Operation') });
         return send(res, 200, await op(account, body));
       }
     }
@@ -141,10 +145,11 @@ export async function startServer(config = loadConfig()) {
     try {
       if (path === '/health') return send(res, 200, { ok: true, provider: account.kind, loggedIn: account.provider.isReady });
       if (path === '/' && req.method === 'GET') return send(res, 200, ui, 'text/html; charset=utf-8');
-      if (!authorized(req)) return send(res, 401, { error: 'Bearer-Token fehlt oder ist falsch' });
+      if (scripts[path] && req.method === 'GET') return send(res, 200, scripts[path], 'text/javascript; charset=utf-8');
+      if (!authorized(req)) return send(res, 401, { error: t('Bearer-Token fehlt oder ist falsch') });
       if (path === '/mcp') return await handleMcp(req, res);
       if (path.startsWith('/api/')) return await handleApi(req, res, path);
-      return send(res, 404, { error: 'Nicht gefunden' });
+      return send(res, 404, { error: t('Nicht gefunden') });
     } catch (error) {
       if (res.headersSent) return;
       // Proton's own status codes are not passed through: a Proton 401 must not look like a wrong API token
@@ -160,7 +165,7 @@ export async function startServer(config = loadConfig()) {
 
   await new Promise((resolve) => server.listen(config.port, config.host, resolve));
   const { port } = server.address();
-  console.log(`Sieve-Dienst (${account.kind}) läuft auf http://${config.host}:${port} (MCP: /mcp)`);
+  console.log(t('Sieve-Dienst ({kind}) läuft auf http://{host}:{port} (MCP: /mcp)', { kind: account.kind, host: config.host, port }));
   return { server, account, port };
 }
 

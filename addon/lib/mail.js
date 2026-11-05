@@ -1,5 +1,7 @@
 // Message headers for the simulator and for "rule from mail": parsing, addresses, rule suggestions.
 
+import { t } from './i18n.js';
+
 /**
  * A message as the simulator sees it (Proton filters only see headers, never the body).
  * @typedef {{headers: Record<string, string[]>, size?: number, envelope?: {from?: string, to?: string}, flags?: string[]}} SieveMessage
@@ -114,13 +116,13 @@ export function suggestConditions(msg, { ownAddresses = [] } = {}) {
     const automated = /^(no-?reply|donotreply|notifications?|news(letter)?|info|mailer|support|service|updates?|hello)\b/.test(local);
     suggestions.push({
       id: 'from',
-      label: `Absender ${from}`,
+      label: t('Absender {from}', { from }),
       condition: { kind: 'address', header: 'from', part: 'all', match: 'is', value: from.toLowerCase() },
     });
     if (domain) {
       suggestions.push({
         id: 'domain',
-        label: `Absender-Domain ${domain}`,
+        label: t('Absender-Domain {domain}', { domain }),
         condition: { kind: 'address', header: 'from', part: 'domain', match: 'is', value: domain },
         automated,
       });
@@ -131,7 +133,7 @@ export function suggestConditions(msg, { ownAddresses = [] } = {}) {
   if (alias) {
     suggestions.push({
       id: 'to',
-      label: `Empfänger-Adresse ${alias}`,
+      label: t('Empfänger-Adresse {address}', { address: alias }),
       condition: { kind: 'address', header: 'to', part: 'all', match: 'is', value: alias.toLowerCase() },
     });
   }
@@ -141,7 +143,7 @@ export function suggestConditions(msg, { ownAddresses = [] } = {}) {
     if (stable) {
       suggestions.push({
         id: 'subject',
-        label: `Betreff enthält „${stable}“`,
+        label: t('Betreff enthält „{subject}“', { subject: stable }),
         condition: { kind: 'header', header: 'subject', match: 'contains', value: stable },
       });
     }

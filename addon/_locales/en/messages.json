@@ -1,0 +1,4 @@
+{
+  "extensionDescription": { "message": "Manage Sieve filters for Proton Mail and other mail servers right in Thunderbird, with syntax checks, a simulator and rules from mails." },
+  "messageActionTitle": { "message": "Sieve rule" }
+}

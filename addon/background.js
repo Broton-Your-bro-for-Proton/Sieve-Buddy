@@ -16,11 +16,14 @@ browser.messageDisplayAction.onClicked.addListener(async (tab) => {
   if (message) await openRuleWindow(message.id);
 });
 
-browser.menus.create({
-  id: 'sieve-rule-from-mail',
-  title: 'Sieve-Regel aus dieser Mail …',
-  contexts: ['message_list'],
-});
+// loaded dynamically because the background script is not a module
+import('./lib/i18n.js').then(({ t }) =>
+  browser.menus.create({
+    id: 'sieve-rule-from-mail',
+    title: t('Sieve-Regel aus dieser Mail …'),
+    contexts: ['message_list'],
+  }),
+);
 
 browser.menus.onClicked.addListener(async (info) => {
   if (info.menuItemId !== 'sieve-rule-from-mail') return;

@@ -11,6 +11,7 @@ import { ProtonProvider } from '../../addon/lib/providers/proton-provider.js';
 import { makeDialect } from '../../addon/lib/sieve-dialect.js';
 import { ManageSieveProvider } from './providers/managesieve-provider.js';
 import { encryptedFileStore, jsonFileStore } from './store.js';
+import { t } from '../../addon/lib/i18n.js';
 
 const bcrypt = createRequire(import.meta.url)('bcryptjs');
 const CACHE_MS = 30_000;
@@ -83,13 +84,13 @@ export class Account {
   // ---------- Proton: password login (off by default) and session hand-over ----------
 
   #requireProton() {
-    if (this.kind !== 'proton') throw new Error('Nur bei PROVIDER=proton verfügbar');
+    if (this.kind !== 'proton') throw new Error(t('Nur bei PROVIDER=proton verfügbar'));
   }
 
   async login(username, password) {
     this.#requireProton();
     if (!this.config.allowPasswordLogin) {
-      throw new Error('Der Passwort-Login im Dienst ist abgeschaltet. Melde dich im Thunderbird-Add-on an und nutze dort „An Dienst übergeben“ (oder ALLOW_PASSWORD_LOGIN=true setzen).');
+      throw new Error(t('Der Passwort-Login im Dienst ist abgeschaltet. Melde dich im Thunderbird-Add-on an und nutze dort „An Dienst übergeben“ (oder ALLOW_PASSWORD_LOGIN=true setzen).'));
     }
     this.pending = { username, password, step: 'password', expires: Date.now() + PENDING_MS };
     return this.#attempt();
@@ -97,7 +98,7 @@ export class Account {
 
   async submitTotp(code) {
     this.#requireProton();
-    if (this.pending?.step !== 'totp') throw new Error('Keine Anmeldung wartet auf einen 2FA-Code');
+    if (this.pending?.step !== 'totp') throw new Error(t('Keine Anmeldung wartet auf einen 2FA-Code'));
     await this.client.submitTotp(code);
     this.pending = null;
     return { step: 'done' };
@@ -105,7 +106,7 @@ export class Account {
 
   async continueAfterCaptcha() {
     this.#requireProton();
-    if (this.pending?.step !== 'captcha' || Date.now() > this.pending.expires) throw new Error('Keine Anmeldung wartet auf das Captcha');
+    if (this.pending?.step !== 'captcha' || Date.now() > this.pending.expires) throw new Error(t('Keine Anmeldung wartet auf das Captcha'));
     return this.#attempt(this.pending.hv);
   }
 
@@ -151,7 +152,7 @@ export class Account {
   async importSession({ UID, AccessToken, RefreshToken, username }) {
     this.#requireProton();
     if (typeof UID !== 'string' || typeof RefreshToken !== 'string' || !UID || !RefreshToken) {
-      throw new Error('UID und RefreshToken der Sitzung fehlen');
+      throw new Error(t('UID und RefreshToken der Sitzung fehlen'));
     }
     const previous = this.client.session;
     this.client.session = { UID, AccessToken: AccessToken ?? null, RefreshToken, username: username ?? null, pending2FA: false };
@@ -160,7 +161,7 @@ export class Account {
       await this.client.listLabels(LABEL_TYPE.FOLDER);
     } catch (error) {
       this.client.session = previous;
-      throw new Error(`Die Sitzung wurde von Proton nicht angenommen: ${error.message}`);
+      throw new Error(t('Die Sitzung wurde von Proton nicht angenommen: {message}', { message: error.message }));
     }
     await this.store.save(this.client.session);
     this.pending = null;
@@ -172,12 +173,16 @@ export class Account {
 
   requireReady() {
     if (this.provider.isReady) return;
-    if (this.kind === 'managesieve') throw new Error(`ManageSieve-Server nicht erreichbar oder Anmeldung fehlgeschlagen${this.initError ? `: ${this.initError}` : ''}`);
-    throw new Error('Nicht bei Proton angemeldet – Sitzung im Thunderbird-Add-on über „An Dienst übergeben“ übertragen');
+    if (this.kind === 'managesieve') throw new Error(
+        this.initError
+          ? t('ManageSieve-Server nicht erreichbar oder Anmeldung fehlgeschlagen: {error}', { error: this.initError })
+          : t('ManageSieve-Server nicht erreichbar oder Anmeldung fehlgeschlagen'),
+      );
+    throw new Error(t('Nicht bei Proton angemeldet – Sitzung im Thunderbird-Add-on über „An Dienst übergeben“ übertragen'));
   }
 
   requireWrite() {
-    if (!this.config.allowWrite) throw new Error('Schreibzugriffe sind deaktiviert (ALLOW_WRITE=false)');
+    if (!this.config.allowWrite) throw new Error(t('Schreibzugriffe sind deaktiviert (ALLOW_WRITE=false)'));
   }
 
   /** Scripts (in execution order) and folders; folders/labels are null when the server cannot list them. */
@@ -220,8 +225,8 @@ export class Account {
   async checkOrThrow(sieve) {
     const issues = await this.provider.check(sieve);
     if (issues.length) {
-      const who = this.kind === 'proton' ? 'Proton' : 'Der Server';
-      const err = new Error(`${who} lehnt das Skript ab: ${issues.map((i) => `${i.line ? `Zeile ${i.line}: ` : ''}${i.message}`).join('; ')}`);
+      const list = issues.map((i) => (i.line ? t('Zeile {line}: {message}', { line: i.line, message: i.message }) : i.message)).join('; ');
+      const err = new Error(this.kind === 'proton' ? t('Proton lehnt das Skript ab: {list}', { list }) : t('Der Server lehnt das Skript ab: {list}', { list }));
       err.issues = issues;
       throw err;
     }

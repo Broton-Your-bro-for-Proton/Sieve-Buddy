@@ -1,3 +1,4 @@
+import { t } from '../lib/i18n.js';
 import { fixRequire, getCompletions, lintSieve } from '../lib/sieve-analyzer.js';
 import { PROTON_DIALECT, SPAM_GUARD, SPAM_GUARD_REQUIRE, formatList, newScript } from '../lib/sieve-dialect.js';
 import { findOverlaps } from '../lib/sieve-rules.js';
@@ -86,9 +87,9 @@ function annotations(text) {
     to: toPos(o.end),
     severity: 'warning',
     message: {
-      duplicate: `„${o.value}“ steht schon in Zeile ${o.otherLine} mit derselben Aktion (doppelt)`,
-      conflict: `„${o.value}“ steht schon in Zeile ${o.otherLine} mit anderer Aktion – das Ergebnis hängt von der Reihenfolge ab`,
-      domain: `„${o.value}“ ist schon durch die Domain-Regel in Zeile ${o.otherLine} abgedeckt`,
+      duplicate: t('„{value}“ steht schon in Zeile {line} mit derselben Aktion (doppelt)', { value: o.value, line: o.otherLine }),
+      conflict: t('„{value}“ steht schon in Zeile {line} mit anderer Aktion – das Ergebnis hängt von der Reihenfolge ab', { value: o.value, line: o.otherLine }),
+      domain: t('„{value}“ ist schon durch die Domain-Regel in Zeile {line} abgedeckt', { value: o.value, line: o.otherLine }),
     }[o.kind],
   }));
   const all = [...local, ...overlaps, ...remote];
@@ -102,7 +103,7 @@ function renderProblems(list) {
     ...list.map((p) => {
       const div = document.createElement('div');
       div.className = p.severity;
-      div.textContent = `Zeile ${p.from.line + 1}: ${p.message}`;
+      div.textContent = t('Zeile {line}: {message}', { line: p.from.line + 1, message: p.message });
       div.addEventListener('click', () => {
         editor.focus();
         editor.setSelection(p.from, p.to);
@@ -138,7 +139,7 @@ editor.on('change', () => {
 
 async function checkRemote(announce) {
   if (state.offline) {
-    toast('Prüfung bei Proton ist nur mit Anmeldung möglich', true);
+    toast(t('Prüfung bei Proton ist nur mit Anmeldung möglich'), true);
     return;
   }
   const text = editor.getValue();
@@ -146,7 +147,7 @@ async function checkRemote(announce) {
   if (text !== editor.getValue()) return; // changed meanwhile
   state.remoteIssues = issues;
   editor.performLint();
-  if (announce) toast(issues.length ? `Proton meldet ${issues.length} Problem(e)` : 'Proton: Skript ist gültig ✓', issues.length > 0);
+  if (announce) toast(issues.length ? t('Proton meldet {count} Problem(e)', { count: issues.length }) : t('Proton: Skript ist gültig ✓'), issues.length > 0);
   return issues;
 }
 
@@ -160,12 +161,12 @@ function renderFilters() {
     ...state.filters.map((f, index) => {
       const li = document.createElement('li');
       li.className = `${f.ID === state.selectedId ? 'selected' : ''} ${isEnabled(f) ? '' : 'disabled'}`;
-      li.title = isEnabled(f) ? 'aktiv' : 'deaktiviert';
+      li.title = isEnabled(f) ? t('aktiv') : t('deaktiviert');
 
       const toggle = document.createElement('input');
       toggle.type = 'checkbox';
       toggle.checked = isEnabled(f);
-      toggle.title = 'Aktivieren/Deaktivieren';
+      toggle.title = t('Aktivieren/Deaktivieren');
       toggle.addEventListener('click', (e) => e.stopPropagation());
       toggle.addEventListener('change', () => toggleFilter(f, toggle.checked));
 
@@ -195,7 +196,7 @@ function renderFilters() {
 }
 
 function confirmDiscard() {
-  return !state.dirty || confirm('Ungespeicherte Änderungen verwerfen?');
+  return !state.dirty || confirm(t('Ungespeicherte Änderungen verwerfen?'));
 }
 
 function loadIntoEditor(filter) {
@@ -241,15 +242,15 @@ async function saveLocal(filters) {
 
 async function saveFilter() {
   const Name = $('filter-name').value.trim();
-  if (!Name) throw new Error('Bitte einen Namen für den Filter angeben');
+  if (!Name) throw new Error(t('Bitte einen Namen für den Filter angeben'));
   const Sieve = editor.getValue();
   const Status = $('filter-enabled').checked ? 1 : 0;
 
   const errors = lintSieve(Sieve, { dialect: state.dialect }).filter((i) => i.severity === 'error');
-  if (errors.length && !confirm(`Der Editor findet ${errors.length} Fehler. Trotzdem an Proton senden?`)) return;
+  if (errors.length && !confirm(t('Der Editor findet {count} Fehler. Trotzdem an Proton senden?', { count: errors.length }))) return;
 
   const previous = state.filters.find((f) => f.ID === state.selectedId);
-  if (previous && previous.Sieve !== Sieve && !(await confirmDiff(previous.Sieve ?? '', Sieve, `„${Name}“ speichern`))) return;
+  if (previous && previous.Sieve !== Sieve && !(await confirmDiff(previous.Sieve ?? '', Sieve, t('„{name}“ speichern', { name: Name })))) return;
   if (previous) await pushHistory(previous.ID, previous.Name, previous.Sieve);
 
   if (state.offline) {
@@ -259,13 +260,13 @@ async function saveFilter() {
     await saveLocal(exists ? state.filters.map((f) => (f.ID === ID ? filter : f)) : [...state.filters, filter]);
     state.dirty = false;
     loadIntoEditor(filter);
-    toast('Lokal gespeichert');
+    toast(t('Lokal gespeichert'));
     return;
   }
 
   const issues = await checkRemote(false);
   if (issues?.length) {
-    toast(`Proton lehnt das Skript ab (${issues.length} Problem(e)) – siehe Liste unter dem Editor`, true);
+    toast(t('Proton lehnt das Skript ab ({count} Problem(e)) – siehe Liste unter dem Editor', { count: issues.length }), true);
     return;
   }
   const saved = state.selectedId
@@ -274,18 +275,18 @@ async function saveFilter() {
   state.selectedId = saved?.ID ?? state.selectedId;
   state.dirty = false;
   await reloadFilters();
-  toast(`„${Name}“ gespeichert`);
+  toast(t('„{name}“ gespeichert', { name: Name }));
 }
 
 async function deleteFilter() {
   const filter = state.filters.find((f) => f.ID === state.selectedId);
-  if (!filter || !confirm(`Filter „${filter.Name}“ wirklich löschen?`)) return;
+  if (!filter || !confirm(t('Filter „{name}“ wirklich löschen?', { name: filter.Name }))) return;
   if (state.offline) await saveLocal(state.filters.filter((f) => f.ID !== filter.ID));
   else await state.client.deleteFilter(filter.ID);
   state.selectedId = null;
   state.dirty = false;
   await reloadFilters();
-  toast(`„${filter.Name}“ gelöscht`);
+  toast(t('„{name}“ gelöscht', { name: filter.Name }));
 }
 
 async function toggleFilter(filter, enabled) {
@@ -327,19 +328,19 @@ async function moveFilter(index, delta) {
 
 $('fix-require').addEventListener('click', () => {
   const fixed = fixRequire(editor.getValue());
-  if (fixed === editor.getValue()) toast('require ist bereits vollständig');
+  if (fixed === editor.getValue()) toast(t('require ist bereits vollständig'));
   else {
     const cursor = editor.getCursor();
     editor.setValue(fixed);
     editor.setCursor(cursor);
-    toast('require ergänzt');
+    toast(t('require ergänzt'));
   }
 });
 
 $('insert-guard').addEventListener('click', () => {
   const text = editor.getValue();
   if (text.includes('vnd.proton.spam-threshold')) {
-    toast('Spam-Schutz ist bereits vorhanden');
+    toast(t('Spam-Schutz ist bereits vorhanden'));
     return;
   }
   const withGuard = /^\s*require\b[^;]*;/.test(text)
@@ -359,7 +360,7 @@ function mergeRequire(text, extensions) {
 
 $('copy').addEventListener('click', async () => {
   await navigator.clipboard.writeText(editor.getValue());
-  toast('Skript in die Zwischenablage kopiert');
+  toast(t('Skript in die Zwischenablage kopiert'));
 });
 
 $('check').addEventListener('click', (e) => busy(e.currentTarget, () => checkRemote(true)));
@@ -394,7 +395,7 @@ async function loadDraft() {
     if (!filter) $('filter-name').value = draft.name ?? '';
     editor.setValue(draft.sieve);
     state.dirty = true;
-    toast('Entwurf aus „Sieve-Regel aus Mail“ geladen – prüfen und speichern');
+    toast(t('Entwurf aus „Sieve-Regel aus Mail“ geladen – prüfen und speichern'));
   }
   if (draft.line) {
     const pos = { line: draft.line - 1, ch: 0 };
@@ -418,11 +419,11 @@ async function enterApp() {
   const serverName = via ? (state.client.kind === 'managesieve' ? 'ManageSieve' : 'Proton') : 'Proton';
   $('offline-note').hidden = true;
   $('check').hidden = false;
-  $('check').textContent = `Bei ${serverName === 'Proton' ? 'Proton' : 'Server'} prüfen`;
+  $('check').textContent = serverName === 'Proton' ? t('Bei Proton prüfen') : t('Bei Server prüfen');
   $('insert-guard').hidden = !state.dialect.proton;
-  $('account').textContent = `${state.client.session?.username ?? ''}${via ? ` · über Dienst (${serverName})` : ''}`;
+  $('account').textContent = `${state.client.session?.username ?? ''}${via ? ` · ${t('über Dienst ({server})', { server: serverName })}` : ''}`;
   $('logout').hidden = false;
-  $('logout').textContent = via ? 'Dienst trennen' : 'Abmelden';
+  $('logout').textContent = via ? t('Dienst trennen') : t('Abmelden');
   $('handover').hidden = via;
   show('app');
   await reloadFilters();
@@ -435,7 +436,7 @@ async function enterOffline() {
   state.caps = capabilitiesOf(null);
   $('offline-note').hidden = false;
   $('check').hidden = true;
-  $('account').textContent = 'Offline';
+  $('account').textContent = t('Offline');
   $('logout').hidden = false;
   $('handover').hidden = true;
   show('app');
@@ -468,7 +469,12 @@ function startCaptcha(details) {
   const methods = details.HumanVerificationMethods ?? [];
   if (!methods.includes('captcha')) {
     show('login');
-    toast(`Proton verlangt eine Verifizierung per ${methods.join('/') || 'unbekannter Methode'}. Bitte einmal im Proton-Web-Login anmelden und es danach erneut versuchen.`, true);
+    toast(
+      methods.length
+        ? t('Proton verlangt eine Verifizierung per {method}. Bitte einmal im Proton-Web-Login anmelden und es danach erneut versuchen.', { method: methods.join('/') })
+        : t('Proton verlangt eine Verifizierung per unbekannter Methode. Bitte einmal im Proton-Web-Login anmelden und es danach erneut versuchen.'),
+      true,
+    );
     return;
   }
   // Like Proton Bridge: the user solves the captcha on verify.proton.me in the system browser,
@@ -477,7 +483,7 @@ function startCaptcha(details) {
   captcha.type = methods.join(',');
   captcha.url = details.WebUrl || `https://verify.proton.me/?methods=captcha&token=${encodeURIComponent(captcha.token)}`;
   show('captcha');
-  openVerification().catch((error) => toast(`Verifizierungsseite konnte nicht geöffnet werden: ${error.message}`, true));
+  openVerification().catch((error) => toast(t('Verifizierungsseite konnte nicht geöffnet werden: {message}', { message: error.message }), true));
 }
 
 const captcha = { token: null, type: null, url: null };
@@ -545,7 +551,7 @@ async function connectService(url, token) {
   await setServiceMode({ url: origin, token });
   state.client = await makeClient();
   if (!(await state.client.restore())) {
-    const why = state.client.status?.error ?? (state.client.kind === 'proton' ? 'Der Dienst hat noch keine Proton-Sitzung – erst hier anmelden und „An Dienst übergeben“' : 'Der Dienst ist nicht mit seinem Mailserver verbunden');
+    const why = state.client.status?.error ?? (state.client.kind === 'proton' ? t('Der Dienst hat noch keine Proton-Sitzung – erst hier anmelden und „An Dienst übergeben“') : t('Der Dienst ist nicht mit seinem Mailserver verbunden'));
     throw new Error(why);
   }
   await enterApp();
@@ -603,7 +609,7 @@ $('logout').addEventListener('click', async () => {
       await enterApp();
       return;
     } catch (error) {
-      toast(`Sitzung konnte nicht fortgesetzt werden: ${error.message}`, true);
+      toast(t('Sitzung konnte nicht fortgesetzt werden: {message}', { message: error.message }), true);
     }
   }
   show('login');

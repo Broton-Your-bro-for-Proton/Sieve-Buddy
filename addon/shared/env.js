@@ -1,6 +1,7 @@
 // Shared by the manager and the rule-from-mail page: storage, Proton session, toasts, diff rendering.
 
 import { diffHunks, diffStats, lineDiff } from '../lib/diff.js';
+import { t } from '../lib/i18n.js';
 import { LoginGuard } from '../lib/login-guard.js';
 import { DEFAULT_SETTINGS, LABEL_TYPE, ProtonClient } from '../lib/proton-api.js';
 import { ServiceClient } from '../lib/service-client.js';
@@ -53,7 +54,7 @@ export async function setServiceMode(service) {
 export async function requestOrigin(url) {
   const origin = new URL(url).origin;
   if (!globalThis.browser?.permissions) return origin; // preview outside Thunderbird
-  if (!(await browser.permissions.request({ origins: [`${origin}/*`] }))) throw new Error('Zugriff auf den Dienst wurde nicht erlaubt');
+  if (!(await browser.permissions.request({ origins: [`${origin}/*`] }))) throw new Error(t('Zugriff auf den Dienst wurde nicht erlaubt'));
   return origin;
 }
 
@@ -152,7 +153,7 @@ export function renderDiff(container, before, after) {
             ),
           ),
         ]).filter(Boolean)
-      : [el('div', { class: 'muted' }, 'Keine Änderungen')]),
+      : [el('div', { class: 'muted' }, t('Keine Änderungen'))]),
   );
   return stats;
 }
@@ -185,11 +186,11 @@ export function openModal({ title, body, actions = [], wide = false }) {
 
 /** Describes a simulation result in one line. */
 export function describeSimulation(result) {
-  const parts = [`landet in „${result.location}“`];
-  if (result.labels.length) parts.push(`Labels: ${result.labels.join(', ')}`);
-  if (result.flags.includes('\\Seen')) parts.push('als gelesen');
-  if (result.flags.includes('\\Flagged')) parts.push('mit Stern');
-  if (result.expireDays) parts.push(`wird nach ${result.expireDays} Tagen gelöscht`);
-  if (result.vacation) parts.push('Abwesenheitsnotiz wird gesendet');
+  const parts = [t('landet in „{location}“', { location: result.location })];
+  if (result.labels.length) parts.push(t('Labels: {labels}', { labels: result.labels.join(', ') }));
+  if (result.flags.includes('\\Seen')) parts.push(t('als gelesen'));
+  if (result.flags.includes('\\Flagged')) parts.push(t('mit Stern'));
+  if (result.expireDays) parts.push(t('wird nach {days} Tagen gelöscht', { days: result.expireDays }));
+  if (result.vacation) parts.push(t('Abwesenheitsnotiz wird gesendet'));
   return parts.join(' · ');
 }

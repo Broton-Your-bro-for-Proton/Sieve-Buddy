@@ -7,6 +7,8 @@ Sieve-Filter bequem verwalten, ohne sich jedes Mal im Webmail anzumelden. Unters
 
 Beide teilen sich denselben Kern (`addon/lib/`).
 
+**Sprachen:** Deutsch und Englisch. Das Add-on folgt der Sprache von Thunderbird, der Dienst `LOCALE` (`de` oder `en`, Standard `de`). Neue Texte prüft `npm test` (`scripts/i18n-check.mjs` listet fehlende Übersetzungen).
+
 ```
 Thunderbird-Add-on ──┬─ direkt ─────────────────────────────▶ Proton (inoffizielle Web-API)
                      └─ über den Dienst ─┐

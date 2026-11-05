@@ -2,6 +2,7 @@
 // title between "# =====" lines. New rules go into the matching section; the manager lists, moves and
 // deletes rules per section. Pure text functions, shared by the add-on and the service.
 
+import { t } from './i18n.js';
 import { lineOf, parseSieve } from './sieve-ast.js';
 import { describeActions, sameActions } from './sieve-rules.js';
 
@@ -193,7 +194,7 @@ export function ruleUnits(text) {
 export function moveRule(text, line, delta) {
   const units = ruleUnits(text);
   const i = units.findIndex((u) => u.type === 'rule' && u.line === line);
-  if (i === -1) throw new Error(`In Zeile ${line} beginnt keine Regel`);
+  if (i === -1) throw new Error(t('In Zeile {line} beginnt keine Regel', { line }));
   const j = i + delta;
   if (j < 0 || j >= units.length) return text;
   const [a, b] = delta < 0 ? [units[j], units[i]] : [units[i], units[j]];
@@ -214,7 +215,7 @@ export function moveRule(text, line, delta) {
 /** Removes the rule starting at `line`, with the blank lines that separated it. */
 export function deleteRule(text, line) {
   const unit = ruleUnits(text).find((u) => u.type === 'rule' && u.line === line);
-  if (!unit) throw new Error(`In Zeile ${line} beginnt keine Regel`);
+  if (!unit) throw new Error(t('In Zeile {line} beginnt keine Regel', { line }));
   const before = text.slice(0, unit.start);
   const after = text.slice(unit.end + 1);
   // keep a single blank line between the neighbors

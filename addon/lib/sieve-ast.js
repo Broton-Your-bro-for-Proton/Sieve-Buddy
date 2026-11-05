@@ -1,6 +1,7 @@
 // Sieve parser (RFC 5228 grammar) producing an AST in which every node keeps its exact text offsets,
 // so callers can patch a script in place without reformatting it.
 
+import { t } from './i18n.js';
 import { tokenize } from './sieve-analyzer.js';
 import { SPAM_GUARD } from './sieve-dialect.js';
 
@@ -35,33 +36,33 @@ export function parseSieve(text) {
     throw new SieveParseError(message, at.start, at.end);
   };
   const expectPunct = (value) => {
-    const t = next();
-    if (!t || t.type !== 'punct' || t.value !== value) fail(`„${value}“ erwartet`, t);
-    return t;
+    const tok = next();
+    if (!tok || tok.type !== 'punct' || tok.value !== value) fail(t('„{value}“ erwartet', { value }), tok);
+    return tok;
   };
 
   function parseStringList() {
     const open = next(); // '['
     const items = [];
     for (;;) {
-      const t = next();
-      if (!t || t.type !== 'string') fail('Zeichenkette in der Liste erwartet', t);
-      items.push({ type: 'string', value: t.value, start: t.start, end: t.end });
+      const tok = next();
+      if (!tok || tok.type !== 'string') fail(t('Zeichenkette in der Liste erwartet'), tok);
+      items.push({ type: 'string', value: tok.value, start: tok.start, end: tok.end });
       const sep = next();
       if (sep?.value === ']') return { type: 'list', items, start: open.start, end: sep.end };
-      if (sep?.value !== ',') fail('„,“ oder „]“ erwartet', sep);
+      if (sep?.value !== ',') fail(t('„,“ oder „]“ erwartet'), sep);
     }
   }
 
   function parseArguments() {
     const args = [];
     for (;;) {
-      const t = peek();
-      if (!t) return args;
-      if (t.type === 'tag' || t.type === 'number' || t.type === 'string') {
+      const tok = peek();
+      if (!tok) return args;
+      if (tok.type === 'tag' || tok.type === 'number' || tok.type === 'string') {
         next();
-        args.push({ type: t.type, value: t.value, start: t.start, end: t.end });
-      } else if (t.value === '[') {
+        args.push({ type: tok.type, value: tok.value, start: tok.start, end: tok.end });
+      } else if (tok.value === '[') {
         args.push(parseStringList());
       } else {
         return args;
@@ -70,9 +71,9 @@ export function parseSieve(text) {
   }
 
   function parseTest() {
-    const t = next();
-    if (!t || t.type !== 'identifier') fail('Test erwartet', t);
-    const test = { type: 'test', name: t.value, args: parseArguments(), tests: [], start: t.start, end: t.end };
+    const tok = next();
+    if (!tok || tok.type !== 'identifier') fail(t('Test erwartet'), tok);
+    const test = { type: 'test', name: tok.value, args: parseArguments(), tests: [], start: tok.start, end: tok.end };
     const after = peek();
     if (after?.value === '(') {
       const open = next();
@@ -84,24 +85,24 @@ export function parseSieve(text) {
           test.listEnd = sep.end;
           break;
         }
-        if (sep?.value !== ',') fail('„,“ oder „)“ erwartet', sep);
+        if (sep?.value !== ',') fail(t('„,“ oder „)“ erwartet'), sep);
       }
     } else if (after?.type === 'identifier') {
       test.tests.push(parseTest()); // `not <test>`
     }
     const last = test.tests.length ? Math.max(test.tests[test.tests.length - 1].end, test.listEnd ?? 0) : null;
-    test.end = Math.max(last ?? 0, test.args.length ? test.args[test.args.length - 1].end : t.end, test.listEnd ?? 0);
+    test.end = Math.max(last ?? 0, test.args.length ? test.args[test.args.length - 1].end : tok.end, test.listEnd ?? 0);
     return test;
   }
 
   function parseCommands(closing) {
     const commands = [];
     while (pos < tokens.length) {
-      const t = peek();
-      if (closing && t.value === '}') return commands;
-      if (t.type !== 'identifier') fail('Befehl erwartet', t);
+      const tok = peek();
+      if (closing && tok.value === '}') return commands;
+      if (tok.type !== 'identifier') fail(t('Befehl erwartet'), tok);
       next();
-      const command = { type: 'command', name: t.value, args: parseArguments(), test: null, block: null, start: t.start, end: t.end };
+      const command = { type: 'command', name: tok.value, args: parseArguments(), test: null, block: null, start: tok.start, end: tok.end };
       if (peek()?.type === 'identifier') command.test = parseTest();
       const end = next();
       if (end?.value === ';') {
@@ -113,11 +114,11 @@ export function parseSieve(text) {
         command.block = block;
         command.end = close.end;
       } else {
-        fail('„;“ oder „{“ erwartet', end);
+        fail(t('„;“ oder „{“ erwartet'), end);
       }
       commands.push(command);
     }
-    if (closing) fail('„}“ fehlt');
+    if (closing) fail(t('„}“ fehlt'));
     return commands;
   }
 
