@@ -4,23 +4,25 @@
 import { fixRequire, tokenize } from '../lib/sieve-analyzer.js';
 import { formatSieve, parseSieve } from '../lib/sieve-ast.js';
 import { COMMANDS, EXTENSIONS, TAGS } from '../lib/sieve-dialect.js';
-import { describeActions, mergeRuleIntoScript } from '../lib/sieve-rules.js';
+import { describeActions, insertBlockAt } from '../lib/sieve-rules.js';
+import { planRule } from '../lib/rule-planner.js';
 import { simulate } from '../lib/sieve-sim.js';
+import { deleteRule, findSections, moveRule, resolveSection, ruleUnits, suggestSections } from '../lib/sieve-sections.js';
 import { RULE_TEMPLATES, TEMPLATE_CATEGORIES, buildTemplate, templateDefaults } from '../lib/sieve-templates.js';
 import { messageFromThunderbird, parseHeaderBlock } from '../lib/mail.js';
 import { $, asScripts, describeSimulation, el, getHistory, openModal, renderDiff, storage, toast } from '../shared/env.js';
 
 /** Asks for confirmation with a diff of what changes. */
-export async function confirmDiff(before, after, title) {
+export async function confirmDiff(before, after, title, confirmLabel = 'Speichern') {
   const box = el('div', { class: 'diff' });
   const stats = renderDiff(box, before, after);
   return openModal({
     title,
     wide: true,
-    body: [el('p', { class: 'muted' }, `+${stats.added} / −${stats.removed} Zeilen gegenüber der gespeicherten Version`), box],
+    body: [el('p', { class: 'muted' }, `+${stats.added} / −${stats.removed} Zeilen`), box],
     actions: [
       { label: 'Abbrechen', class: 'ghost', value: false },
-      { label: 'Speichern', value: true },
+      { label: confirmLabel, value: true },
     ],
   });
 }
@@ -43,36 +45,98 @@ export function installTools(editor, state) {
     );
   };
 
+  /** Replaces the whole text as one undoable change, keeping the scroll position. */
+  function replaceText(next, line) {
+    const scroll = editor.getScrollInfo();
+    editor.replaceRange(next, { line: 0, ch: 0 }, editor.posFromIndex(editor.getValue().length));
+    editor.scrollTo(scroll.left, scroll.top);
+    if (line) editor.setCursor({ line: line - 1, ch: 0 });
+    // right away: the outline's buttons hold line numbers of the old text
+    renderOutline();
+  }
+
+  const jumpTo = (line) => {
+    editor.focus();
+    editor.setCursor({ line: line - 1, ch: 0 });
+    editor.scrollIntoView({ line: line - 1, ch: 0 }, 80);
+  };
+
   function renderOutline() {
     const box = $('outline');
     const text = editor.getValue();
-    let ast;
+    let units;
     try {
-      ast = parseSieve(text);
+      units = ruleUnits(text);
     } catch (error) {
       box.replaceChildren(el('div', { class: 'muted small' }, `Gliederung nicht verfügbar: ${error.message}`));
       return;
     }
-    const items = ast.commands
-      .filter((c) => c.block && c.test && !text.slice(c.test.start, c.test.end).includes('vnd.proton.spam-threshold'))
-      .map((c) => {
-        const test = text.slice(c.test.start, c.test.end).replace(/\s+/g, ' ');
-        const line = editor.posFromIndex(c.start).line;
-        return el(
-          'li',
-          {
-            title: test,
-            onclick: () => {
-              editor.focus();
-              editor.setCursor({ line, ch: 0 });
-              editor.scrollIntoView({ line, ch: 0 }, 80);
-            },
+    const rules = units.filter((u) => u.type === 'rule');
+    const items = units.map((u) => {
+      if (u.type === 'heading') {
+        const count = findSections(text).find((x) => x.line === u.line)?.rules.length ?? 0;
+        return el('li', { class: 'outline-section', onclick: () => jumpTo(u.line) }, el('span', {}, u.title), el('span', { class: 'muted small' }, ` ${count}`));
+      }
+      const c = u.commands[0];
+      const test = text.slice(c.test.start, c.test.end).replace(/\s+/g, ' ');
+      const chain = u.commands.length > 1 ? ` (+${u.commands.length - 1} elsif/else)` : '';
+      const button = (label, title, fn) =>
+        el('button', {
+          class: 'ghost tiny',
+          type: 'button',
+          title,
+          onclick: (e) => {
+            e.stopPropagation();
+            fn();
           },
-          el('span', { class: 'outline-test' }, `${c.name} ${test}`),
-          el('span', { class: 'outline-actions' }, summarizeActions(c.block)),
-        );
-      });
-    box.replaceChildren(items.length ? el('ul', {}, items) : el('div', { class: 'muted small' }, 'Noch keine Regeln'));
+        }, label);
+      const move = (delta) => {
+        const next = moveRule(editor.getValue(), u.line, delta);
+        if (next === editor.getValue()) return;
+        const moved = ruleUnits(next).find((x) => x.type === 'rule' && next.slice(x.start, x.end) === text.slice(u.start, u.end));
+        replaceText(next, moved?.line);
+      };
+      return el(
+        'li',
+        { title: test, onclick: () => jumpTo(u.line) },
+        el('span', { class: 'outline-test' }, `${c.name} ${test}${chain}`),
+        el('span', { class: 'outline-actions' }, summarizeActions(c.block)),
+        el(
+          'span',
+          { class: 'outline-tools' },
+          button('↑', 'Eine Stelle nach oben (über eine Überschrift: in den Abschnitt davor)', () => move(-1)),
+          button('↓', 'Eine Stelle nach unten (über eine Überschrift: in den Abschnitt danach)', () => move(+1)),
+          button('✕', 'Regel löschen', () => {
+            if (!confirm(`Regel in Zeile ${u.line} löschen?\n\n${c.name} ${test}`)) return;
+            replaceText(deleteRule(editor.getValue(), u.line));
+            toast('Regel gelöscht – zum Übernehmen speichern (Strg+Z macht es rückgängig)');
+          }),
+        ),
+      );
+    });
+    const hasSections = units.some((u) => u.type === 'heading');
+    box.replaceChildren(
+      rules.length ? el('ul', {}, items) : el('div', { class: 'muted small' }, 'Noch keine Regeln'),
+      rules.length > 2 && !hasSections
+        ? el(
+            'button',
+            {
+              class: 'ghost small',
+              type: 'button',
+              title: 'Überschriften nach Zielordner einfügen, ohne Regeln umzustellen',
+              onclick: async () => {
+                const current = editor.getValue();
+                const next = suggestSections(current);
+                if (await confirmDiff(current, next, 'Abschnitte vorschlagen', 'In den Editor übernehmen')) {
+                  replaceText(next);
+                  toast('Abschnitte eingefügt – Namen anpassen und speichern');
+                }
+              },
+            },
+            'Abschnitte vorschlagen',
+          )
+        : '',
+    );
   }
 
   let outlineTimer;
@@ -324,23 +388,52 @@ export function installTools(editor, state) {
         }),
       );
 
+    // same section choice as "Sieve-Regel aus Mail"
+    const sections = findSections(editor.getValue());
+    const sectionSelect = el(
+      'select',
+      {},
+      el('option', { value: 'auto' }, sections.length ? 'Automatisch – passenden Abschnitt finden' : 'Automatisch – beste Stelle'),
+      ...sections.map((x) => el('option', { value: `s:${x.title}` }, `In Abschnitt „${x.title}“`)),
+      el('option', { value: 'end' }, 'Ans Ende'),
+      el('option', { value: 'new' }, 'Neuer Abschnitt …'),
+    );
+    const sectionName = el('input', { placeholder: 'Name des neuen Abschnitts', hidden: true });
+    const sectionChoice = () => {
+      sectionName.hidden = sectionSelect.value !== 'new';
+      if (sectionSelect.value === 'new') return sectionName.value.trim() ? { new: sectionName.value.trim() } : null;
+      return sectionSelect.value.startsWith('s:') ? sectionSelect.value.slice(2) : sectionSelect.value;
+    };
+
     const refresh = () => {
       try {
         const params = values();
         if (!state.dialect.proton) delete params.expireDays;
         const built = buildTemplate(template, params);
         const current = editor.getValue();
+        const section = sectionChoice();
+        if (section === null) throw new Error('Bitte einen Namen für den neuen Abschnitt angeben.');
+        const where = (s) => (s ? (s.new ? ` im neuen Abschnitt „${s.title}“` : ` in Abschnitt „${s.title}“`) : '');
         if (built.code) {
-          result = fixRequire(`${current.replace(/\s+$/, '')}\n\n${built.code}\n`);
-          info.replaceChildren(el('div', {}, 'Wird als neuer Block am Ende angehängt.'));
+          const r = resolveSection(current, section, { actions: {} }, { category: template.category });
+          result = insertBlockAt(current, built.code, r.at, r.heading);
+          const placed = r.heading ? { title: r.heading, new: true } : r.section;
+          info.replaceChildren(el('div', {}, `Wird als neuer Block${where(placed) || ' am Ende'} eingefügt.`));
         } else {
-          const merged = mergeRuleIntoScript({ id: 'editor', name: 'Editor', sieve: current }, built.rule);
-          result = merged.sieve;
-          const merges = merged.steps.filter((x) => x.kind !== 'new-block' && x.kind !== 'covered').length;
-          const covered = merged.steps.filter((x) => x.kind === 'covered').length;
-          const fresh = merged.steps.length - merges - covered;
+          const { plan } = planRule({
+            scripts: [{ id: 'editor', name: 'Editor', sieve: current }],
+            rule: built.rule,
+            target: 'editor',
+            section,
+            category: template.category,
+            dialect: state.dialect,
+          });
+          result = plan.sieve;
+          const merges = plan.steps.filter((x) => x.kind !== 'new-block' && x.kind !== 'covered').length;
+          const covered = plan.steps.filter((x) => x.kind === 'covered').length;
+          const fresh = plan.steps.length - merges - covered;
           info.replaceChildren(
-            el('div', {}, `${merged.steps.length} Bedingung(en): ${merges} in bestehende Blöcke eingereiht, ${covered} schon vorhanden, ${fresh} neu.`),
+            el('div', {}, `${plan.steps.length} Bedingung(en): ${merges} in bestehende Blöcke eingereiht, ${covered} schon vorhanden, ${fresh} neu${fresh ? where(plan.section) : ''}.`),
           );
         }
         renderDiff(preview, current, result);
@@ -350,6 +443,8 @@ export function installTools(editor, state) {
         preview.replaceChildren();
       }
     };
+    sectionSelect.addEventListener('change', refresh);
+    sectionName.addEventListener('input', refresh);
 
     const list = el('ul', { class: 'tpl-list' });
     const showTemplate = (t) => {
@@ -390,7 +485,12 @@ export function installTools(editor, state) {
     const insert = await openModal({
       title: 'Regel-Assistent',
       wide: true,
-      body: el('div', { class: 'tpl-layout' }, list, el('div', { class: 'tpl-main' }, form, info, preview)),
+      body: el(
+        'div',
+        { class: 'tpl-layout' },
+        list,
+        el('div', { class: 'tpl-main' }, form, el('label', { class: 'inline' }, 'Wo eintragen?', sectionSelect, sectionName), info, preview),
+      ),
       actions: [
         { label: 'Abbrechen', class: 'ghost', value: false },
         { label: 'In den Editor übernehmen', value: true },

@@ -33,6 +33,13 @@ const headers = z
 
 const target = z.string().optional().describe('"auto" (beste Stelle, Standard), "new" (neuer Filter/neues Skript) oder eine Filter-/Skript-ID');
 
+const section = z
+  .union([z.string(), z.object({ new: z.string() })])
+  .optional()
+  .describe(
+    'Abschnitt im Zielskript für einen neuen Block (Abschnitte = Kommentar-Überschriften, siehe list_filters): "auto" (passender Abschnitt, Standard), "end" (Ende der Datei), ein Abschnittstitel oder {new: "Titel"} für einen neuen Abschnitt',
+  );
+
 const json = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }], structuredContent: value });
 
 export function createMcpServer(account) {
@@ -52,7 +59,7 @@ export function createMcpServer(account) {
 
   tool('sieve_status', 'Status des Sieve-Dienstes: Anbieter (proton/managesieve), angemeldet, Schreibzugriff, Fähigkeiten.', {}, ops.status, read);
   tool('sieve_capabilities', 'Fähigkeiten des Servers: unterstützte Sieve-Erweiterungen, mehrere aktive Filter?, Reihenfolge?, Labels?', {}, ops.capabilities, read);
-  tool('list_filters', 'Alle Sieve-Filter (Proton) bzw. Skripte (ManageSieve) in Ausführungsreihenfolge; bei ManageSieve läuft nur das aktive.', { includeSieve: z.boolean().optional() }, ops.listFilters, read);
+  tool('list_filters', 'Alle Sieve-Filter (Proton) bzw. Skripte (ManageSieve) in Ausführungsreihenfolge, mit ihren Abschnitten (Kommentar-Überschriften); bei ManageSieve läuft nur das aktive.', { includeSieve: z.boolean().optional() }, ops.listFilters, read);
   tool('get_filter', 'Einen Filter mit vollständigem Sieve-Skript und lokalen Prüfhinweisen.', { id: z.string() }, ops.getFilter, read);
   tool('list_folders', 'Ordner und Labels des Kontos (gültige Ziele für fileinto).', {}, ops.listFolders, read);
   tool('lint_sieve', 'Prüft ein Sieve-Skript lokal gegen den Dialekt des Servers; liefert ggf. ein Skript mit ergänztem require.', { sieve: z.string() }, ops.lintSieve, read);
@@ -74,14 +81,14 @@ export function createMcpServer(account) {
   tool(
     'plan_rule',
     'Plant eine Regel, ohne zu speichern: findet die beste Stelle (in bestehende Liste einreihen, anyof erweitern oder neuer Block), liefert Diff, Konflikte und – mit headers – das simulierte Ergebnis.',
-    { rule, target, newName: z.string().optional(), headers: headers.optional(), size: z.number().optional() },
+    { rule, target, section, newName: z.string().optional(), headers: headers.optional(), size: z.number().optional() },
     ops.planRule,
     read,
   );
   tool(
     'apply_rule',
     'Wie plan_rule, speichert das Ergebnis aber auf dem Server (nach dessen eigener Prüfung).',
-    { rule, target, newName: z.string().optional(), headers: headers.optional(), size: z.number().optional() },
+    { rule, target, section, newName: z.string().optional(), headers: headers.optional(), size: z.number().optional() },
     ops.applyRule,
     write,
   );
@@ -89,14 +96,14 @@ export function createMcpServer(account) {
   tool(
     'plan_template',
     'Baut eine Vorlage mit Parametern und plant sie wie plan_rule (ohne zu speichern).',
-    { templateId: z.string(), params: z.record(z.string(), z.any()).optional(), target, newName: z.string().optional() },
+    { templateId: z.string(), params: z.record(z.string(), z.any()).optional(), target, section, newName: z.string().optional() },
     ops.buildTemplate,
     read,
   );
   tool(
     'apply_template',
     'Wie plan_template, speichert das Ergebnis aber auf dem Server.',
-    { templateId: z.string(), params: z.record(z.string(), z.any()).optional(), target, newName: z.string().optional() },
+    { templateId: z.string(), params: z.record(z.string(), z.any()).optional(), target, section, newName: z.string().optional() },
     ops.applyTemplate,
     write,
   );

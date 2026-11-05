@@ -29,3 +29,4 @@ footer .spacer { flex: 1; }
   .condition { grid-template-columns: auto 1fr; }
   .condition .match, .condition input[type=text] { grid-column: 2; }
 }
+.current .jump { cursor: pointer; text-decoration: underline dotted; }

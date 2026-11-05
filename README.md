@@ -28,12 +28,19 @@ Inbox Zero / Claude ── MCP ──────────────┤
   - **Live-Prüfung**: fehlende `require`, `;`, Klammern, Erweiterungen, die der Server nicht kann, unbekannte Ordner. Proton-Fallen (`keep`, `discard`, Flags nach `fileinto`, Spam-Schutz) gelten nur bei Proton.
   - Zusätzlich prüft **der Server selbst**: Proton bzw. `CHECKSCRIPT` per ManageSieve.
   - **Hover-Hilfe**, **Gliederung**, **Formatierer**, „require ergänzen“
-- **✨ Regel-Assistent:** 16 Vorlagen, darunter Domains, Mailinglisten, Rechnungen, Shops, GitHub, Monitoring, Abwesenheit und Kontaktschutz. Neue Werte werden **in passende Blöcke eingereiht**. Vorlagen, die es nur bei Proton gibt, sind bei anderen Servern ausgeblendet.
+  - **Warnungen bei Überschneidungen:** derselbe Wert in zwei Blöcken (doppelt oder mit anderer Aktion) und Adressen, die schon eine Domain-Regel abdeckt
+- **Eine große Datei mit Abschnitten:** Kommentar-Überschriften wie `### Shops ###` oder ein Titel zwischen `# =====`-Zeilen gliedern ein Skript in Abschnitte (gibt es keine verzierten Überschriften, zählt jeder Kommentar über einer Regel).
+  - Die **Gliederung** zeigt die Regeln je Abschnitt. Mit ↑/↓ wandert eine Regel, über eine Überschrift hinweg in den Nachbarabschnitt, ✕ löscht sie. Ein eigener Kommentar direkt über der Regel wandert mit.
+  - **Abschnitte vorschlagen** fügt in einer Datei ohne Überschriften eine Überschrift je Gruppe gleicher Zielordner ein, ohne Regeln umzustellen.
+- **✨ Regel-Assistent:** 16 Vorlagen, darunter Domains, Mailinglisten, Rechnungen, Shops, GitHub, Monitoring, Abwesenheit und Kontaktschutz. Neue Werte werden **in passende Blöcke eingereiht**, neue Blöcke landen im passenden Abschnitt (die Kategorie der Vorlage hilft bei der Wahl). Vorlagen, die es nur bei Proton gibt, sind bei anderen Servern ausgeblendet.
 - **Mail testen:** Der Simulator zeigt, wo eine Mail landet, mit Protons Verhalten oder nach **RFC 5228** (implizites `keep`, `fileinto` als Kopie, `:copy`, `redirect`). Der RFC-Modus ist **gegen echte Dovecot-Zustellung geprüft**.
 - **Sieve-Regel aus Mail:** Button in der Mail-Ansicht oder Rechtsklick in der Nachrichtenliste.
   - Bedingungen werden vorgeschlagen: Liste, Absender, Domain, Alias, Betreff ohne Nummern.
   - Die Regel landet an der **besten Stelle**. Bevorzugt wird ein bestehender Block erweitert: in die Liste einreihen, `anyof` erweitern oder zu `anyof` umbauen. Sonst wird ein neuer Block angelegt.
   - Der **Simulator prüft**, ob die Mail danach wirklich dort landet. Fängt ein früherer Block sie ab, wird die Regel davor gesetzt, bei Bedarf mit `stop`.
+  - Gibt es nur ein aktives Skript, fragt das Fenster nicht nach dem Filter, sondern nach dem **Abschnitt**: automatisch, ein bestimmter, Ende der Datei oder ein neuer. Automatisch heißt: der Abschnitt, dessen Regeln dasselbe tun oder in denselben Ordner verschieben, sonst der, dessen Titel zum Ordner passt. Werte wandern weiterhin bevorzugt in eine bestehende Liste.
+  - Würde ein späterer Block die Mail woandershin verschieben, endet die neue Regel in ihrem Abschnitt mit `stop`.
+  - Ein Klick auf eine Regel unter „Aktuell“ öffnet sie im Manager.
   - Du siehst Diff und Konflikte und speicherst mit einem Klick.
 
 ### Installation (Entwicklung)
@@ -110,7 +117,7 @@ Streamable HTTP unter `POST /mcp`, Header `Authorization: Bearer <API_TOKEN>`:
 | `lint_sieve`, `check_sieve`, `format_sieve` | Prüfen (lokal mit dem Dialekt des Servers / durch den Server), formatieren |
 | `simulate_message` | Wo landet eine Mail? (mit dem Verhalten des Servers, optional mit geänderten Skripten) |
 | `suggest_rule` | Bedingungen aus den Headern einer Mail vorschlagen |
-| `plan_rule` / `apply_rule` | Regel planen (beste Stelle, Diff, Konflikte, Simulation) bzw. speichern |
+| `plan_rule` / `apply_rule` | Regel planen (beste Stelle, Diff, Konflikte, Simulation) bzw. speichern; `section` wählt den Abschnitt (`auto`, `end`, Titel oder `{new: "Titel"}`), `list_filters` nennt die Abschnitte |
 | `list_templates`, `plan_template` / `apply_template` | Vorlagen (passend zum Server gefiltert) |
 | `create_filter`, `update_filter`, `set_filter_enabled`, `reorder_filters`, `delete_filter` | Direkte Verwaltung |
 

@@ -7,7 +7,8 @@ import { planRule as planRuleCore } from '../../addon/lib/rule-planner.js';
 import { fixRequire, lintSieve as lintCore } from '../../addon/lib/sieve-analyzer.js';
 import { formatSieve as formatCore, lineOf } from '../../addon/lib/sieve-ast.js';
 import { newScript } from '../../addon/lib/sieve-dialect.js';
-import { describeRule } from '../../addon/lib/sieve-rules.js';
+import { describeRule, insertBlockAt } from '../../addon/lib/sieve-rules.js';
+import { findSections, resolveSection } from '../../addon/lib/sieve-sections.js';
 import { simulate as simulateCore } from '../../addon/lib/sieve-sim.js';
 import { RULE_TEMPLATES, buildTemplate as buildTemplateCore, templateDefaults } from '../../addon/lib/sieve-templates.js';
 
@@ -31,12 +32,19 @@ function toMessage(headers, size) {
 
 const withLines = (text, issues) => issues.map((i) => ({ line: lineOf(text, i.start), severity: i.severity, message: i.message }));
 const knownFolders = (data) => (data.folders ? [...data.folders, ...data.labels] : undefined);
-const summary = (s, includeSieve) => ({ id: s.id, name: s.name, enabled: s.enabled, ...(includeSieve ? { sieve: s.sieve } : {}) });
+const summary = (s, includeSieve) => ({
+  id: s.id,
+  name: s.name,
+  enabled: s.enabled,
+  sections: findSections(s.sieve).map((x) => ({ title: x.title, line: x.line, rules: x.rules.length })),
+  ...(includeSieve ? { sieve: s.sieve } : {}),
+});
 
 function planToJson(result) {
   const { plan, after, notes, conflicts, errors } = result;
   return {
     target: plan.targetId ? { id: plan.targetId, name: plan.name } : { id: null, name: plan.name, newFilter: true },
+    section: plan.section ?? null,
     steps: plan.steps.map((s) => ({ kind: s.kind, line: s.line ?? null, condition: s.condition })),
     notes,
     conflicts,
@@ -163,7 +171,7 @@ function planningScripts(data) {
   return data.scripts.filter((s) => s.enabled);
 }
 
-export async function planRule(account, { rule, target = 'auto', newName, headers, size }) {
+export async function planRule(account, { rule, target = 'auto', newName, section = 'auto', category, headers, size }) {
   const data = await account.data();
   assertFolderExists(data, rule.actions?.fileinto);
   const scripts = planningScripts(data);
@@ -172,6 +180,8 @@ export async function planRule(account, { rule, target = 'auto', newName, header
     rule,
     target: target === 'auto' && !scripts.length ? 'new' : target,
     newName,
+    section,
+    category,
     message: toMessage(headers, size) ?? undefined,
     labels: data.labels,
     dialect: data.dialect,
@@ -188,24 +198,26 @@ export async function planRule(account, { rule, target = 'auto', newName, header
   return { description: describeRule(rule), ...json };
 }
 
-export async function buildTemplate(account, { templateId, params = {}, target = 'auto', newName }) {
+export async function buildTemplate(account, { templateId, params = {}, target = 'auto', newName, section = 'auto' }) {
   const data = await account.data();
   const template = templatesFor(data.dialect).find((t) => t.id === templateId);
   if (!template) throw new Error(`Vorlage ${templateId} nicht gefunden – siehe list_templates`);
   const merged = { ...templateDefaults(template), ...params };
   if (!data.dialect.proton) delete merged.expireDays;
   const built = buildTemplateCore(template, merged);
-  if (built.rule) return { rule: built.rule, ...(await planRule(account, { rule: built.rule, target, newName })) };
+  if (built.rule) return { rule: built.rule, ...(await planRule(account, { rule: built.rule, target, newName, section, category: template.category })) };
   if (template.params.some((p) => p.type === 'folder')) assertFolderExists(data, merged.folder);
 
   // finished snippets are appended to the chosen (or first runnable) script, or become a new one
   const runnable = planningScripts(data);
   const script = target === 'new' ? null : data.scripts.find((s) => s.id === target) ?? (target === 'auto' ? runnable[0] : null);
   const before = script?.sieve ?? '';
-  const base = (script ? before : newScript('', data.dialect)).replace(/\s+$/, '');
-  const sieve = fixRequire(`${base}\n\n${built.code}\n`);
+  const base = script ? before : newScript('', data.dialect);
+  const placed = resolveSection(base, section, { actions: {} }, { category: template.category });
+  const sieve = insertBlockAt(base, built.code, placed.at, placed.heading);
   return {
     target: script ? { id: script.id, name: script.name } : { id: null, name: newName || template.name, newFilter: true },
+    section: placed.heading ? { title: placed.heading, new: true } : placed.section ? { title: placed.section.title, line: placed.section.line } : null,
     steps: [{ kind: 'new-block' }],
     notes: [],
     conflicts: [],

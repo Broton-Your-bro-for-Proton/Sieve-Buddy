@@ -2,23 +2,56 @@
 // Shared by the Thunderbird "rule from mail" window and the MCP server.
 
 import { fixRequire, lintSieve } from './sieve-analyzer.js';
+import { lineOf, parseSieve } from './sieve-ast.js';
 import { PROTON_DIALECT, newScript } from './sieve-dialect.js';
 import { insertRuleBefore, mergeRuleIntoScript, proposeRule, ruleReached, ruleToSieve } from './sieve-rules.js';
 import { simulate } from './sieve-sim.js';
+import { findSections, resolveSection } from './sieve-sections.js';
 
 const GUARD = 'vnd.proton.spam-threshold';
 
-function planForScript(script, rule) {
-  const merged = mergeRuleIntoScript(script, rule);
+/**
+ * Merge options for a section choice: where a new block goes and, for an explicit section, which blocks
+ * may be extended. `chosen` reports the section actually used.
+ */
+function sectionOptions(section, rule, hints) {
+  const out = { chosen: null };
+  if (section && typeof section === 'object' && section.new) {
+    out.heading = String(section.new).trim();
+    out.chosen = { title: out.heading, new: true };
+    return out;
+  }
+  if (section === 'end') return out;
+  out.place = (sieve) => {
+    const r = resolveSection(sieve, section, rule, hints);
+    out.chosen = r.section ? { title: r.section.title, line: r.section.line } : null;
+    return r.at;
+  };
+  if (section && section !== 'auto') {
+    out.within = (sieve, line) => {
+      const sections = findSections(sieve);
+      const i = sections.findIndex((x) => x.title === section || x.index === section);
+      if (i === -1) return true;
+      return line >= sections[i].line && line < (sections[i + 1]?.line ?? Infinity);
+    };
+  }
+  return out;
+}
+
+function planForScript(script, rule, section, hints) {
+  const options = sectionOptions(section, rule, hints);
+  const merged = mergeRuleIntoScript(script, rule, options);
   const merges = merged.steps.filter((s) => s.kind !== 'new-block' && s.kind !== 'covered').length;
   const covered = merged.steps.filter((s) => s.kind === 'covered').length;
   const sameFolder = rule.actions.fileinto && script.sieve.includes(`fileinto "${rule.actions.fileinto}"`) ? 1 : 0;
+  const placed = merged.steps.some((s) => s.kind === 'new-block');
   return {
     targetId: script.id,
     name: script.name,
     before: script.sieve,
     sieve: merged.sieve,
     steps: merged.steps,
+    section: placed ? options.chosen : null,
     score: merges * 10 + covered * 5 + sameFolder * 2 + (script.enabled === false ? 0 : 1),
   };
 }
@@ -31,12 +64,16 @@ const defaultName = (rule) => (rule.actions.fileinto ? `→ ${rule.actions.filei
  * @param {{conditions: object[], combine?: string, actions: object}} p.rule
  * @param {'auto'|'new'|string} [p.target='auto']  a filter id, 'auto' (best place) or 'new' (new filter)
  * @param {string} [p.newName]
+ * @param {'auto'|'end'|string|{new: string}} [p.section='auto']  section of the target script for a new block:
+ *   best match, end of the file, a section title, or a new section with that title
+ * @param {string} [p.category]  hint for the automatic section choice (template category)
  * @param {import('./mail.js').SieveMessage} [p.message]  sample mail to verify the result with
  * @param {string[]} [p.labels]
  * @param {object} [p.dialect]  see makeDialect – template for new scripts, simulation semantics, linting
  * @returns {{plan: object, after: object|null, notes: string[], conflicts: object[], errors: object[]}}
  */
-export function planRule({ scripts, rule, target = 'auto', newName, message, labels = [], dialect = PROTON_DIALECT }) {
+export function planRule({ scripts, rule, target = 'auto', newName, section = 'auto', category, message, labels = [], dialect = PROTON_DIALECT }) {
+  const hints = { category };
   if (!rule.conditions?.length) throw new Error('Mindestens eine Bedingung angeben');
   if (!dialect.proton && rule.actions?.expireDays) throw new Error('Automatisches Löschen (expire) gibt es nur bei Proton');
   if (!dialect.proton && (rule.actions?.seen || rule.actions?.flagged) && !dialect.extensions.has('imap4flags')) {
@@ -54,9 +91,9 @@ export function planRule({ scripts, rule, target = 'auto', newName, message, lab
   } else if (target !== 'auto') {
     const script = scripts.find((s) => s.id === target);
     if (!script) throw new Error(`Filter ${target} nicht gefunden`);
-    plan = planForScript(script, rule);
+    plan = planForScript(script, rule, section, hints);
   } else {
-    plan = scripts.map((s) => planForScript(s, rule)).sort((a, b) => b.score - a.score)[0];
+    plan = scripts.map((s) => planForScript(s, rule, section, hints)).sort((a, b) => b.score - a.score)[0];
   }
 
   const notes = [];
@@ -69,13 +106,15 @@ export function planRule({ scripts, rule, target = 'auto', newName, message, lab
     };
     after = run(plan);
     if (!ruleReached(after, rule.actions)) {
-      const fix = placeBeforeBlocker(plan, rule, after, run);
+      const fix = stopInPlace(plan, rule, after, run, (stopped) => planForScript(scripts.find((s) => s.id === plan.targetId), stopped, section, hints)) ?? placeBeforeBlocker(plan, rule, after, run);
       if (fix) {
         plan = fix.plan;
         after = fix.after;
         notes.push(fix.note);
       } else {
-        const blocker = after.fired.find((f) => !f.test.includes(GUARD));
+        // the rule's own new block fires too; name a block that already existed
+        const base = plan.before || plan.sieve;
+        const blocker = after.fired.find((f) => !f.test.includes(GUARD) && (f.scriptId !== (plan.targetId ?? 'new') || lineInBase(plan.sieve, base, f.line)));
         notes.push(
           blocker
             ? `Die Regel greift bei dieser Mail nicht: Filter „${blocker.script}“ (Zeile ${blocker.line}) fängt sie vorher ab. Dort eintragen oder die Filterreihenfolge ändern.`
@@ -91,16 +130,51 @@ export function planRule({ scripts, rule, target = 'auto', newName, message, lab
 }
 
 /**
+ * Line of the top-level command starting on `line` of `text`, looked up by its code in `base` (the script
+ * before the change, where lines may differ). null when it is new or was changed.
+ */
+function lineInBase(text, base, line) {
+  try {
+    const command = parseSieve(text).commands.find((c) => lineOf(text, c.start) === line);
+    if (!command) return null;
+    const at = base.indexOf(text.slice(command.start, command.end));
+    return at === -1 ? null : lineOf(base, at);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * When a later block moves the mail elsewhere, the rule stays in its section as its own block ending with
+ * `stop` (a stop cannot be added to an existing list it would have joined).
+ */
+function stopInPlace(plan, rule, after, run, replan) {
+  if (!plan.targetId || rule.actions.stop) return null;
+  const candidate = replan({ ...rule, actions: { ...rule.actions, stop: true } });
+  const result = run(candidate);
+  if (!ruleReached(result, rule.actions)) return null;
+  const base = plan.before;
+  const later = after.fired.find((f) => f.scriptId === plan.targetId && !f.test.includes(GUARD) && lineInBase(plan.sieve, base, f.line) && f.line > (plan.steps.find((s) => s.kind === 'new-block')?.line ?? 0));
+  const where = later ? `der Block „${later.test}“ weiter unten` : 'ein späterer Block';
+  return { plan: candidate, after: result, note: `Mit „stop“ beendet – sonst würde ${where} die Mail danach woandershin verschieben.` };
+}
+
+/**
  * When an earlier block of the same filter catches the mail (stop, or a later fileinto that wins),
  * try the rule as a new block right before that block – first as is, then with `stop`.
  */
 function placeBeforeBlocker(plan, rule, after, run) {
   const scriptId = plan.targetId ?? 'new';
-  const blockers = after.fired.filter((f) => f.scriptId === scriptId && !f.test.includes(GUARD));
+  const base = plan.before || plan.sieve;
+  // blocker lines refer to the planned text; insert into the original one, so map them back by code
+  const blockers = after.fired
+    .filter((f) => f.scriptId === scriptId && !f.test.includes(GUARD))
+    .map((f) => ({ ...f, line: lineInBase(plan.sieve, base, f.line) }))
+    .filter((f) => f.line);
   for (const blocker of blockers) {
     for (const stop of [false, true]) {
       try {
-        const sieve = insertRuleBefore(plan.before || plan.sieve, blocker.line, rule, { stop });
+        const sieve = insertRuleBefore(base, blocker.line, rule, { stop });
         const candidate = { ...plan, sieve, steps: rule.conditions.map((condition) => ({ condition, kind: 'new-block', line: blocker.line })) };
         const result = run(candidate);
         if (ruleReached(result, rule.actions)) {

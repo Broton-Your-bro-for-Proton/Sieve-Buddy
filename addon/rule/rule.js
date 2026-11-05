@@ -4,6 +4,7 @@
 import { messageFromThunderbird, parseHeaderBlock, senderName, suggestConditions, decodeEncodedWords } from '../lib/mail.js';
 import { planRule } from '../lib/rule-planner.js';
 import { describeRule } from '../lib/sieve-rules.js';
+import { findSections } from '../lib/sieve-sections.js';
 import { simulate } from '../lib/sieve-sim.js';
 import { SYSTEM_FOLDERS } from '../lib/sieve-dialect.js';
 import {
@@ -41,7 +42,8 @@ const state = {
   folders: [],
   labels: [],
   suggestions: [],
-  plan: null, // {targetId, sieve, steps, conflicts, before}
+  plan: null, // {targetId, sieve, steps, conflicts, before, section}
+  sectionsKey: '',
 };
 
 // ---------- data ----------
@@ -135,6 +137,37 @@ function renderTargets() {
     ...state.filters.map((f) => el('option', { value: f.ID }, `In Filter „${f.Name}“${f.Status === 1 ? '' : ' (deaktiviert)'}`)),
     el('option', { value: 'new' }, 'Als neuen Filter anlegen'),
   );
+  // one big script: the question is "which section", not "which filter"
+  target.hidden = runnableScripts().length === 1;
+}
+
+const runnableScripts = () => asScripts(state.filters).filter((x) => capabilitiesOf(state.client).multipleActive || x.enabled);
+
+/** Section choices of the script the plan goes into; rebuilt only when that script's sections change. */
+function renderSections(plan) {
+  const select = $('section');
+  const sections = plan.targetId ? findSections(plan.before) : [];
+  const key = plan.targetId ? `${plan.targetId}|${sections.map((x) => x.title).join('|')}` : '';
+  if (key !== state.sectionsKey) {
+    state.sectionsKey = key;
+    const previous = select.value;
+    select.replaceChildren(
+      el('option', { value: 'auto' }, sections.length ? 'Automatisch – passenden Abschnitt finden' : 'Automatisch – beste Stelle'),
+      ...sections.map((x) => el('option', { value: `s:${x.title}` }, `In Abschnitt „${x.title}“`)),
+      el('option', { value: 'end' }, 'Ans Ende der Datei'),
+      el('option', { value: 'new' }, 'Neuer Abschnitt …'),
+    );
+    select.value = [...select.options].some((o) => o.value === previous) ? previous : 'auto';
+  }
+  select.hidden = !plan.targetId;
+  $('section-name').hidden = select.hidden || select.value !== 'new';
+}
+
+function sectionChoice() {
+  const value = $('section').hidden ? 'auto' : $('section').value;
+  $('section-name').hidden = value !== 'new';
+  if (value === 'new') return $('section-name').value.trim() ? { new: $('section-name').value.trim() } : null;
+  return value.startsWith('s:') ? value.slice(2) : value;
 }
 
 function currentRule() {
@@ -187,23 +220,29 @@ function render() {
 
   const target = $('target').value;
   $('new-name').hidden = target !== 'new';
-  const caps = capabilitiesOf(state.client);
-  const all = asScripts(state.filters);
+  const section = sectionChoice();
+  if (section === null) return clearPlan('Bitte einen Namen für den neuen Abschnitt angeben.');
   const { plan, after, notes, conflicts, errors } = planRule({
     dialect: dialectOf(state.client),
     // with a single active script (ManageSieve) only that one runs and is worth changing
-    scripts: caps.multipleActive || target !== 'auto' ? all : all.filter((x) => x.enabled),
+    scripts: target !== 'auto' ? asScripts(state.filters) : runnableScripts(),
     rule,
     target,
     newName: $('new-name').value,
+    section,
     message: state.message,
     labels: state.labels,
   });
   state.plan = plan;
+  renderSections(plan);
 
+  const where = [
+    !$('target').hidden || !plan.targetId ? (plan.targetId ? `Filter „${plan.name}“` : `Neuer Filter „${plan.name}“`) : '',
+    plan.section ? (plan.section.new ? `neuer Abschnitt „${plan.section.title}“` : `Abschnitt „${plan.section.title}“`) : '',
+  ].filter(Boolean);
   $('plan').replaceChildren(
     el('div', {}, el('strong', {}, describeRule(rule))),
-    el('div', { class: 'muted' }, plan.targetId ? `Filter „${plan.name}“` : `Neuer Filter „${plan.name}“`),
+    where.length ? el('div', { class: 'muted' }, where.join(' · ')) : '',
     ...plan.steps.map((st) =>
       el(
         'div',
@@ -254,7 +293,13 @@ async function applyPlan() {
 async function editInManager() {
   const plan = state.plan;
   if (!plan) return;
-  await storage.set('draft', { filterId: plan.targetId, name: plan.name, sieve: plan.sieve, at: Date.now() });
+  const line = plan.steps.find((st) => st.line)?.line;
+  await openInManager({ filterId: plan.targetId, name: plan.name, sieve: plan.sieve, line });
+}
+
+/** Hands a draft (or just a position) to the manager and opens it. */
+async function openInManager(draft) {
+  await storage.set('draft', { ...draft, at: Date.now() });
   if (inAddon) {
     await browser.runtime.openOptionsPage();
     window.close();
@@ -286,7 +331,15 @@ async function editInManager() {
     const current = simulate(runnable, state.message, { labels: state.labels, semantics: caps.semantics ?? 'proton' });
     $('current').replaceChildren(
       el('span', {}, `Aktuell: ${describeSimulation(current)}`),
-      ...current.fired.filter((f) => !f.test.includes('vnd.proton.spam-threshold')).map((f) => el('div', { class: 'muted small' }, `↳ Filter „${f.script}“, Zeile ${f.line}: ${f.test}`)),
+      ...current.fired
+        .filter((f) => !f.test.includes('vnd.proton.spam-threshold'))
+        .map((f) =>
+          el(
+            'div',
+            { class: 'muted small jump', title: 'Diese Regel im Manager öffnen', onclick: () => busy(null, () => openInManager({ filterId: f.scriptId, line: f.line })) },
+            `↳ Filter „${f.script}“, Zeile ${f.line}: ${f.test}`,
+          ),
+        ),
     );
 
     state.suggestions = suggestConditions(state.message);
@@ -295,7 +348,7 @@ async function editInManager() {
     renderTargets();
     if (current.folder && !SYSTEM_FOLDERS.includes(current.folder)) $('folder').value = current.folder;
 
-    for (const id of ['combine', 'folder', 'seen', 'flagged', 'expire', 'stop', 'target', 'new-name']) {
+    for (const id of ['combine', 'folder', 'seen', 'flagged', 'expire', 'stop', 'target', 'new-name', 'section', 'section-name']) {
       $(id).addEventListener('input', update);
       $(id).addEventListener('change', update);
     }

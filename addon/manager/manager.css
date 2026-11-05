@@ -210,6 +210,12 @@ li.CodeMirror-hint-active { background: var(--accent); color: var(--accent-text)
 .outline li:hover { background: var(--selected); }
 .outline-test { font-family: ui-monospace, Consolas, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .outline-actions { color: var(--muted); }
+.outline li { position: relative; }
+.outline li.outline-section { flex-direction: row; justify-content: space-between; margin-top: 8px; font-weight: 600; border-bottom: 1px solid var(--border); border-radius: 0; }
+.outline-tools { position: absolute; right: 4px; top: 3px; display: none; gap: 2px; background: var(--panel); border-radius: 6px; }
+.outline li:hover .outline-tools { display: flex; }
+button.tiny { padding: 0 6px; font-size: 11px; line-height: 18px; }
+.outline > button { margin-top: 8px; }
 
 /* ---------- hover help ---------- */
 .hover-tip {

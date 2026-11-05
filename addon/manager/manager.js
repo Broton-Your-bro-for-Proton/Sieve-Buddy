@@ -1,5 +1,6 @@
 import { fixRequire, getCompletions, lintSieve } from '../lib/sieve-analyzer.js';
 import { PROTON_DIALECT, SPAM_GUARD, SPAM_GUARD_REQUIRE, formatList, newScript } from '../lib/sieve-dialect.js';
+import { findOverlaps } from '../lib/sieve-rules.js';
 import {
   $,
   busy,
@@ -80,7 +81,17 @@ function annotations(text) {
     message: `${state.dialect.proton ? 'Proton' : 'Server'}: ${i.message ?? JSON.stringify(i)}`,
     severity: i.severity ?? 'error',
   }));
-  const all = [...local, ...remote];
+  const overlaps = findOverlaps(text).map((o) => ({
+    from: toPos(o.start),
+    to: toPos(o.end),
+    severity: 'warning',
+    message: {
+      duplicate: `„${o.value}“ steht schon in Zeile ${o.otherLine} mit derselben Aktion (doppelt)`,
+      conflict: `„${o.value}“ steht schon in Zeile ${o.otherLine} mit anderer Aktion – das Ergebnis hängt von der Reihenfolge ab`,
+      domain: `„${o.value}“ ist schon durch die Domain-Regel in Zeile ${o.otherLine} abgedeckt`,
+    }[o.kind],
+  }));
+  const all = [...local, ...overlaps, ...remote];
   renderProblems(all);
   return all;
 }
@@ -374,11 +385,23 @@ async function loadDraft() {
   if (!draft || Date.now() - draft.at > 30 * 60 * 1000) return;
   await storage.set('draft', null);
   const filter = state.filters.find((f) => f.ID === draft.filterId) ?? null;
-  loadIntoEditor(filter);
-  if (!filter) $('filter-name').value = draft.name ?? '';
-  editor.setValue(draft.sieve);
-  state.dirty = true;
-  toast('Entwurf aus „Sieve-Regel aus Mail“ geladen – prüfen und speichern');
+  if (draft.sieve === undefined) {
+    // only a position: open the filter at that rule
+    if (!filter) return;
+    if (filter.ID !== state.selectedId) loadIntoEditor(filter);
+  } else {
+    loadIntoEditor(filter);
+    if (!filter) $('filter-name').value = draft.name ?? '';
+    editor.setValue(draft.sieve);
+    state.dirty = true;
+    toast('Entwurf aus „Sieve-Regel aus Mail“ geladen – prüfen und speichern');
+  }
+  if (draft.line) {
+    const pos = { line: draft.line - 1, ch: 0 };
+    editor.focus();
+    editor.setCursor(pos);
+    editor.scrollIntoView(pos, 120);
+  }
 }
 
 globalThis.browser?.storage?.onChanged.addListener((changes) => {
