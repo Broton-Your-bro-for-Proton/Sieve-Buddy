@@ -45,7 +45,7 @@ const section = z
 const json = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }], structuredContent: value });
 
 export function createMcpServer(account) {
-  const server = new McpServer({ name: 'sieve', version: '0.3.0' });
+  const server = new McpServer({ name: 'sieve', version: '0.4.0' });
 
   const tool = (name, description, inputSchema, run, annotations = {}) =>
     server.registerTool(name, { description, inputSchema, annotations }, async (args) => {

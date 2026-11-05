@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Proton Sieve Manager",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "__MSG_extensionDescription__",
   "default_locale": "en",
   "author": "HyperCriSiS",
