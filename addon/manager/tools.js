@@ -20,6 +20,7 @@ export async function confirmDiff(before, after, title, confirmLabel = t('Speich
   return openModal({
     title,
     wide: true,
+    key: 'diff',
     body: [el('p', { class: 'muted' }, t('+{added} / −{removed} Zeilen', { added: stats.added, removed: stats.removed })), box],
     actions: [
       { label: t('Abbrechen'), class: 'ghost', value: false },
@@ -236,6 +237,7 @@ export function installTools(editor, state) {
     const restore = await openModal({
       title: t('Verlauf'),
       wide: true,
+      key: 'history',
       body: el(
         'div',
         { class: 'split' },
@@ -342,6 +344,7 @@ export function installTools(editor, state) {
     await openModal({
       title: t('Mail gegen die Filter testen'),
       wide: true,
+      key: 'simulate',
       body: [
         el('p', { class: 'muted small' }, t('Proton-Filter sehen nur die Header einer Mail. Getestet werden alle aktiven Filter in ihrer Reihenfolge – der aktuelle Filter mit dem Stand im Editor.')),
         el('div', { class: 'row tight' }, fromMail, el('label', { class: 'inline' }, t('Größe (KB)'), sizeInput), el('label', { class: 'inline' }, t('Spam-Score'), spamInput)),
@@ -496,6 +499,7 @@ export function installTools(editor, state) {
     const insert = await openModal({
       title: t('Regel-Assistent'),
       wide: true,
+      key: 'assistant',
       body: el(
         'div',
         { class: 'tpl-layout' },

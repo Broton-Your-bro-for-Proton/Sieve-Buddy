@@ -241,15 +241,25 @@ dialog.modal {
   color: var(--text);
   padding: 0;
   width: min(560px, calc(100vw - 32px));
-  max-height: calc(100vh - 48px);
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  min-width: 320px;
+  min-height: 160px;
+  resize: both;
+  overflow: hidden;
 }
-dialog.modal.wide { width: min(1000px, calc(100vw - 32px)); }
+dialog.modal[open] { display: flex; flex-direction: column; }
+dialog.modal.wide { width: min(1400px, calc(100vw - 32px)); }
+/* full size of the tab */
+dialog.modal.max { left: 0 !important; top: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw !important; height: 100vh !important; max-width: none; max-height: none; border-radius: 0; resize: none; }
 dialog.modal::backdrop { background: rgb(0 0 0 / .45); }
-.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: move; user-select: none; touch-action: none; }
+dialog.modal.max .modal-head { cursor: default; }
+.modal-tools { display: flex; gap: 4px; }
 .modal-head h2 { margin: 0; }
-.modal-body { padding: 12px 16px; overflow: auto; max-height: calc(100vh - 190px); display: flex; flex-direction: column; gap: 10px; }
+.modal-body { padding: 12px 16px; overflow: auto; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
 .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--border); }
-.split { display: grid; grid-template-columns: 220px 1fr; gap: 12px; }
+.split { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 12px; }
 .version-list { list-style: none; margin: 0; padding: 0; }
 .version-list li { padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
 .version-list li:hover, .version-list li.selected { background: var(--selected); }
@@ -274,7 +284,8 @@ label.inline { flex-direction: row; align-items: center; gap: 6px; margin: 0; }
 .row.tight { margin-top: 0; align-items: center; }
 
 /* ---------- rule assistant ---------- */
-.tpl-layout { display: grid; grid-template-columns: 240px 1fr; gap: 14px; }
+/* minmax(0, …): long diff lines scroll inside the diff box instead of widening the dialog */
+.tpl-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 14px; }
 .tpl-list { list-style: none; margin: 0; padding: 0; overflow: auto; max-height: 60vh; }
 .tpl-list li { padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
 .tpl-list li:hover, .tpl-list li.selected { background: var(--selected); }
