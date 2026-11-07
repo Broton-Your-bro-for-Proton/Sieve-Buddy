@@ -64,7 +64,7 @@ export const RULE_TEMPLATES = [
     category: t('Newsletter & Listen'),
     name: t('Mailingliste in Ordner'),
     description: t('Anhand der List-Id – zuverlässiger als der Absender.'),
-    params: [text('ids', t('List-Ids (eine pro Zeile)'), '', 'news.example.com'), folder('folder', t('Ordner/Label'), 'Listen'), bool('seen', t('Als gelesen markieren'), true), number('expireDays', t('Nach … Tagen löschen (leer = nie)'), '')],
+    params: [text('ids', t('List-Ids (eine pro Zeile)'), '', 'news.example.com'), folder('folder', t('Ordner/Label'), t('Listen')), bool('seen', t('Als gelesen markieren'), true), number('expireDays', t('Nach … Tagen löschen (leer = nie)'), '')],
     build: (p) => ({
       conditions: list(p.ids).map((value) => ({ kind: 'header', header: 'list-id', match: 'contains', value })),
       actions: actionsFrom(p),
@@ -75,7 +75,7 @@ export const RULE_TEMPLATES = [
     category: t('Newsletter & Listen'),
     name: t('Alle Newsletter in einen Ordner'),
     description: t('Alles mit List-Unsubscribe-Header.'),
-    params: [folder('folder', t('Ordner/Label'), 'Newsletter'), ...actionParams],
+    params: [folder('folder', t('Ordner/Label'), t('Newsletter')), ...actionParams],
     build: (p) => ({ conditions: [{ kind: 'exists', header: 'list-unsubscribe' }], actions: actionsFrom(p) }),
   },
   {
@@ -83,7 +83,7 @@ export const RULE_TEMPLATES = [
     category: t('Newsletter & Listen'),
     name: t('Soziale Netzwerke'),
     description: t('LinkedIn, Facebook, Instagram, X, XING …'),
-    params: [folder('folder', t('Ordner/Label'), 'Soziale Netzwerke'), ...actionParams],
+    params: [folder('folder', t('Ordner/Label'), t('Soziale Netzwerke')), ...actionParams],
     build: (p) => ({
       conditions: ['linkedin.com', 'facebookmail.com', 'instagram.com', 'x.com', 'twitter.com', 'xing.com', 'mastodon.social'].map((value) => ({
         kind: 'address',
@@ -100,7 +100,7 @@ export const RULE_TEMPLATES = [
     category: t('Shops & Rechnungen'),
     name: t('Rechnungen nach Betreff'),
     description: t('Betreff enthält z. B. „Rechnung“, „Invoice“, „Beleg“.'),
-    params: [text('words', t('Stichwörter (eines pro Zeile)'), 'Rechnung\nInvoice\nBeleg\nQuittung'), folder('folder', t('Ordner/Label'), 'Rechnungen'), bool('flagged', t('Mit Stern markieren'), true)],
+    params: [text('words', t('Stichwörter (eines pro Zeile)'), 'Rechnung\nInvoice\nBeleg\nQuittung'), folder('folder', t('Ordner/Label'), t('Rechnungen')), bool('flagged', t('Mit Stern markieren'), true)],
     build: (p) => ({
       conditions: list(p.words).map((value) => ({ kind: 'header', header: 'subject', match: 'contains', value })),
       actions: actionsFrom(p),
@@ -111,7 +111,7 @@ export const RULE_TEMPLATES = [
     category: t('Shops & Rechnungen'),
     name: t('Shops & Bestellungen'),
     description: t('Bekannte Shop-Domains.'),
-    params: [text('domains', t('Domains (eine pro Zeile)'), 'amazon.de\nebay.de\nzalando.de\npaypal.de'), folder('folder', t('Ordner/Label'), 'Einkäufe'), ...actionParams],
+    params: [text('domains', t('Domains (eine pro Zeile)'), 'amazon.de\nebay.de\nzalando.de\npaypal.de'), folder('folder', t('Ordner/Label'), t('Einkäufe')), ...actionParams],
     build: (p) => ({
       conditions: list(p.domains).map((value) => ({ kind: 'address', header: 'from', part: 'domain', match: 'is', value })),
       actions: actionsFrom(p),
@@ -144,7 +144,7 @@ export const RULE_TEMPLATES = [
     category: t('Benachrichtigungen'),
     name: t('No-Reply-Absender'),
     description: t('Automatische Mails von noreply@ / no-reply@.'),
-    params: [folder('folder', t('Ordner/Label'), 'Automatisch'), ...actionParams],
+    params: [folder('folder', t('Ordner/Label'), t('Automatisch')), ...actionParams],
     build: (p) => ({
       conditions: ['noreply', 'no-reply', 'donotreply'].map((value) => ({ kind: 'address', header: 'from', part: 'localpart', match: 'is', value })),
       actions: actionsFrom(p),
@@ -195,13 +195,13 @@ export const RULE_TEMPLATES = [
     category: t('Kontakte & Schutz'),
     name: t('Unbekannte Absender in Ordner'),
     description: t('Nur Kontakte und Allow-Liste bleiben im Posteingang.'),
-    params: [folder('folder', t('Ordner/Label'), 'Unbekannt')],
+    params: [folder('folder', t('Ordner/Label'), t('Unbekannt'))],
     code: (p) => `if not anyof(
     header :list "from" ":addrbook:personal",
     header :list "from" ":incomingdefaults:inbox",
     header :list "from" ":addrbook:myself"
 ) {
-    fileinto ${quoteSieve(p.folder || 'Unbekannt')};
+    fileinto ${quoteSieve(p.folder || t('Unbekannt'))};
 }`,
   },
   {

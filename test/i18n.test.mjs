@@ -40,3 +40,15 @@ test('manifest strings exist in both languages', () => {
   const manifest = readFileSync(new URL('../addon/manifest.json', import.meta.url), 'utf8');
   for (const [, key] of manifest.matchAll(/__MSG_(\w+)__/g)) assert.ok(key in read('en'), key);
 });
+
+test('in English the template category still finds German section titles', async () => {
+  const { chooseSection, findSections } = await import('../addon/lib/sieve-sections.js');
+  const text = 'require ["fileinto"];\n\n### Rechnungen ###\nif header :contains "subject" "Beleg" {\n    fileinto "Belege";\n}\n';
+  setLocale('en');
+  try {
+    const section = chooseSection(findSections(text), { actions: { flagged: true } }, { category: t('Shops & Rechnungen') });
+    assert.equal(section?.title, 'Rechnungen');
+  } finally {
+    setLocale('de');
+  }
+});

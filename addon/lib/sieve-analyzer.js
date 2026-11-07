@@ -477,7 +477,7 @@ export function getCompletions(text, cursor, context = {}) {
   const from = cursor - prefix.length;
 
   if (prefix.startsWith(':')) {
-    const tags = Object.entries(TAGS).map(([tag, info]) => item(tag + ' ', `${tag} — ${info.doc}`, 'cm-hint-tag'));
+    const tags = Object.entries(TAGS).map(([tag, info]) => item(tag + ' ', `${tag}: ${info.doc}`, 'cm-hint-tag'));
     return { from, to: cursor, list: tags.filter((t) => t.text.startsWith(prefix.toLowerCase())) };
   }
 
@@ -488,14 +488,14 @@ export function getCompletions(text, cursor, context = {}) {
     return {
       from,
       to: cursor,
-      list: extensionsFor(context).map(([ext, doc]) => item(`"${ext}"`, `${ext} — ${doc}`, 'cm-hint-ext')),
+      list: extensionsFor(context).map(([ext, doc]) => item(`"${ext}"`, `${ext}: ${doc}`, 'cm-hint-ext')),
     };
   }
 
   const inTest = isInTest(prevTokens);
   const candidates = Object.entries(COMMANDS)
     .filter(([, info]) => (inTest ? info.kind === 'test' : info.kind !== 'test'))
-    .map(([name, info]) => item(name, `${name} — ${info.doc}`, `cm-hint-${info.kind}`));
+    .map(([name, info]) => item(name, `${name}: ${info.doc}`, `cm-hint-${info.kind}`));
   if (!inTest) {
     for (const tpl of TEMPLATES) candidates.push(item(tpl.body, t('Vorlage: {name}', { name: tpl.name }), 'cm-hint-template'));
   }
@@ -568,7 +568,7 @@ function stringCandidates(tokens, index, context) {
 
   switch (owner) {
     case 'require':
-      return extensionsFor(context).map(([ext, doc]) => item(ext, `${ext} — ${doc}`, 'cm-hint-ext'));
+      return extensionsFor(context).map(([ext, doc]) => item(ext, `${ext}: ${doc}`, 'cm-hint-ext'));
     case 'fileinto':
       return [
         ...((context.dialect ?? PROTON_DIALECT).proton ? SYSTEM_FOLDERS : ['INBOX']).map((f) => item(f, t('{name} (System)', { name: f }), 'cm-hint-folder')),

@@ -16,6 +16,9 @@ export const getLocale = () => (catalog ? 'en' : 'de');
 /** Locale tag for dates and numbers. */
 export const dateLocale = () => (catalog ? 'en-US' : 'de-DE');
 
+/** The German key of a translated text (the text itself when it is not a translation). */
+export const sourceOf = (text) => (catalog && Object.keys(catalog).find((key) => catalog[key] === text)) ?? text;
+
 export function t(text, params) {
   const out = catalog?.[text] ?? text;
   return params ? out.replace(/\{(\w+)\}/g, (m, key) => (key in params ? String(params[key]) : m)) : out;

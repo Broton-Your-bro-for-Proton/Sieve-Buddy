@@ -124,7 +124,7 @@ function labelFor(c) {
 function renderFolderSelect() {
   const select = $('folder');
   const options = [
-    el('option', { value: '' }, t('— nicht verschieben —')),
+    el('option', { value: '' }, t('(nicht verschieben)')),
     el('optgroup', { label: t('Ordner') }, ...state.folders.filter((f) => f !== 'INBOX').map((f) => el('option', { value: f }, f))),
     el('optgroup', { label: t('Labels') }, ...state.labels.map((l) => el('option', { value: l }, l))),
     el('optgroup', { label: t('System') }, ...(dialectOf(state.client).proton ? SYSTEM_FOLDERS : ['INBOX']).map((f) => el('option', { value: f }, SYSTEM_LABELS[f] ?? f))),
