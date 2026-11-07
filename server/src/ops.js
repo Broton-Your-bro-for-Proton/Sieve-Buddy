@@ -7,9 +7,11 @@ import { planRule as planRuleCore } from '../../addon/lib/rule-planner.js';
 import { fixRequire, lintSieve as lintCore } from '../../addon/lib/sieve-analyzer.js';
 import { formatSieve as formatCore, lineOf } from '../../addon/lib/sieve-ast.js';
 import { newScript } from '../../addon/lib/sieve-dialect.js';
-import { describeRule } from '../../addon/lib/sieve-rules.js';
+import { describeRule, insertBlockAt } from '../../addon/lib/sieve-rules.js';
+import { findSections, resolveSection } from '../../addon/lib/sieve-sections.js';
 import { simulate as simulateCore } from '../../addon/lib/sieve-sim.js';
 import { RULE_TEMPLATES, buildTemplate as buildTemplateCore, templateDefaults } from '../../addon/lib/sieve-templates.js';
+import { t } from '../../addon/lib/i18n.js';
 
 // ---------- helpers ----------
 
@@ -31,12 +33,19 @@ function toMessage(headers, size) {
 
 const withLines = (text, issues) => issues.map((i) => ({ line: lineOf(text, i.start), severity: i.severity, message: i.message }));
 const knownFolders = (data) => (data.folders ? [...data.folders, ...data.labels] : undefined);
-const summary = (s, includeSieve) => ({ id: s.id, name: s.name, enabled: s.enabled, ...(includeSieve ? { sieve: s.sieve } : {}) });
+const summary = (s, includeSieve) => ({
+  id: s.id,
+  name: s.name,
+  enabled: s.enabled,
+  sections: findSections(s.sieve).map((x) => ({ title: x.title, line: x.line, rules: x.rules.length })),
+  ...(includeSieve ? { sieve: s.sieve } : {}),
+});
 
 function planToJson(result) {
   const { plan, after, notes, conflicts, errors } = result;
   return {
     target: plan.targetId ? { id: plan.targetId, name: plan.name } : { id: null, name: plan.name, newFilter: true },
+    section: plan.section ?? null,
     steps: plan.steps.map((s) => ({ kind: s.kind, line: s.line ?? null, condition: s.condition })),
     notes,
     conflicts,
@@ -61,7 +70,7 @@ export async function listFilters(account, { includeSieve = false } = {}) {
 export async function getFilter(account, { id }) {
   const data = await account.data();
   const s = data.scripts.find((x) => x.id === id);
-  if (!s) throw new Error(`Filter/Skript ${id} nicht gefunden`);
+  if (!s) throw new Error(t('Filter/Skript {id} nicht gefunden', { id }));
   return { ...summary(s, true), issues: withLines(s.sieve, lintCore(s.sieve, { folders: knownFolders(data), dialect: data.dialect })) };
 }
 
@@ -153,7 +162,9 @@ function assertFolderExists(data, folder) {
   const close = (a, b) => variants(a).some((x) => variants(b).some((y) => x.includes(y) || y.includes(x)));
   const similar = known.filter((k) => close(k, folder));
   throw new Error(
-    `Ordner/Label „${folder}“ existiert nicht${similar.length ? ` – meintest du ${similar.map((s) => `„${s}“`).join(', ')}?` : ''} (siehe list_folders; der Ordner muss vorher angelegt werden)`,
+    similar.length
+      ? t('Ordner/Label „{folder}“ existiert nicht – meintest du {names}? (siehe list_folders; der Ordner muss vorher angelegt werden)', { folder, names: similar.map((s) => t('„{s}“', { s })).join(', ') })
+      : t('Ordner/Label „{folder}“ existiert nicht (siehe list_folders; der Ordner muss vorher angelegt werden)', { folder }),
   );
 }
 
@@ -163,7 +174,7 @@ function planningScripts(data) {
   return data.scripts.filter((s) => s.enabled);
 }
 
-export async function planRule(account, { rule, target = 'auto', newName, headers, size }) {
+export async function planRule(account, { rule, target = 'auto', newName, section = 'auto', category, headers, size }) {
   const data = await account.data();
   assertFolderExists(data, rule.actions?.fileinto);
   const scripts = planningScripts(data);
@@ -172,6 +183,8 @@ export async function planRule(account, { rule, target = 'auto', newName, header
     rule,
     target: target === 'auto' && !scripts.length ? 'new' : target,
     newName,
+    section,
+    category,
     message: toMessage(headers, size) ?? undefined,
     labels: data.labels,
     dialect: data.dialect,
@@ -180,32 +193,34 @@ export async function planRule(account, { rule, target = 'auto', newName, header
   if (!json.target.id && !data.capabilities.multipleActive) {
     json.notes.push(
       scripts.length
-        ? 'Neues Skript wird angelegt, aber nicht aktiviert – auf diesem Server läuft nur ein aktives Skript.'
-        : 'Neues Skript wird angelegt und aktiviert (bisher war kein Skript aktiv).',
+        ? t('Neues Skript wird angelegt, aber nicht aktiviert – auf diesem Server läuft nur ein aktives Skript.')
+        : t('Neues Skript wird angelegt und aktiviert (bisher war kein Skript aktiv).'),
     );
     json.activate = !scripts.length;
   }
   return { description: describeRule(rule), ...json };
 }
 
-export async function buildTemplate(account, { templateId, params = {}, target = 'auto', newName }) {
+export async function buildTemplate(account, { templateId, params = {}, target = 'auto', newName, section = 'auto' }) {
   const data = await account.data();
   const template = templatesFor(data.dialect).find((t) => t.id === templateId);
-  if (!template) throw new Error(`Vorlage ${templateId} nicht gefunden – siehe list_templates`);
+  if (!template) throw new Error(t('Vorlage {templateId} nicht gefunden – siehe list_templates', { templateId }));
   const merged = { ...templateDefaults(template), ...params };
   if (!data.dialect.proton) delete merged.expireDays;
   const built = buildTemplateCore(template, merged);
-  if (built.rule) return { rule: built.rule, ...(await planRule(account, { rule: built.rule, target, newName })) };
+  if (built.rule) return { rule: built.rule, ...(await planRule(account, { rule: built.rule, target, newName, section, category: template.category })) };
   if (template.params.some((p) => p.type === 'folder')) assertFolderExists(data, merged.folder);
 
   // finished snippets are appended to the chosen (or first runnable) script, or become a new one
   const runnable = planningScripts(data);
   const script = target === 'new' ? null : data.scripts.find((s) => s.id === target) ?? (target === 'auto' ? runnable[0] : null);
   const before = script?.sieve ?? '';
-  const base = (script ? before : newScript('', data.dialect)).replace(/\s+$/, '');
-  const sieve = fixRequire(`${base}\n\n${built.code}\n`);
+  const base = script ? before : newScript('', data.dialect);
+  const placed = resolveSection(base, section, { actions: {} }, { category: template.category });
+  const sieve = insertBlockAt(base, built.code, placed.at, placed.heading);
   return {
     target: script ? { id: script.id, name: script.name } : { id: null, name: newName || template.name, newFilter: true },
+    section: placed.heading ? { title: placed.heading, new: true } : placed.section ? { title: placed.section.title, line: placed.section.line } : null,
     steps: [{ kind: 'new-block' }],
     notes: [],
     conflicts: [],
@@ -220,13 +235,13 @@ export async function buildTemplate(account, { templateId, params = {}, target =
 // ---------- write ----------
 
 async function savePlanned(account, planned) {
-  if (planned.errors.length) throw new Error(`Das Skript hat Fehler: ${planned.errors.map((e) => `Zeile ${e.line}: ${e.message}`).join('; ')}`);
-  if (planned.diff.added === 0 && planned.diff.removed === 0) return { saved: false, reason: 'Keine Änderung nötig – die Regel ist schon vorhanden', ...planned };
+  if (planned.errors.length) throw new Error(t('Das Skript hat Fehler: {list}', { list: planned.errors.map((e) => t('Zeile {line}: {message}', { line: e.line, message: e.message })).join('; ') }));
+  if (planned.diff.added === 0 && planned.diff.removed === 0) return { saved: false, reason: t('Keine Änderung nötig – die Regel ist schon vorhanden'), ...planned };
   return account.write(async () => {
     await account.checkOrThrow(planned.sieve);
     if (planned.target.id) {
       const data = await account.data({ fresh: true });
-      if (!data.scripts.some((s) => s.id === planned.target.id)) throw new Error('Der Zielfilter existiert nicht mehr');
+      if (!data.scripts.some((s) => s.id === planned.target.id)) throw new Error(t('Der Zielfilter existiert nicht mehr'));
       await account.provider.updateScript(planned.target.id, { sieve: planned.sieve });
       return { saved: true, ...planned };
     }
@@ -262,7 +277,7 @@ export async function updateFilter(account, { id, name, sieve, enabled }) {
   return account.write(async () => {
     const data = await account.data({ fresh: true });
     const current = data.scripts.find((s) => s.id === id);
-    if (!current) throw new Error(`Filter/Skript ${id} nicht gefunden`);
+    if (!current) throw new Error(t('Filter/Skript {id} nicht gefunden', { id }));
     if (sieve !== undefined) await account.checkOrThrow(sieve);
     const result = await account.provider.updateScript(id, { name, sieve, enabled });
     return { id: result?.id ?? id, name: name ?? current.name, enabled: enabled ?? current.enabled, diff: unifiedDiff(current.sieve, sieve ?? current.sieve) };

@@ -148,7 +148,7 @@ test('MCP lists all tools', async () => {
 
 test('list_filters refreshes the expired session transparently', async () => {
   const { filters } = await call('list_filters');
-  assert.deepEqual(filters, [{ id: 'f1', name: 'Hauptfilter', enabled: true }]);
+  assert.deepEqual(filters, [{ id: 'f1', name: 'Hauptfilter', enabled: true, sections: [] }]);
   assert.equal(proton.refreshes, 1);
 });
 
@@ -183,6 +183,16 @@ test('templates can be applied as a new filter', async () => {
   assert.equal(r.saved, true);
   assert.equal(proton.filters.at(-1).Name, 'GitHub');
   assert.match(proton.filters.at(-1).Sieve, /notifications@github\.com/);
+});
+
+test('plan_rule and plan_template place new blocks by section', async () => {
+  const rule = { conditions: [{ kind: 'address', header: 'from', part: 'all', match: 'is', value: 'boss@firma.de' }], actions: { flagged: true } };
+  const plan = await call('plan_rule', { rule, target: 'f1', section: { new: 'Wichtig' } });
+  assert.deepEqual(plan.section, { title: 'Wichtig', new: true });
+  assert.match(plan.diff.text, /\+ # ===== Wichtig =====\n\+ if address :is "from" "boss@firma\.de"/);
+  const code = await call('plan_template', { templateId: 'domain-folder-auto', target: 'f1', section: { new: 'Domains' } });
+  assert.deepEqual(code.section, { title: 'Domains', new: true });
+  assert.match(code.sieve, /# ===== Domains =====\nif address :domain :matches "from" "\*"/);
 });
 
 test('Proton rejecting a script is reported as a tool error', async () => {

@@ -4,10 +4,11 @@
 //   rfc    – RFC 5228 (implicit keep, every fileinto/keep stores a copy, discard cancels the implicit keep)
 // Contact lists are unknown unless a resolver is given.
 
+import { t } from './i18n.js';
 import { lineOf, parseSieve } from './sieve-ast.js';
 import { addressPart, decodeEncodedWords, parseAddresses } from './mail.js';
 
-const SYSTEM = { inbox: 'Posteingang', archive: 'Archiv', trash: 'Papierkorb', spam: 'Spam', starred: 'Markiert' };
+const SYSTEM = { inbox: t('Posteingang'), archive: t('Archiv'), trash: t('Papierkorb'), spam: t('Spam'), starred: t('Markiert') };
 
 // tagged arguments that are followed by their own value
 const VALUE_TAGS = new Set([':comparator', ':value', ':count', ':zone', ':days', ':subject', ':handle', ':flags', ':from', ':addresses', ':seconds', ':importance', ':options', ':message', ':header', ':uniqueid', ':index', ':specialuse']);
@@ -54,7 +55,7 @@ export function simulate(scripts, message, options = {}) {
     try {
       ast = parseSieve(script.sieve);
     } catch (error) {
-      state.notes.push(`Filter „${script.name}“ konnte nicht gelesen werden: ${error.message}`);
+      state.notes.push(t('Filter „{name}“ konnte nicht gelesen werden: {message}', { name: script.name, message: error.message }));
       continue;
     }
     const ctx = { script, text: script.sieve, vars: new Map(), match: [], discard: false, keep: false };
@@ -87,12 +88,12 @@ export function simulate(scripts, message, options = {}) {
     if (state.implicitKeep && !state.rejected) storeCopy('INBOX', state.flags);
     const folders = state.copies.map((c) => c.folder);
     const location = state.rejected
-      ? 'abgewiesen'
+      ? t('abgewiesen')
       : folders.length
         ? folders.join(' + ')
         : state.redirects.length
-          ? `weitergeleitet an ${state.redirects.join(', ')}`
-          : 'gelöscht';
+          ? t('weitergeleitet an {to}', { to: state.redirects.join(', ') })
+          : t('gelöscht');
     return {
       location,
       folder: folders.find((f) => f !== 'INBOX') ?? folders[0] ?? null,
@@ -111,7 +112,7 @@ export function simulate(scripts, message, options = {}) {
     };
   }
 
-  const location = state.rejected ? 'abgewiesen' : state.discarded ? 'gelöscht' : SYSTEM[state.folder ?? 'inbox'] ?? state.folder;
+  const location = state.rejected ? t('abgewiesen') : state.discarded ? t('gelöscht') : SYSTEM[state.folder ?? 'inbox'] ?? state.folder;
   return {
     folders: state.discarded || state.rejected ? [] : [state.folder ?? 'inbox'],
     location,
@@ -195,7 +196,7 @@ export function simulate(scripts, message, options = {}) {
         }
         const lower = target.toLowerCase();
         if (lower === 'drafts' || lower === 'sent') {
-          state.notes.push(`fileinto „${target}“ wird von Proton ignoriert`);
+          state.notes.push(t('fileinto „{folder}“ wird von Proton ignoriert', { folder: target }));
           return;
         }
         if (labels.has(target)) state.labels.add(target);
@@ -215,7 +216,7 @@ export function simulate(scripts, message, options = {}) {
         state.flags = new Set(strs(pos[pos.length - 1]).map((s) => expand(s, ctx)));
         return;
       case 'reject':
-        state.rejected = str(0) || 'abgewiesen';
+        state.rejected = str(0) || t('abgewiesen');
         throw new Stop();
       case 'vacation':
         state.vacation = { reason: expand(strs(pos[pos.length - 1])[0] ?? '', ctx), days: tags[':days'] ?? null, subject: tags[':subject'] ?? null };
@@ -243,27 +244,27 @@ export function simulate(scripts, message, options = {}) {
         return;
       }
       default:
-        state.notes.push(`Befehl „${c.name}“ wird im Simulator nicht ausgeführt`);
+        state.notes.push(t('Befehl „{name}“ wird im Simulator nicht ausgeführt', { name: c.name }));
     }
   }
 
   // ---------- tests ----------
 
-  function evalTest(t, ctx) {
-    const tags = tagsOf(t.args);
-    const pos = positional(t.args);
+  function evalTest(test, ctx) {
+    const tags = tagsOf(test.args);
+    const pos = positional(test.args);
     const keys = () => strs(pos[pos.length - 1]).map((k) => expand(k, ctx));
-    switch (t.name) {
+    switch (test.name) {
       case 'true':
         return true;
       case 'false':
         return false;
       case 'not':
-        return !evalTest(t.tests[0], ctx);
+        return !evalTest(test.tests[0], ctx);
       case 'anyof':
-        return t.tests.some((x) => evalTest(x, ctx));
+        return test.tests.some((x) => evalTest(x, ctx));
       case 'allof':
-        return t.tests.every((x) => evalTest(x, ctx));
+        return test.tests.every((x) => evalTest(x, ctx));
       case 'exists':
         return strs(pos[0]).every((h) => (message.headers[h.toLowerCase()] ?? []).length > 0);
       case 'size': {
@@ -312,14 +313,14 @@ export function simulate(scripts, message, options = {}) {
         return compare([datePart(date, expand(strs(pos[1])[0] ?? '', ctx), tags[':zone'])], keys(), tags, ctx);
       }
       default:
-        state.notes.push(`Test „${t.name}“ wird im Simulator nicht ausgewertet (als falsch angenommen)`);
+        state.notes.push(t('Test „{name}“ wird im Simulator nicht ausgewertet (als falsch angenommen)', { name: test.name }));
         return false;
     }
   }
 
   function listTest(addresses, specs) {
     if (!options.isInList) {
-      state.notes.push(`Kontaktlisten (${specs.join(', ')}) sind dem Simulator nicht bekannt – als „nicht enthalten“ angenommen`);
+      state.notes.push(t('Kontaktlisten ({lists}) sind dem Simulator nicht bekannt – als „nicht enthalten“ angenommen', { lists: specs.join(', ') }));
       return false;
     }
     return addresses.some((a) => specs.some((s) => options.isInList(s, a)));
@@ -355,7 +356,7 @@ export function simulate(scripts, message, options = {}) {
               return true;
             }
           } catch {
-            state.notes.push(`Regex „${k}“ ist ungültig`);
+            state.notes.push(t('Regex „{regex}“ ist ungültig', { regex: k }));
           }
         } else if (tags[':contains'] !== undefined) {
           if (fold(v, comparator).includes(fold(k, comparator))) return true;

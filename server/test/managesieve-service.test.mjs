@@ -58,7 +58,7 @@ test('status and capabilities come from the server', async () => {
   assert.equal(caps.multipleActive, false);
   assert.ok(caps.extensions.includes('copy'));
   const { filters } = await call('list_filters');
-  assert.deepEqual(filters, [{ id: 'main', name: 'main', enabled: true }, { id: 'alt', name: 'alt', enabled: false }]);
+  assert.deepEqual(filters.map(({ sections, ...f }) => f), [{ id: 'main', name: 'main', enabled: true }, { id: 'alt', name: 'alt', enabled: false }]);
 });
 
 test('apply_rule merges into the active script only, verified with RFC semantics', async () => {

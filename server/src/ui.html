@@ -58,7 +58,7 @@
       <ol>
         <li>In Thunderbird den <strong>Proton Sieve Manager</strong> öffnen und dort anmelden (falls noch nicht).</li>
         <li>Oben rechts auf <strong>„An Dienst übergeben“</strong> klicken.</li>
-        <li>Adresse <code id="handover-url"></code> und das API-Token eintragen.</li>
+        <li>Dort die Adresse <code id="handover-url"></code> und das API-Token eintragen.</li>
       </ol>
       <p class="muted">Der Passwort-Login direkt im Dienst ist abgeschaltet, weil Proton neue Anmeldungen unbekannter Programme sperren kann (ALLOW_PASSWORD_LOGIN=true schaltet ihn wieder ein).</p>
     </div>
@@ -95,7 +95,11 @@
     <pre id="mcp-config"></pre>
   </section>
 </main>
-<script>
+<script type="module">
+  import { dateLocale, localizeDom, setLocale, t } from '/i18n.js';
+
+  setLocale(document.documentElement.lang);
+  localizeDom(document.documentElement, document);
   const $ = (id) => document.getElementById(id);
   let token = '';
   try { token = localStorage.getItem('pss-token') || ''; } catch {}
@@ -120,7 +124,7 @@
     } catch (e) {
       $('token-card').hidden = false;
       $('status-card').hidden = $('mcp-card').hidden = true;
-      if (e.status === 401 && token) msg('Token ungültig', 'bad');
+      if (e.status === 401 && token) msg(t('Token ungültig'), 'bad');
       return;
     }
     $('token-card').hidden = true;
@@ -130,8 +134,8 @@
     $('status-text').innerHTML = status.loggedIn
       ? `<span class="ok">●</span> ${managesieve ? `ManageSieve ${esc(status.server)}` : 'Proton'} – ${esc(status.username)}`
       : managesieve
-        ? `<span class="bad">●</span> ManageSieve ${esc(status.server)} nicht erreichbar`
-        : '<span class="bad">●</span> Nicht bei Proton angemeldet';
+        ? `<span class="bad">●</span> ${t('ManageSieve {server} nicht erreichbar', { server: esc(status.server) })}`
+        : `<span class="bad">●</span> ${t('Nicht bei Proton angemeldet')}`;
     if (managesieve && status.error) msg(status.error, 'bad');
     $('logout').hidden = managesieve || !status.loggedIn;
     $('handover-box').hidden = managesieve || status.loggedIn || status.allowPasswordLogin;
@@ -141,10 +145,10 @@
     $('captcha-box').hidden = status.pending !== 'captcha';
     if (status.captchaUrl) $('captcha-link').href = status.captchaUrl;
     $('filters-box').hidden = !status.loggedIn;
-    if (!status.allowWrite) msg('Schreibzugriffe sind deaktiviert (ALLOW_WRITE=false).');
+    if (!status.allowWrite) msg(t('Schreibzugriffe sind deaktiviert (ALLOW_WRITE=false).'));
     const g = status.loginGuard || {};
     $('guard-box').hidden = !g.blockedUntil || status.loggedIn;
-    if (g.blockedUntil) $('guard-text').textContent = `Anmeldung pausiert bis ${new Date(g.blockedUntil).toLocaleString('de-DE')}: ${g.reason}`;
+    if (g.blockedUntil) $('guard-text').textContent = t('Anmeldung pausiert bis {until}: {reason}', { until: new Date(g.blockedUntil).toLocaleString(dateLocale()), reason: g.reason });
     if (g.blockedUntil && !status.loggedIn) $('login-form').hidden = true;
     $('mcp-config').textContent = JSON.stringify({
       mcpServers: { sieve: { type: 'http', url: `${location.origin}/mcp`, headers: { Authorization: 'Bearer <API_TOKEN>' } } },
@@ -156,7 +160,7 @@
         li.textContent = f.name;
         const s = document.createElement('span');
         s.className = f.enabled ? 'ok' : 'muted';
-        s.textContent = f.enabled ? 'aktiv' : 'aus';
+        s.textContent = f.enabled ? t('aktiv') : t('aus');
         li.append(s);
         return li;
       }));
@@ -166,9 +170,9 @@
   async function step(promise) {
     try {
       const r = await promise;
-      if (r.step === 'captcha') { msg('Proton verlangt ein Captcha.'); window.open(r.webUrl, '_blank', 'noopener'); }
-      else if (r.step === 'totp') msg('Bitte 2FA-Code eingeben.');
-      else msg('Angemeldet ✓', 'ok');
+      if (r.step === 'captcha') { msg(t('Proton verlangt ein Captcha.')); window.open(r.webUrl, '_blank', 'noopener'); }
+      else if (r.step === 'totp') msg(t('Bitte 2FA-Code eingeben.'));
+      else msg(t('Angemeldet ✓'), 'ok');
     } catch (e) { msg(e.message, 'bad'); }
     await refresh();
   }
@@ -183,17 +187,17 @@
     e.preventDefault();
     const body = { username: $('username').value.trim(), password: $('password').value };
     $('password').value = '';
-    msg('Anmeldung läuft …');
+    msg(t('Anmeldung läuft …'));
     step(api('/api/login', body));
   });
   $('totp-form').addEventListener('submit', (e) => { e.preventDefault(); step(api('/api/login/totp', { code: $('totp').value })); });
   $('captcha-continue').addEventListener('click', () => step(api('/api/login/continue', {})));
   $('guard-reset').addEventListener('click', async () => {
-    if (!confirm('Pause wirklich aufheben? Weitere Anmeldungen kurz nach einer Proton-Sperre können das Konto länger sperren.')) return;
+    if (!confirm(t('Pause wirklich aufheben? Weitere Anmeldungen kurz nach einer Proton-Sperre können das Konto länger sperren.'))) return;
     await api('/api/login/reset-guard', {});
     refresh();
   });
-  $('logout').addEventListener('click', async () => { await api('/api/logout', {}); msg('Abgemeldet'); refresh(); });
+  $('logout').addEventListener('click', async () => { await api('/api/logout', {}); msg(t('Abgemeldet')); refresh(); });
   refresh();
 </script>
 </body>

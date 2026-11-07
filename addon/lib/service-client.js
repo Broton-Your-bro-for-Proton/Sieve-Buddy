@@ -1,6 +1,8 @@
 // Talks to the Sieve service (Docker) instead of Proton directly. Offers the same methods the manager uses
 // on ProtonClient, so the UI works unchanged – for Proton behind the service as well as ManageSieve servers.
 
+import { t } from './i18n.js';
+
 export class ServiceClient {
   /** @param {{baseUrl: string, token: string}} options */
   constructor({ baseUrl, token }) {
@@ -16,7 +18,7 @@ export class ServiceClient {
   }
 
   get session() {
-    return this.status ? { username: this.status.username ?? this.status.server ?? 'Dienst' } : null;
+    return this.status ? { username: this.status.username ?? this.status.server ?? t('Dienst') } : null;
   }
 
   async #call(path, body) {
@@ -28,10 +30,10 @@ export class ServiceClient {
         body: body === undefined ? undefined : JSON.stringify(body),
       });
     } catch (error) {
-      throw new Error(`Dienst unter ${this.baseUrl} nicht erreichbar (${error.message})`);
+      throw new Error(t('Dienst unter {url} nicht erreichbar ({message})', { url: this.baseUrl, message: error.message }));
     }
     const data = await res.json().catch(() => ({}));
-    if (res.status === 401) throw new Error('API-Token des Dienstes ist falsch');
+    if (res.status === 401) throw new Error(t('API-Token des Dienstes ist falsch'));
     if (!res.ok) throw Object.assign(new Error(data.error || `HTTP ${res.status}`), { issues: data.issues });
     return data;
   }

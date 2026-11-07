@@ -6,6 +6,7 @@
   <link rel="stylesheet" href="../manager/manager.css">
   <link rel="stylesheet" href="rule.css">
   <script src="../vendor/bcrypt.min.js"></script>
+  <script type="module" src="../shared/localize.js"></script>
   <script type="module" src="rule.js"></script>
 </head>
 <body class="rule-page">
@@ -62,6 +63,8 @@
       <div class="row tight">
         <select id="target"></select>
         <input id="new-name" placeholder="Name des neuen Filters" hidden>
+        <select id="section" hidden></select>
+        <input id="section-name" placeholder="Name des neuen Abschnitts" hidden>
       </div>
       <div id="plan" class="plan"></div>
       <div id="diff" class="diff"></div>

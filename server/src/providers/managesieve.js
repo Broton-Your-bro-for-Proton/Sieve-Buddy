@@ -3,6 +3,7 @@
 
 import net from 'node:net';
 import tls from 'node:tls';
+import { t } from '../../../addon/lib/i18n.js';
 
 const CRLF = '\r\n';
 
@@ -39,7 +40,7 @@ class Reader {
       this.#wake();
     });
     socket.on('close', () => {
-      this.error ??= new ManageSieveError('Verbindung vom Server geschlossen', { status: 'BYE' });
+      this.error ??= new ManageSieveError(t('Verbindung vom Server geschlossen'), { status: 'BYE' });
       this.#wake();
     });
   }
@@ -59,7 +60,7 @@ class Reader {
   async #wait() {
     if (this.error) throw this.error;
     await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new ManageSieveError('Zeitüberschreitung beim Warten auf den Server', { status: 'TIMEOUT' })), this.timeoutMs);
+      const timer = setTimeout(() => reject(new ManageSieveError(t('Zeitüberschreitung beim Warten auf den Server'), { status: 'TIMEOUT' })), this.timeoutMs);
       this.waiters.push(() => {
         clearTimeout(timer);
         resolve();
@@ -126,7 +127,7 @@ async function readItems(reader) {
       top.push({ string: s });
     } else if (c === '{') {
       const m = /^\{(\d+)\+?\}$/.exec(line.slice(i));
-      if (!m) throw new ManageSieveError(`Unerwartete Antwort: ${line}`);
+      if (!m) throw new ManageSieveError(t('Unerwartete Antwort: {line}', { line }));
       top.push({ string: await reader.bytes(Number(m[1])) });
       line = await reader.line();
       i = 0;
@@ -182,14 +183,14 @@ export class ManageSieveConnection {
   static async open({ host, port = 4190, tls: mode = 'starttls', rejectUnauthorized = true, timeoutMs = 15_000 }) {
     const socket = await new Promise((resolve, reject) => {
       const s = mode === 'tls' ? tls.connect({ host, port, servername: host, rejectUnauthorized }) : net.connect({ host, port });
-      s.setTimeout(timeoutMs, () => s.destroy(new ManageSieveError('Zeitüberschreitung beim Verbinden', { status: 'TIMEOUT' })));
+      s.setTimeout(timeoutMs, () => s.destroy(new ManageSieveError(t('Zeitüberschreitung beim Verbinden'), { status: 'TIMEOUT' })));
       s.once(mode === 'tls' ? 'secureConnect' : 'connect', () => resolve(s));
       s.once('error', reject);
     });
     const conn = new ManageSieveConnection(socket, timeoutMs);
     conn.capabilities = parseCapabilities((await readResponse(conn.reader)).lines);
     if (mode === 'starttls') {
-      if (!conn.capabilities.starttls) throw new ManageSieveError('Server bietet kein STARTTLS an (MANAGESIEVE_TLS=none nur im eigenen Netz verwenden)');
+      if (!conn.capabilities.starttls) throw new ManageSieveError(t('Server bietet kein STARTTLS an (MANAGESIEVE_TLS=none nur im eigenen Netz verwenden)'));
       await conn.command('STARTTLS');
       conn.reader.detach();
       const secure = await new Promise((resolve, reject) => {
@@ -217,7 +218,7 @@ export class ManageSieveConnection {
 
   async authenticate(user, password) {
     if (!this.capabilities.sasl.map((m) => m.toUpperCase()).includes('PLAIN')) {
-      throw new ManageSieveError(`Server bietet SASL PLAIN nicht an (angeboten: ${this.capabilities.sasl.join(', ') || 'nichts'})`);
+      throw new ManageSieveError(t('Server bietet SASL PLAIN nicht an (angeboten: {offered})', { offered: this.capabilities.sasl.join(', ') || t('nichts') }));
     }
     const token = Buffer.from(`\0${user}\0${password}`, 'utf8').toString('base64');
     const result = await this.command(`AUTHENTICATE "PLAIN" ${quote(token)}`);

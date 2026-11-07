@@ -1,6 +1,7 @@
 // Structured rules on top of the AST: describe a rule as conditions + actions, find where it fits into
 // existing scripts (append a key to a matching block, extend an anyof, ...) and produce minimal patches.
 
+import { t } from './i18n.js';
 import { fixRequire } from './sieve-analyzer.js';
 import { applyPatches, lineOf, parseSieve, quoteSieve, walkCommands } from './sieve-ast.js';
 
@@ -94,7 +95,7 @@ function normaliseActions(a) {
   };
 }
 
-const sameActions = (a, b) => JSON.stringify(normaliseActions(a)) === JSON.stringify(normaliseActions(b));
+export const sameActions = (a, b) => JSON.stringify(normaliseActions(a)) === JSON.stringify(normaliseActions(b));
 
 function sameForm(desc, condition) {
   if (desc.kind !== condition.kind) return false;
@@ -163,20 +164,20 @@ export function ruleToSieve({ conditions, combine = 'anyof', actions }) {
 export function describeRule({ conditions, actions }) {
   const what = conditions
     .map((c) => {
-      if (c.kind === 'exists') return `Header „${c.header}“ vorhanden`;
-      const part = c.kind === 'address' ? { domain: 'Domain', localpart: 'Name vor @', all: 'Adresse' }[c.part ?? 'all'] : 'Header';
-      return `${part} ${c.header} ${{ is: 'ist', contains: 'enthält', matches: 'passt auf' }[c.match ?? 'is']} „${c.value}“`;
+      if (c.kind === 'exists') return t('Header „{header}“ vorhanden', { header: c.header });
+      const part = c.kind === 'address' ? { domain: t('Domain'), localpart: t('Name vor @'), all: t('Adresse') }[c.part ?? 'all'] : t('Header');
+      return t('{part} {header} {match} „{value}“', { part, header: c.header, match: { is: t('ist'), contains: t('enthält'), matches: t('passt auf') }[c.match ?? 'is'], value: c.value });
     })
-    .join(' oder ');
+    .join(t(' oder '));
   const a = normaliseActions(actions);
   const todo = [
-    a.fileinto && `nach „${a.fileinto}“`,
-    a.seen && 'als gelesen',
-    a.flagged && 'mit Stern',
-    a.expireDays && `nach ${a.expireDays} Tagen löschen`,
-    a.stop && 'danach stoppen',
+    a.fileinto && t('nach „{folder}“', { folder: a.fileinto }),
+    a.seen && t('als gelesen'),
+    a.flagged && t('mit Stern'),
+    a.expireDays && t('nach {days} Tagen löschen', { days: a.expireDays }),
+    a.stop && t('danach stoppen'),
   ].filter(Boolean);
-  return `${what} → ${todo.join(', ') || 'keine Aktion'}`;
+  return `${what} → ${todo.join(', ') || t('keine Aktion')}`;
 }
 
 /** Patch adding `value` to a string or string list argument, following the list's own layout. */
@@ -246,7 +247,7 @@ export function proposeRule(scripts, rule) {
           if (d && sameForm(d, single) && keyCovered(d, single.value)) {
             const entry = { scriptId: script.id, scriptName: script.name, line: lineOf(text, d.test.start) };
             if (actions && sameActions(actions, rule.actions)) covered.push(entry);
-            else conflicts.push({ ...entry, message: `„${single.value}“ wird hier bereits anders behandelt` });
+            else conflicts.push({ ...entry, message: t('„{value}“ wird hier bereits anders behandelt', { value: single.value }) });
           }
         }
       }
@@ -261,13 +262,13 @@ export function proposeRule(scripts, rule) {
           command.test.name === 'anyof' ? 90 : 100,
           appendKeyPatch(text, target.keysArg, single.value),
           target.test,
-          `„${single.value}“ zur bestehenden Liste hinzufügen`,
+          t('„{value}“ zur bestehenden Liste hinzufügen', { value: single.value }),
         );
       } else if (command.test.name === 'anyof') {
         const lastTest = command.test.tests[command.test.tests.length - 1];
         const multiline = text.slice(command.test.start, command.test.end).includes('\n');
         const sep = multiline ? `,\n${indentOf(text, lastTest.start)}` : ', ';
-        push('extend-anyof', 70, { start: lastTest.end, end: lastTest.end, text: sep + conditionToSieve(single) }, command.test, 'Bedingung zum bestehenden anyof(…) hinzufügen');
+        push('extend-anyof', 70, { start: lastTest.end, end: lastTest.end, text: sep + conditionToSieve(single) }, command.test, t('Bedingung zum bestehenden anyof(…) hinzufügen'));
       } else if (descs[0]) {
         const inner = `${indentOf(text, command.start)}    `;
         const original = text.slice(command.test.start, command.test.end);
@@ -276,7 +277,7 @@ export function proposeRule(scripts, rule) {
           60,
           { start: command.test.start, end: command.test.end, text: `anyof(\n${inner}${original},\n${inner}${conditionToSieve(single)}\n${indentOf(text, command.start)})` },
           command.test,
-          'Bestehende Regel mit gleicher Aktion zu anyof(…) erweitern',
+          t('Bestehende Regel mit gleicher Aktion zu anyof(…) erweitern'),
         );
       }
     }
@@ -288,7 +289,7 @@ export function proposeRule(scripts, rule) {
       10,
       { start: trimmedEnd, end: text.length, text: `\n\n${ruleToSieve(rule)}\n` },
       { start: trimmedEnd },
-      'Als neuen Block am Ende anhängen',
+      t('Als neuen Block am Ende anhängen'),
     );
   }
 
@@ -297,18 +298,42 @@ export function proposeRule(scripts, rule) {
 }
 
 /**
+ * Inserts a finished block at `at` ({offset, sep} from sectionInsertPoint) or, without `at`, at the end.
+ * A `heading` starts a new section with that title.
+ */
+export function insertBlockAt(sieve, code, at = null, heading = '') {
+  const body = heading ? `# ===== ${heading} =====\n${code}` : code;
+  if (!at) return fixRequire(`${sieve.replace(/\s+$/, '')}\n\n${body}\n`);
+  return fixRequire(`${sieve.slice(0, at.offset)}${at.sep}${body}${sieve.slice(at.offset)}`);
+}
+
+/**
  * Merges a (possibly multi-condition, anyof) rule into one script: each condition goes into the best
- * matching existing block; whatever does not fit becomes one new block at the end.
+ * matching existing block; whatever does not fit becomes one new block at the end, or where `options.place` says.
+ * @param {object} [options]
+ * @param {(sieve: string) => ({offset: number, sep: string}|null)} [options.place]  where a new block goes
+ *   in the (already merged) text, see sectionInsertPoint; null = end of the script
+ * @param {(sieve: string, line: number) => boolean} [options.within]  only merge into blocks it accepts
+ * @param {string} [options.heading]  put everything into a new section with this title
  * @returns {{sieve: string, steps: Array<{condition: object, kind: string, line?: number}>}}
  */
-export function mergeRuleIntoScript(script, rule) {
-  if (rule.combine === 'allof' && rule.conditions.length > 1) {
-    const { proposals } = proposeRule([script], rule);
-    return { sieve: proposals[0].sieve, steps: [{ condition: null, kind: 'new-block' }] };
+export function mergeRuleIntoScript(script, rule, options = {}) {
+  const { place = null, within = null, heading = '' } = options;
+  const insert = (sieve, code) => {
+    const at = place?.(sieve) ?? null;
+    const before = at ? sieve.slice(0, at.offset) + at.sep : `${sieve.replace(/\s+$/, '')}\n\n`;
+    const line = lineOf(before, before.length) + (heading ? 1 : 0);
+    return { sieve: insertBlockAt(sieve, code, at, heading), line };
+  };
+  if ((rule.combine === 'allof' && rule.conditions.length > 1) || heading) {
+    const placed = place || heading ? insert(script.sieve, ruleToSieve(rule)) : { sieve: proposeRule([script], rule).proposals[0].sieve, line: null };
+    const steps = rule.combine === 'allof' && rule.conditions.length > 1 ? [{ condition: null, kind: 'new-block' }] : rule.conditions.map((condition) => ({ condition, kind: 'new-block' }));
+    return { sieve: placed.sieve, steps: steps.map((st) => (placed.line ? { ...st, line: placed.line } : st)) };
   }
   let sieve = script.sieve;
   const steps = [];
   const rest = [];
+  const inRange = (line) => !within || within(sieve, line);
   for (const condition of rule.conditions) {
     const single = { conditions: [condition], actions: rule.actions };
     const { covered, proposals } = proposeRule([{ ...script, sieve }], single);
@@ -316,8 +341,8 @@ export function mergeRuleIntoScript(script, rule) {
       steps.push({ condition, kind: 'covered', line: covered[0].line });
       continue;
     }
-    const best = proposals[0];
-    if (best && best.kind !== 'new-block') {
+    const best = proposals.find((p) => p.kind !== 'new-block' && inRange(p.line));
+    if (best) {
       sieve = best.sieve;
       steps.push({ condition, kind: best.kind, line: best.line });
     } else {
@@ -325,10 +350,15 @@ export function mergeRuleIntoScript(script, rule) {
     }
   }
   if (rest.length) {
-    const { proposals } = proposeRule([{ ...script, sieve }], { ...rule, conditions: rest });
-    const block = proposals.find((p) => p.kind === 'new-block');
-    sieve = block.sieve;
-    for (const condition of rest) steps.push({ condition, kind: 'new-block', line: block.line });
+    const restRule = { ...rule, conditions: rest };
+    let line;
+    if (place) {
+      ({ sieve, line } = insert(sieve, ruleToSieve(restRule)));
+    } else {
+      const block = proposeRule([{ ...script, sieve }], restRule).proposals.find((p) => p.kind === 'new-block');
+      ({ sieve, line } = block);
+    }
+    for (const condition of rest) steps.push({ condition, kind: 'new-block', line });
   }
   return { sieve, steps };
 }
@@ -340,7 +370,7 @@ export function mergeRuleIntoScript(script, rule) {
 export function insertRuleBefore(sieve, line, rule, { stop = false } = {}) {
   const ast = parseSieve(sieve);
   const command = ast.commands.find((c) => lineOf(sieve, c.start) === line);
-  if (!command) throw new Error(`Kein Block beginnt in Zeile ${line}`);
+  if (!command) throw new Error(t('Kein Block beginnt in Zeile {line}', { line }));
   const indent = indentOf(sieve, command.start);
   const placed = stop ? { ...rule, actions: { ...rule.actions, stop: true } } : rule;
   const block = ruleToSieve(placed).replace(/\n/g, `\n${indent}`);
@@ -352,8 +382,56 @@ export function ruleReached(result, actions) {
   const a = normaliseActions(actions);
   const folders = result.folders ?? [result.folder];
   if (a.fileinto && !folders.includes(a.fileinto) && result.folder !== a.fileinto && !result.labels.includes(a.fileinto)) return false;
-  if (a.seen && !result.flags.includes('\Seen')) return false;
-  if (a.flagged && !result.flags.includes('\Flagged')) return false;
+  if (a.seen && !result.flags.includes('\\Seen')) return false;
+  if (a.flagged && !result.flags.includes('\\Flagged')) return false;
   if (a.expireDays && result.expireDays !== a.expireDays) return false;
   return true;
+}
+
+/**
+ * Values that appear in more than one block of a script: the same exact value twice (duplicate, or a
+ * conflict when the blocks act differently) and addresses already caught by a domain rule elsewhere.
+ * Only exact (`:is`) address/header tests are compared.
+ * @returns {Array<{kind: 'duplicate'|'conflict'|'domain', value: string, start: number, end: number, line: number, otherLine: number}>}
+ */
+export function findOverlaps(sieve) {
+  let ast;
+  try {
+    ast = parseSieve(sieve);
+  } catch {
+    return [];
+  }
+  const seen = new Map();
+  const entries = [];
+  for (const { command } of walkCommands(ast.commands)) {
+    if (!['if', 'elsif'].includes(command.name) || !command.test || !command.block) continue;
+    const actions = describeActions(command.block);
+    const tests = command.test.name === 'anyof' ? command.test.tests : command.test.name === 'not' || command.test.name === 'allof' ? [] : [command.test];
+    for (const desc of tests.map(describeTest)) {
+      if (!desc || desc.kind === 'exists' || desc.match !== 'is' || desc.headers.length !== 1) continue;
+      const items = desc.keysArg.type === 'list' ? desc.keysArg.items : [desc.keysArg];
+      for (const item of items) {
+        const key = `${desc.kind}:${desc.headers[0]}:${desc.part}:${item.value.toLowerCase()}`;
+        const entry = { key, desc, item, actions, block: command.start, line: lineOf(sieve, item.start) };
+        entries.push(entry);
+        if (!seen.has(key)) seen.set(key, entry);
+      }
+    }
+  }
+  const differs = (a, b) => !a.actions || !b.actions || !sameActions(a.actions, b.actions);
+  const result = [];
+  for (const e of entries) {
+    const first = seen.get(e.key);
+    if (first !== e && first.block !== e.block) {
+      result.push({ kind: differs(first, e) ? 'conflict' : 'duplicate', value: e.item.value, start: e.item.start, end: e.item.end, line: e.line, otherLine: first.line });
+      continue;
+    }
+    if (e.desc.kind === 'address' && e.desc.part === 'all' && e.item.value.includes('@')) {
+      const domain = seen.get(`address:${e.desc.headers[0]}:domain:${e.item.value.split('@').pop().toLowerCase()}`);
+      if (domain && domain.block !== e.block && !differs(domain, e)) {
+        result.push({ kind: 'domain', value: e.item.value, start: e.item.start, end: e.item.end, line: e.line, otherLine: domain.line });
+      }
+    }
+  }
+  return result;
 }

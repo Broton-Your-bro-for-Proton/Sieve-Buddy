@@ -2,6 +2,7 @@
 // so: at most a few attempts per window, growing pauses after failures, and a long stop after Proton
 // reports unusual activity. Refreshing an existing session is not affected.
 
+import { dateLocale, t } from './i18n.js';
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const WINDOW = 15 * MINUTE;
@@ -18,8 +19,8 @@ const NEUTRAL_CODES = new Set([
 
 export class LoginBlockedError extends Error {
   constructor(until, reason) {
-    const when = new Date(until).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
-    super(`Anmeldung pausiert bis ${when}: ${reason}`);
+    const when = new Date(until).toLocaleString(dateLocale(), { dateStyle: 'short', timeStyle: 'short' });
+    super(t('Anmeldung pausiert bis {when}: {reason}', { when, reason }));
     this.name = 'LoginBlockedError';
     this.until = until;
     this.reason = reason;
@@ -63,7 +64,7 @@ export class LoginGuard {
     s.attempts = s.attempts.filter((t) => now - t < WINDOW);
     if (s.attempts.length >= MAX_ATTEMPTS) {
       const until = s.attempts[0] + WINDOW;
-      throw new LoginBlockedError(until, `höchstens ${MAX_ATTEMPTS} Anmeldeversuche in ${WINDOW / MINUTE} Minuten`);
+      throw new LoginBlockedError(until, t('höchstens {max} Anmeldeversuche in {minutes} Minuten', { max: MAX_ATTEMPTS, minutes: WINDOW / MINUTE }));
     }
     s.attempts.push(now);
     await this.store.save(s);
@@ -81,12 +82,12 @@ export class LoginGuard {
     s.lastError = { at: now, status: error?.status ?? null, code: error?.code ?? null, message: String(error?.message ?? error).slice(0, 300) };
     if (isAbuseError(error)) {
       s.blockedUntil = now + ABUSE_BLOCK;
-      s.reason = 'Proton meldet ungewöhnliche Aktivität – erst im offiziellen Proton-Login prüfen, ob das Konto frei ist';
+      s.reason = t('Proton meldet ungewöhnliche Aktivität – erst im offiziellen Proton-Login prüfen, ob das Konto frei ist');
     } else if (!NEUTRAL_CODES.has(error?.code) && error?.name !== 'LoginBlockedError') {
       s.failures += 1;
       const pause = Math.min(BACKOFF_MAX, BACKOFF_BASE * 2 ** (s.failures - 1));
       s.blockedUntil = now + pause;
-      s.reason = `Pause nach ${s.failures} fehlgeschlagenen Anmeldungen (${error?.code ?? error?.status ?? 'Fehler'})`;
+      s.reason = t('Pause nach {count} fehlgeschlagenen Anmeldungen ({code})', { count: s.failures, code: error?.code ?? error?.status ?? t('Fehler') });
     }
     await this.store.save(s);
   }

@@ -10,6 +10,7 @@
 //   listFolders()                       → {folders, labels} | null (unknown)
 
 import { LABEL_TYPE } from '../proton-api.js';
+import { t } from '../i18n.js';
 
 const TOO_MANY_ACTIVE_FILTERS = 50016;
 
@@ -59,7 +60,7 @@ export class ProtonProvider {
 
   async updateScript(id, { name, sieve, enabled }) {
     const current = await this.client.getFilter(id);
-    if (!current) throw new Error(`Filter ${id} nicht gefunden`);
+    if (!current) throw new Error(t('Filter {id} nicht gefunden', { id }));
     await this.client.updateFilter(id, {
       Name: name ?? current.Name,
       Sieve: sieve ?? current.Sieve,

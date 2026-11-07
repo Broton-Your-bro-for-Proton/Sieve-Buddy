@@ -2,6 +2,7 @@
 // (VARIABLE_FILE=/run/secrets/…), as Docker/Compose secrets provide them.
 
 import { readFileSync } from 'node:fs';
+import { t } from '../../addon/lib/i18n.js';
 
 const env = process.env;
 
@@ -10,10 +11,10 @@ function value(name) {
   return env[name];
 }
 
-function required(name, hint = 'siehe .env.example') {
+function required(name, hint = t('siehe .env.example')) {
   const v = value(name);
   if (!v) {
-    console.error(`Umgebungsvariable ${name} fehlt – ${hint}`);
+    console.error(t('Umgebungsvariable {name} fehlt – {hint}', { name, hint }));
     process.exit(1);
   }
   return v;
@@ -23,7 +24,7 @@ const bool = (name, fallback) => (env[name] === undefined ? fallback : env[name]
 const tlsMode = (name, fallback) => {
   const mode = (env[name] ?? fallback).toLowerCase();
   if (!['starttls', 'tls', 'none'].includes(mode)) {
-    console.error(`${name} muss starttls, tls oder none sein`);
+    console.error(t('{name} muss starttls, tls oder none sein', { name }));
     process.exit(1);
   }
   return mode;
@@ -32,12 +33,12 @@ const tlsMode = (name, fallback) => {
 export function loadConfig() {
   const apiToken = required('API_TOKEN');
   if (apiToken.length < 24) {
-    console.error('API_TOKEN muss mindestens 24 Zeichen lang sein (z. B. `openssl rand -hex 32`)');
+    console.error(t('API_TOKEN muss mindestens 24 Zeichen lang sein (z. B. `openssl rand -hex 32`)'));
     process.exit(1);
   }
   const provider = (env.PROVIDER ?? 'proton').toLowerCase();
   if (!['proton', 'managesieve'].includes(provider)) {
-    console.error('PROVIDER muss proton oder managesieve sein');
+    console.error(t('PROVIDER muss proton oder managesieve sein'));
     process.exit(1);
   }
 
@@ -62,7 +63,7 @@ export function loadConfig() {
   };
 
   if (provider === 'managesieve') {
-    const host = required('MANAGESIEVE_HOST', 'Hostname des ManageSieve-Servers');
+    const host = required('MANAGESIEVE_HOST', t('Hostname des ManageSieve-Servers'));
     config.managesieve = {
       host,
       port: Number(env.MANAGESIEVE_PORT ?? 4190),
