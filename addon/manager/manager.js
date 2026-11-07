@@ -416,7 +416,7 @@ async function enterApp() {
   state.dialect = dialectOf(state.client);
   state.caps = capabilitiesOf(state.client);
   const via = state.client.viaService;
-  const serverName = via ? (state.client.kind === 'managesieve' ? 'ManageSieve' : 'Proton') : 'Proton';
+  const serverName = via ? ({ managesieve: 'ManageSieve', jmap: 'JMAP' }[state.client.kind] ?? 'Proton') : 'Proton';
   $('offline-note').hidden = true;
   $('check').hidden = false;
   $('check').textContent = serverName === 'Proton' ? t('Bei Proton prüfen') : t('Bei Server prüfen');

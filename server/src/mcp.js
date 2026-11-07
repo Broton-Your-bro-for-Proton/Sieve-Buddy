@@ -59,7 +59,7 @@ export function createMcpServer(account) {
   const read = { readOnlyHint: true, openWorldHint: true };
   const write = { readOnlyHint: false, destructiveHint: false, openWorldHint: true };
 
-  tool('sieve_status', t('Status des Sieve-Dienstes: Anbieter (proton/managesieve), angemeldet, Schreibzugriff, Fähigkeiten.'), {}, ops.status, read);
+  tool('sieve_status', t('Status des Sieve-Dienstes: Anbieter (proton/managesieve/jmap), angemeldet, Schreibzugriff, Fähigkeiten.'), {}, ops.status, read);
   tool('sieve_capabilities', t('Fähigkeiten des Servers: unterstützte Sieve-Erweiterungen, mehrere aktive Filter?, Reihenfolge?, Labels?'), {}, ops.capabilities, read);
   tool('list_filters', t('Alle Sieve-Filter (Proton) bzw. Skripte (ManageSieve) in Ausführungsreihenfolge, mit ihren Abschnitten (Kommentar-Überschriften); bei ManageSieve läuft nur das aktive.'), { includeSieve: z.boolean().optional() }, ops.listFilters, read);
   tool('get_filter', t('Einen Filter mit vollständigem Sieve-Skript und lokalen Prüfhinweisen.'), { id: z.string() }, ops.getFilter, read);

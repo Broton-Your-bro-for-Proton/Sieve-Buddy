@@ -1,6 +1,7 @@
 // One mail account per service instance, behind a Sieve provider:
 //   proton      – Proton's web API; session handed over from the add-on (or, if enabled, a password login)
 //   managesieve – any ManageSieve server (Dovecot/Pigeonhole, Stalwart, Cyrus, …), credentials from the config
+//   jmap        – any JMAP server with JMAP for Sieve (RFC 9661, e.g. Stalwart), URL and token from the config
 
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
@@ -9,6 +10,7 @@ import { LoginGuard } from '../../addon/lib/login-guard.js';
 import { LABEL_TYPE, ProtonClient } from '../../addon/lib/proton-api.js';
 import { ProtonProvider } from '../../addon/lib/providers/proton-provider.js';
 import { makeDialect } from '../../addon/lib/sieve-dialect.js';
+import { JmapProvider } from './providers/jmap-provider.js';
 import { ManageSieveProvider } from './providers/managesieve-provider.js';
 import { encryptedFileStore, jsonFileStore } from './store.js';
 import { t } from '../../addon/lib/i18n.js';
@@ -28,6 +30,8 @@ export class Account {
 
     if (this.kind === 'managesieve') {
       this.provider = new ManageSieveProvider(config.managesieve);
+    } else if (this.kind === 'jmap') {
+      this.provider = new JmapProvider(config.jmap);
     } else {
       this.store = encryptedFileStore(join(config.dataDir, 'session.json'), config.secret);
       this.guard = new LoginGuard(jsonFileStore(join(config.dataDir, 'login-guard.json')));
@@ -43,13 +47,13 @@ export class Account {
   }
 
   async init() {
-    if (this.kind === 'managesieve') {
+    if (this.kind !== 'proton') {
       try {
         await this.provider.init();
         this.initError = null;
       } catch (error) {
         this.initError = error.message;
-        console.warn(`[managesieve] Verbindung fehlgeschlagen: ${error.message}`);
+        console.warn(`[${this.kind}] Verbindung fehlgeschlagen: ${error.message}`);
       }
     } else {
       await this.client.restore();
@@ -70,6 +74,9 @@ export class Account {
     if (this.kind === 'managesieve') {
       const { host, port, user } = this.config.managesieve;
       return { ...base, username: user, server: `${host}:${port ?? 4190}`, error: this.initError };
+    }
+    if (this.kind === 'jmap') {
+      return { ...base, username: this.provider.session?.username ?? this.config.jmap.user ?? null, server: this.config.jmap.url, error: this.initError };
     }
     return {
       ...base,
@@ -178,6 +185,7 @@ export class Account {
           ? t('ManageSieve-Server nicht erreichbar oder Anmeldung fehlgeschlagen: {error}', { error: this.initError })
           : t('ManageSieve-Server nicht erreichbar oder Anmeldung fehlgeschlagen'),
       );
+    if (this.kind === 'jmap') throw new Error(t('JMAP-Server nicht erreichbar oder Anmeldung fehlgeschlagen: {error}', { error: this.initError ?? '-' }));
     throw new Error(t('Nicht bei Proton angemeldet – Sitzung im Thunderbird-Add-on über „An Dienst übergeben“ übertragen'));
   }
 
@@ -187,7 +195,7 @@ export class Account {
 
   /** Scripts (in execution order) and folders; folders/labels are null when the server cannot list them. */
   async data({ fresh = false } = {}) {
-    if (this.kind === 'managesieve' && !this.provider.isReady) await this.init();
+    if (this.kind !== 'proton' && !this.provider.isReady) await this.init();
     this.requireReady();
     if (!fresh && this.cache && Date.now() - this.cache.at < CACHE_MS) return this.cache;
     const [scripts, folderInfo] = await Promise.all([

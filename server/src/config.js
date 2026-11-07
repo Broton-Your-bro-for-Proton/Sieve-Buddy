@@ -37,8 +37,8 @@ export function loadConfig() {
     process.exit(1);
   }
   const provider = (env.PROVIDER ?? 'proton').toLowerCase();
-  if (!['proton', 'managesieve'].includes(provider)) {
-    console.error(t('PROVIDER muss proton oder managesieve sein'));
+  if (!['proton', 'managesieve', 'jmap'].includes(provider)) {
+    console.error(t('PROVIDER muss proton, managesieve oder jmap sein'));
     process.exit(1);
   }
 
@@ -81,6 +81,14 @@ export function loadConfig() {
               user: value('IMAP_USER') || undefined,
               password: value('IMAP_PASSWORD') || undefined,
             },
+    };
+  }
+  if (provider === 'jmap') {
+    config.jmap = {
+      url: required('JMAP_URL', t('URL der JMAP-Session, z. B. https://mail.example.com/.well-known/jmap')),
+      token: required('JMAP_TOKEN'),
+      // with a user, the token is sent as password (Basic auth, e.g. a Stalwart app password); otherwise as Bearer token
+      user: value('JMAP_USER') || undefined,
     };
   }
   return config;

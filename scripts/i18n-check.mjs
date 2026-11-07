@@ -28,6 +28,7 @@ export const SOURCES = [
   'addon/lib/sieve-sim.js',
   'addon/lib/sieve-templates.js',
   'addon/lib/srp.js',
+  'server/src/providers/jmap-provider.js',
   'server/src/providers/managesieve-provider.js',
   'server/src/providers/managesieve.js',
   'server/src/providers/imap-folders.js',
