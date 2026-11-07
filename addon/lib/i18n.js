@@ -20,7 +20,7 @@ export const dateLocale = () => (catalog ? 'en-US' : 'de-DE');
 export const sourceOf = (text) => (catalog && Object.keys(catalog).find((key) => catalog[key] === text)) ?? text;
 
 export function t(text, params) {
-  const out = catalog?.[text] ?? text;
+  const out = catalog && Object.hasOwn(catalog, text) ? catalog[text] : text;
   return params ? out.replace(/\{(\w+)\}/g, (m, key) => (key in params ? String(params[key]) : m)) : out;
 }
 
@@ -34,7 +34,7 @@ export function localizeDom(root, doc = root.ownerDocument ?? root) {
   const walker = doc.createTreeWalker(root, 4 /* NodeFilter.SHOW_TEXT */);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const key = node.nodeValue.trim();
-    if (key && catalog[key]) node.nodeValue = node.nodeValue.replace(key, catalog[key]);
+    if (key && Object.hasOwn(catalog, key)) node.nodeValue = node.nodeValue.replace(key, catalog[key]);
   }
   for (const el of root.querySelectorAll('[title], [placeholder], [label], [aria-label]')) {
     for (const attr of ['title', 'placeholder', 'label', 'aria-label']) {

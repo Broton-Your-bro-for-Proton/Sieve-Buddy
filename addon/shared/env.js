@@ -158,39 +158,43 @@ export function renderDiff(container, before, after) {
   return stats;
 }
 
-/** Minimal modal built on <dialog>. Resolves with the value passed to close(), or null when cancelled. */
 /**
- * Modal dialog. It can be moved by its title bar, resized at the bottom right corner and switched to the
- * full size of the tab (⛶ or double click on the title bar). With a `key`, size and full size are
- * remembered for the next time.
+ * Modal dialog on <dialog>. Resolves with the value passed to close(), or null when canceled. It can be
+ * moved by its title bar, resized at the bottom right corner and switched to the full size of the tab
+ * (⛶ or double click on the title bar). With a `key`, a size the user set and full size are remembered.
  */
 export function openModal({ title, body, actions = [], wide = false, key = null }) {
   return new Promise((resolve) => {
     const dialog = el('dialog', { class: `modal${wide ? ' wide' : ''}` });
     const stateKey = key && `modal:${key}`;
+    let saved = null;
+    let userSized = false;
+    const sizeOf = () => {
+      const { width, height } = dialog.getBoundingClientRect();
+      return { width: Math.round(width), height: Math.round(height) };
+    };
     const close = (value = null) => {
       if (stateKey) {
-        const { width, height } = dialog.getBoundingClientRect();
-        storage.set(stateKey, { max: dialog.classList.contains('max'), ...(dialog.classList.contains('max') ? dialog.restoreSize : { width, height }) });
+        const max = dialog.classList.contains('max');
+        // only a size the user chose is kept; the natural size depends on the content
+        const size = userSized ? (max ? dialog.restoreSize : sizeOf()) : saved?.width ? { width: saved.width, height: saved.height } : {};
+        if (userSized || max !== Boolean(saved?.max)) storage.set(stateKey, { max, ...size });
       }
       dialog.close();
       dialog.remove();
       resolve(value);
     };
-    // pin the centered dialog to its pixel position, so moving and resizing start from where it is
+    // when the user starts moving or resizing, pin the centered dialog to its pixel position
     const pin = () => {
-      if (dialog.classList.contains('max')) return; // opened at full size: pinned when it leaves it
-      dialog.pinned = true;
+      if (dialog.classList.contains('max') || dialog.style.margin === '0px') return;
       const r = dialog.getBoundingClientRect();
       Object.assign(dialog.style, { margin: '0', left: `${r.left}px`, top: `${r.top}px`, right: 'auto', bottom: 'auto' });
     };
     const toggleMax = () => {
       if (!dialog.classList.contains('max')) {
-        const { width, height } = dialog.getBoundingClientRect();
-        dialog.restoreSize = { width, height };
+        dialog.restoreSize = sizeOf();
       }
       dialog.classList.toggle('max');
-      if (!dialog.pinned) pin();
     };
     const head = el(
       'header',
@@ -205,6 +209,7 @@ export function openModal({ title, body, actions = [], wide = false, key = null 
     );
     head.addEventListener('pointerdown', (e) => {
       if (e.button !== 0 || e.target.closest('button') || dialog.classList.contains('max')) return;
+      pin();
       const r = dialog.getBoundingClientRect();
       const dx = e.clientX - r.left;
       const dy = e.clientY - r.top;
@@ -229,19 +234,25 @@ export function openModal({ title, body, actions = [], wide = false, key = null 
       el('div', { class: 'modal-body' }, body),
       buttons.length ? el('footer', { class: 'modal-foot' }, buttons) : '',
     );
+    // the resize handle belongs to the dialog element itself
+    dialog.addEventListener('pointerdown', (e) => {
+      if (e.target !== dialog || dialog.classList.contains('max')) return;
+      pin();
+      userSized = true;
+    });
     dialog.addEventListener('cancel', (e) => {
       e.preventDefault();
       close(null);
     });
     document.body.append(dialog);
-    (stateKey ? storage.get(stateKey) : Promise.resolve(null)).then((saved) => {
+    (stateKey ? storage.get(stateKey) : Promise.resolve(null)).then((state) => {
+      saved = state;
       if (saved?.width) Object.assign(dialog.style, { width: `${saved.width}px`, height: `${saved.height}px` });
       if (saved?.max) {
         dialog.restoreSize = { width: saved.width, height: saved.height };
         dialog.classList.add('max');
       }
       dialog.showModal();
-      pin();
     });
   });
 }

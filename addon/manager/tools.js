@@ -92,7 +92,10 @@ export function installTools(editor, state) {
             fn();
           },
         }, label);
+      // the outline is redrawn with a delay: after an edit the line may hold another rule
+      const stale = () => editor.getValue().slice(u.start, u.end) !== text.slice(u.start, u.end) && (renderOutline(), true);
       const move = (delta) => {
+        if (stale()) return;
         const next = moveRule(editor.getValue(), u.line, delta);
         if (next === editor.getValue()) return;
         const moved = ruleUnits(next).find((x) => x.type === 'rule' && next.slice(x.start, x.end) === text.slice(u.start, u.end));
@@ -109,6 +112,7 @@ export function installTools(editor, state) {
           button('↑', t('Eine Stelle nach oben (über eine Überschrift: in den Abschnitt davor)'), () => move(-1)),
           button('↓', t('Eine Stelle nach unten (über eine Überschrift: in den Abschnitt danach)'), () => move(+1)),
           button('✕', t('Regel löschen'), () => {
+            if (stale()) return;
             if (!confirm(t('Regel in Zeile {line} löschen?\n\n{rule}', { line: u.line, rule: `${c.name} ${test}` }))) return;
             replaceText(deleteRule(editor.getValue(), u.line));
             toast(t('Regel gelöscht – zum Übernehmen speichern (Strg+Z macht es rückgängig)'));

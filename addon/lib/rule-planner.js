@@ -18,7 +18,7 @@ const GUARD = 'vnd.proton.spam-threshold';
 function sectionOptions(section, rule, hints) {
   const out = { chosen: null };
   if (section && typeof section === 'object' && section.new) {
-    out.heading = String(section.new).trim();
+    out.heading = String(section.new).replace(/[\r\n]+/g, ' ').trim();
     out.chosen = { title: out.heading, new: true };
     return out;
   }
@@ -39,8 +39,9 @@ function sectionOptions(section, rule, hints) {
   return out;
 }
 
-function planForScript(script, rule, section, hints) {
+function planForScript(script, rule, section, hints, separate = false) {
   const options = sectionOptions(section, rule, hints);
+  if (separate) options.within = () => false;
   const merged = mergeRuleIntoScript(script, rule, options);
   const merges = merged.steps.filter((s) => s.kind !== 'new-block' && s.kind !== 'covered').length;
   const covered = merged.steps.filter((s) => s.kind === 'covered').length;
@@ -107,7 +108,7 @@ export function planRule({ scripts, rule, target = 'auto', newName, section = 'a
     };
     after = run(plan);
     if (!ruleReached(after, rule.actions)) {
-      const fix = stopInPlace(plan, rule, after, run, (stopped) => planForScript(scripts.find((s) => s.id === plan.targetId), stopped, section, hints)) ?? placeBeforeBlocker(plan, rule, after, run);
+      const fix = stopInPlace(plan, rule, after, run, (r) => planForScript(scripts.find((s) => s.id === plan.targetId), r, section, hints, true)) ?? placeBeforeBlocker(plan, rule, after, run);
       if (fix) {
         plan = fix.plan;
         after = fix.after;
@@ -151,11 +152,20 @@ function lineInBase(text, base, line) {
  */
 function stopInPlace(plan, rule, after, run, replan) {
   if (!plan.targetId || rule.actions.stop) return null;
+  // a separate block may already be enough (the list it would have joined sits before the other block)
+  if (plan.steps.some((s) => s.kind !== 'new-block')) {
+    const separate = replan(rule);
+    const result = run(separate);
+    if (ruleReached(result, rule.actions)) {
+      return { plan: separate, after: result, note: t('Als eigener Block eingefügt – in der bestehenden Liste würde ein späterer Block die Mail woandershin verschieben.') };
+    }
+  }
   const candidate = replan({ ...rule, actions: { ...rule.actions, stop: true } });
   const result = run(candidate);
   if (!ruleReached(result, rule.actions)) return null;
   const base = plan.before;
-  const later = after.fired.find((f) => f.scriptId === plan.targetId && !f.test.includes(GUARD) && lineInBase(plan.sieve, base, f.line) && f.line > (plan.steps.find((s) => s.kind === 'new-block')?.line ?? 0));
+  const ownLine = candidate.steps.find((s) => s.kind === 'new-block')?.line ?? 0;
+  const later = after.fired.find((f) => f.scriptId === plan.targetId && !f.test.includes(GUARD) && lineInBase(plan.sieve, base, f.line) && lineInBase(plan.sieve, candidate.sieve, f.line) > ownLine);
   const note = later
     ? t('Mit „stop“ beendet – sonst würde der Block „{test}“ weiter unten die Mail danach woandershin verschieben.', { test: later.test })
     : t('Mit „stop“ beendet – sonst würde ein späterer Block die Mail danach woandershin verschieben.');

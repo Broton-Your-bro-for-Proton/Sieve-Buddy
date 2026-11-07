@@ -299,13 +299,20 @@ export function proposeRule(scripts, rule) {
 
 /**
  * Inserts a finished block at `at` ({offset, sep} from sectionInsertPoint) or, without `at`, at the end.
- * A `heading` starts a new section with that title.
+ * A `heading` starts a new section with that title. Returns the script and the line the block starts on.
  */
-export function insertBlockAt(sieve, code, at = null, heading = '') {
-  const body = heading ? `# ===== ${heading} =====\n${code}` : code;
-  if (!at) return fixRequire(`${sieve.replace(/\s+$/, '')}\n\n${body}\n`);
-  return fixRequire(`${sieve.slice(0, at.offset)}${at.sep}${body}${sieve.slice(at.offset)}`);
+export function insertBlock(sieve, code, at = null, heading = '') {
+  // a title is one comment line: a line break would turn the rest into live Sieve code
+  const title = String(heading ?? '').replace(/[\r\n]+/g, ' ').trim();
+  const head = title ? `# ===== ${title} =====\n` : '';
+  const before = at ? sieve.slice(0, at.offset) + at.sep : `${sieve.replace(/\s+$/, '')}\n\n`;
+  const raw = `${before}${head}${code}${at ? sieve.slice(at.offset) : '\n'}`;
+  const fixed = fixRequire(raw);
+  // fixRequire only changes the require at the top, so everything after it moves by the same amount
+  return { sieve: fixed, line: lineOf(fixed, before.length + head.length + fixed.length - raw.length) };
 }
+
+export const insertBlockAt = (sieve, code, at = null, heading = '') => insertBlock(sieve, code, at, heading).sieve;
 
 /**
  * Merges a (possibly multi-condition, anyof) rule into one script: each condition goes into the best
@@ -319,16 +326,11 @@ export function insertBlockAt(sieve, code, at = null, heading = '') {
  */
 export function mergeRuleIntoScript(script, rule, options = {}) {
   const { place = null, within = null, heading = '' } = options;
-  const insert = (sieve, code) => {
-    const at = place?.(sieve) ?? null;
-    const before = at ? sieve.slice(0, at.offset) + at.sep : `${sieve.replace(/\s+$/, '')}\n\n`;
-    const line = lineOf(before, before.length) + (heading ? 1 : 0);
-    return { sieve: insertBlockAt(sieve, code, at, heading), line };
-  };
+  const insert = (sieve, code) => insertBlock(sieve, code, place?.(sieve) ?? null, heading);
   if ((rule.combine === 'allof' && rule.conditions.length > 1) || heading) {
-    const placed = place || heading ? insert(script.sieve, ruleToSieve(rule)) : { sieve: proposeRule([script], rule).proposals[0].sieve, line: null };
+    const placed = insert(script.sieve, ruleToSieve(rule));
     const steps = rule.combine === 'allof' && rule.conditions.length > 1 ? [{ condition: null, kind: 'new-block' }] : rule.conditions.map((condition) => ({ condition, kind: 'new-block' }));
-    return { sieve: placed.sieve, steps: steps.map((st) => (placed.line ? { ...st, line: placed.line } : st)) };
+    return { sieve: placed.sieve, steps: steps.map((st) => ({ ...st, line: placed.line })) };
   }
   let sieve = script.sieve;
   const steps = [];
@@ -352,12 +354,7 @@ export function mergeRuleIntoScript(script, rule, options = {}) {
   if (rest.length) {
     const restRule = { ...rule, conditions: rest };
     let line;
-    if (place) {
-      ({ sieve, line } = insert(sieve, ruleToSieve(restRule)));
-    } else {
-      const block = proposeRule([{ ...script, sieve }], restRule).proposals.find((p) => p.kind === 'new-block');
-      ({ sieve, line } = block);
-    }
+    ({ sieve, line } = insert(sieve, ruleToSieve(restRule)));
     for (const condition of rest) steps.push({ condition, kind: 'new-block', line });
   }
   return { sieve, steps };
