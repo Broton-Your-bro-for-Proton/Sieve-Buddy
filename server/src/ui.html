@@ -130,11 +130,12 @@
     $('token-card').hidden = true;
     $('status-card').hidden = $('mcp-card').hidden = false;
     const esc = (v) => String(v ?? '').replace(/[<>&]/g, '');
-    const managesieve = status.provider === 'managesieve';
+    const managesieve = status.provider !== 'proton'; // managesieve or jmap: credentials come from the config
+    const kind = status.provider === 'jmap' ? 'JMAP' : 'ManageSieve';
     $('status-text').innerHTML = status.loggedIn
-      ? `<span class="ok">●</span> ${managesieve ? `ManageSieve ${esc(status.server)}` : 'Proton'} – ${esc(status.username)}`
+      ? `<span class="ok">●</span> ${managesieve ? `${kind} ${esc(status.server)}` : 'Proton'} – ${esc(status.username)}`
       : managesieve
-        ? `<span class="bad">●</span> ${t('ManageSieve {server} nicht erreichbar', { server: esc(status.server) })}`
+        ? `<span class="bad">●</span> ${status.provider === 'jmap' ? t('JMAP {server} nicht erreichbar', { server: esc(status.server) }) : t('ManageSieve {server} nicht erreichbar', { server: esc(status.server) })}`
         : `<span class="bad">●</span> ${t('Nicht bei Proton angemeldet')}`;
     if (managesieve && status.error) msg(status.error, 'bad');
     $('logout').hidden = managesieve || !status.loggedIn;

@@ -1,6 +1,6 @@
 # Sieve-Manager für Proton und alle ManageSieve-Server
 
-Sieve-Filter bequem verwalten, ohne sich jedes Mal im Webmail anzumelden. Unterstützt werden **Proton Mail** und **jeder Mailserver mit ManageSieve** (RFC 5804), etwa Dovecot/Pigeonhole, Stalwart, Cyrus, Mailcow, Mailu, mailbox.org oder Uberspace.
+Sieve-Filter bequem verwalten, ohne sich jedes Mal im Webmail anzumelden. Unterstützt werden **Proton Mail**, **jeder Mailserver mit ManageSieve** (RFC 5804), etwa Dovecot/Pigeonhole, Stalwart, Cyrus, Mailcow, Mailu, mailbox.org oder Uberspace, und **JMAP for Sieve** (RFC 9661, etwa Stalwart).
 
 - **Thunderbird-Add-on:** Sieve-Editor, der den Dialekt des Servers kennt, „Regel aus Mail“ mit zwei Klicks, Simulator, Regel-Assistent, Verlauf
 - **Docker-Dienst:** REST-API und **MCP-Server**, z. B. für Inbox Zero oder Claude
@@ -14,7 +14,7 @@ Thunderbird-Add-on ──┬─ direkt ─────────────�
                      └─ über den Dienst ─┐
 Inbox Zero / Claude ── MCP ──────────────┤
                                          ▼
-                                  Docker-Dienst ──▶ Proton  oder  ManageSieve-Server (+ IMAP für Ordner)
+                                  Docker-Dienst ──▶ Proton, ManageSieve-Server (+ IMAP für Ordner) oder JMAP-Server
 ```
 
 > **Proton:** Für Filter gibt es keine offizielle API. Der Zugriff nutzt dieselbe Web-API wie Protons eigener Web-Client, und Proton kann sie jederzeit ändern oder unbekannte Programme sperren (siehe [Schutz vor Konto-Sperren](#schutz-vor-konto-sperren)). **ManageSieve** ist dagegen ein offizieller Standard, dort gibt es dieses Risiko nicht.
@@ -81,6 +81,17 @@ Der Dienst übernimmt die Fähigkeiten des Servers, also die Erweiterungen, die 
 - Neue Skripte bleiben inaktiv, solange nichts anderes verlangt ist.
 - Eine Reihenfolge gibt es nicht.
 
+### Mit einem JMAP-Server (JMAP for Sieve)
+
+```env
+PROVIDER=jmap
+JMAP_URL=https://mail.example.com/.well-known/jmap
+JMAP_TOKEN=…                    # oder JMAP_TOKEN_FILE=/run/secrets/jmap
+# JMAP_USER=ich@example.com     # gesetzt: Benutzer + Token als Passwort (Basic, z. B. App-Passwort); leer: Bearer-Token
+```
+
+Der Server muss `urn:ietf:params:jmap:sieve` (RFC 9661) anbieten. Stand November 2026 tut das **Stalwart** standardmäßig, auch für normale Benutzer. Cyrus IMAP bringt es mit, sofern der Betreiber JMAP aktiviert hat. Fastmail gibt es für API-Tokens nicht frei, Apache James nutzt eine eigene Filter-Erweiterung statt RFC 9661. Skripte werden per `SieveScript/get`/`set` und Blob-Upload/-Download verwaltet und vor dem Speichern mit `SieveScript/validate` geprüft. Die Ordnerliste kommt per `Mailbox/get`, IMAP ist nicht nötig. Wie bei ManageSieve ist **genau ein Skript aktiv**.
+
 ### Mit Proton
 
 ```env
@@ -94,11 +105,12 @@ Der Dienst meldet sich **nicht selbst** bei Proton an. Stattdessen meldest du di
 | Variable | Bedeutung |
 |---|---|
 | `API_TOKEN` | **Pflicht.** Bearer-Token für Weboberfläche, REST und MCP (≥ 24 Zeichen) |
-| `PROVIDER` | `proton` (Standard) oder `managesieve` |
+| `PROVIDER` | `proton` (Standard), `managesieve` oder `jmap` |
 | `ALLOW_WRITE` | `false` = nur lesen, planen, simulieren |
 | `SESSION_SECRET` | Schlüssel der gespeicherten Proton-Sitzung (Standard: `API_TOKEN`) |
 | `CORS_ORIGINS` | weitere Browser-Ursprünge für die API; das Add-on (`moz-extension://`) ist immer erlaubt |
 | `MANAGESIEVE_*`, `IMAP_*` | siehe oben; `MANAGESIEVE_INSECURE=true` akzeptiert selbstsignierte Zertifikate |
+| `JMAP_URL`, `JMAP_TOKEN`, `JMAP_USER` | siehe oben |
 | `ALLOW_PASSWORD_LOGIN`, `PROTON_API_BASE`, `PROTON_APP_VERSION` | nur Proton |
 
 Jede Variable mit Geheimnis gibt es auch als `…_FILE` für Docker-Secrets.
@@ -143,9 +155,11 @@ Protons „Sign in with another device“ (Session Fork) wäre eleganter, verlan
 | | |
 |---|---|
 | `npm test` | Kern: SRP, Linter (beide Dialekte), Parser, Einreihen, Planer, Simulator, Vorlagen, Login-Wächter |
-| `npm run test:server` | Dienst: MCP mit echtem Client, Login-Ablauf, Übergabe, Wächter, ManageSieve-Client und -Anbieter |
+| `npm run test:server` | Dienst: MCP mit echtem Client, Login-Ablauf, Übergabe, Wächter, ManageSieve-Client und -Anbieter, JMAP-Anbieter |
 | `npm run fake-proton` | lokaler Proton-Ersatz mit echtem SRP, 2FA und Captcha (`FAKE_TOTP=1 FAKE_CAPTCHA=1`) |
 | `npm run fake-managesieve` | kleiner ManageSieve-Server auf Port 4190 |
+| `npm run fake-jmap` | kleiner JMAP-Server mit JMAP for Sieve auf Port 18090 |
+| `npm run stalwart:up` | **echter Stalwart** (JMAP for Sieve) auf Port 18480 |
 | `npm run dovecot:up` | **echter Dovecot 2.3 + Pigeonhole** (STARTTLS, IMAPS, Ordner mit Umlauten) |
 | `npm run preview` | Add-on-Oberfläche unter `http://localhost:8765/manager/manager.html` |
 
@@ -154,6 +168,13 @@ Tests gegen den echten Dovecot, inklusive Abgleich des Simulators mit echter Zus
 ```bash
 npm run dovecot:up
 cd server && DOVECOT_TEST=127.0.0.1:14190:10993 DOVECOT_CONTAINER=sieve-dovecot npm test
+```
+
+Tests gegen den echten Stalwart über JMAP:
+
+```bash
+npm run stalwart:up
+cd server && STALWART_TEST=127.0.0.1:18480 npm test
 ```
 
 ## Bekannte Einschränkungen
