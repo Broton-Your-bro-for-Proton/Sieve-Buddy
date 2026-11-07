@@ -37,9 +37,11 @@ test('capabilities, scripts and folders come from the session and blobs', () =>
     assert.deepEqual((await p.listFolders()).folders, ['INBOX', 'Archiv', 'Archiv/2026', 'Shop']);
   }));
 
-test('wrong token is rejected', () =>
+test('wrong token is rejected, Basic auth with a user works', () =>
   withFake({}, async (fake, config) => {
     await assert.rejects(new JmapProvider({ ...config, token: 'wrong' }).init(), /HTTP 401: Unauthorized/);
+    await assert.rejects(new JmapProvider({ ...config, user: 'other' }).init(), /HTTP 401/);
+    assert.equal((await new JmapProvider({ ...config, user: 'test' }).init()).implementation, 'Fake JMAP');
   }));
 
 test('create, update, rename, activate and delete', () =>
@@ -67,6 +69,9 @@ test('create, update, rename, activate and delete', () =>
     assert.equal(fake.state.active(), 'live');
     assert.equal(created.name, 'live');
     await assert.rejects(p.reorder([main]), /keine Reihenfolge/);
+    // an unknown id fails instead of silently changing nothing (or switching everything off)
+    await assert.rejects(p.setEnabled('S999', true), /nicht gefunden/);
+    assert.equal(fake.state.active(), 'live');
   }));
 
 test('check uses SieveScript/validate and reports the line', () =>
@@ -86,6 +91,14 @@ test('check falls back to a temporary script without SieveScript/validate', () =
     assert.equal(fake.state.scripts.size, 0, 'temporary script removed');
     assert.equal((await p.check('foo;\n'))[0].line, 1);
     assert.equal(fake.state.scripts.size, 0);
+  }));
+
+test('a leftover check script from a failed cleanup does not block later checks', () =>
+  withFake({ validate: false, scripts: { '.proton-sieve-check': '# old\n', main: MAIN } }, async (fake, config) => {
+    const p = new JmapProvider(config);
+    assert.deepEqual((await p.listScripts()).map((s) => s.name), ['main']);
+    assert.deepEqual(await p.check(MAIN), []);
+    assert.deepEqual([...fake.state.scripts.values()].map((s) => s.name), ['main']);
   }));
 
 // ---------- the service with PROVIDER=jmap, driven through a real MCP client ----------
@@ -113,7 +126,7 @@ before(async () => {
     apiToken: TOKEN,
     allowWrite: true,
     provider: 'jmap',
-    jmap: { url: `http://127.0.0.1:${port}/.well-known/jmap`, token: fake.token },
+    jmap: { url: `http://127.0.0.1:${port}/.well-known/jmap?access_token=secret`, token: fake.token },
   });
   mcp = new Client({ name: 'test', version: '1.0.0' });
   await mcp.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${service.port}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${TOKEN}` } } }));
@@ -131,6 +144,7 @@ test('service: status, apply_rule into the active script, server check', async (
   assert.equal(s.provider, 'jmap');
   assert.equal(s.loggedIn, true);
   assert.equal(s.username, 'test');
+  assert.match(s.server, /\/\.well-known\/jmap$/, 'no query, it may carry a token');
 
   const rule = { conditions: [{ kind: 'address', header: 'from', part: 'domain', match: 'is', value: 'otto.de' }], actions: { fileinto: 'Shop' } };
   const r = await call('apply_rule', { rule });

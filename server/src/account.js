@@ -18,6 +18,11 @@ import { t } from '../../addon/lib/i18n.js';
 const bcrypt = createRequire(import.meta.url)('bcryptjs');
 const CACHE_MS = 30_000;
 const PENDING_MS = 10 * 60_000;
+// the JMAP URL without credentials or query, which may carry a token
+const jmapServer = (url) => {
+  const u = new URL(url);
+  return u.origin + u.pathname;
+};
 
 export class Account {
   constructor(config) {
@@ -76,7 +81,7 @@ export class Account {
       return { ...base, username: user, server: `${host}:${port ?? 4190}`, error: this.initError };
     }
     if (this.kind === 'jmap') {
-      return { ...base, username: this.provider.session?.username ?? this.config.jmap.user ?? null, server: this.config.jmap.url, error: this.initError };
+      return { ...base, username: this.provider.session?.username ?? this.config.jmap.user ?? null, server: jmapServer(this.config.jmap.url), error: this.initError };
     }
     return {
       ...base,

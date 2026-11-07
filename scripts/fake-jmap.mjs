@@ -1,5 +1,5 @@
 // A small JMAP server with JMAP for Sieve (RFC 9661) for tests: session resource with relative URLs (like
-// Stalwart), blob upload/download, SieveScript/get, SieveScript/set (incl. onSuccessActivateScript and
+// Stalwart, reached through a redirect), Bearer or Basic auth (user "test"), blob upload/download, SieveScript/get, SieveScript/set (incl. onSuccessActivateScript and
 // onSuccessDeactivateScript), SieveScript/validate (with the RFC dialect of our linter) and Mailbox/get.
 
 import http from 'node:http';
@@ -57,7 +57,7 @@ export function createFakeJmap({ token = 'jmap-test-token', scripts = {}, active
     const created = {};
     const nameTaken = (name, except) => [...state.scripts.values()].some((s) => s.name === name && s.id !== except);
     for (const [cid, { name, blobId }] of Object.entries(args.create ?? {})) {
-      const error = !blobs.has(blobId) ? { type: 'invalidProperties' } : nameTaken(name) ? { type: 'alreadyExists' } : invalid(blobs.get(blobId));
+      const error = !blobs.has(blobId) ? { type: 'blobNotFound' } : nameTaken(name) ? { type: 'alreadyExists' } : invalid(blobs.get(blobId));
       if (error) r.notCreated[cid] = error;
       else {
         const id = newId('S');
@@ -84,7 +84,10 @@ export function createFakeJmap({ token = 'jmap-test-token', scripts = {}, active
       }
     }
     // RFC 9661: both run only after all creates, updates and destroys
-    if (args.onSuccessActivateScript) activate(created[args.onSuccessActivateScript]?.id ?? args.onSuccessActivateScript);
+    const failed = [r.notCreated, r.notUpdated, r.notDestroyed].some((g) => Object.keys(g).length);
+    const target = created[args.onSuccessActivateScript]?.id ?? args.onSuccessActivateScript;
+    if (failed) return r;
+    if (args.onSuccessActivateScript && state.scripts.has(target)) activate(target);
     else if (args.onSuccessDeactivateScript) activate(null);
     return r;
   }
@@ -108,10 +111,15 @@ export function createFakeJmap({ token = 'jmap-test-token', scripts = {}, active
     const chunks = [];
     for await (const c of req) chunks.push(c);
     const body = Buffer.concat(chunks).toString('utf8');
-    if (req.headers.authorization !== `Bearer ${token}`) return json(res, 401, { type: 'about:blank', status: 401, detail: 'Unauthorized' });
+    const basic = `Basic ${Buffer.from(`test:${token}`).toString('base64')}`;
+    if (![`Bearer ${token}`, basic].includes(req.headers.authorization)) return json(res, 401, { type: 'about:blank', status: 401, detail: 'Unauthorized' });
     const path = new URL(req.url, 'http://x').pathname;
 
     if (req.method === 'GET' && path === '/.well-known/jmap') {
+      res.writeHead(307, { Location: '/jmap/session' });
+      return res.end();
+    }
+    if (req.method === 'GET' && path === '/jmap/session') {
       return json(res, 200, {
         capabilities: { 'urn:ietf:params:jmap:core': {}, 'urn:ietf:params:jmap:mail': {}, [SIEVE]: { implementation: 'Fake JMAP' } },
         accounts: { [ACCOUNT]: { name: 'test', accountCapabilities: { [SIEVE]: { sieveExtensions: FAKE_SIEVE_EXTENSIONS }, 'urn:ietf:params:jmap:mail': {} } } },
@@ -136,7 +144,7 @@ export function createFakeJmap({ token = 'jmap-test-token', scripts = {}, active
       const { using, methodCalls } = JSON.parse(body);
       const methodResponses = methodCalls.map(([name, args, id]) => {
         state.calls.push(name);
-        if (name.startsWith('SieveScript/') && !using.includes(SIEVE)) return ['error', { type: 'unknownMethod' }, id];
+        if (!using.includes(name.startsWith('Mailbox/') ? 'urn:ietf:params:jmap:mail' : SIEVE)) return ['error', { type: 'unknownMethod' }, id];
         const r = methods[name]?.(args);
         return r ? [name, r, id] : ['error', { type: 'unknownMethod' }, id];
       });

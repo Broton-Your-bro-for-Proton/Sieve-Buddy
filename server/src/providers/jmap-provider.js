@@ -45,24 +45,27 @@ export class JmapProvider {
   }
 
   async #fetch(url, init = {}) {
-    const res = await fetch(new URL(url, this.config.url), { ...init, headers: { Authorization: this.#auth(), ...init.headers } });
+    // relative URLs of the session resolve against where the session really came from (after redirects)
+    const res = await fetch(new URL(url, this.session?.base ?? this.config.url), { ...init, headers: { Authorization: this.#auth(), ...init.headers } });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      let detail = body;
+      let detail = '';
       try {
-        detail = JSON.parse(body).detail ?? body;
+        detail = String(JSON.parse(body).detail ?? '');
       } catch {}
-      throw new JmapError(`HTTP ${res.status}${detail ? `: ${detail}` : ''}`, { type: `http${res.status}` });
+      // a proxy's HTML error page is no message
+      throw new JmapError(`HTTP ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`, { type: `http${res.status}` });
     }
     return res;
   }
 
   async #connect() {
-    const session = await (await this.#fetch(this.config.url)).json();
+    const res = await this.#fetch(this.config.url);
+    const session = await res.json();
     const accountId = session.primaryAccounts?.[SIEVE];
-    if (!accountId) throw new JmapError(t('Der JMAP-Server bietet kein Sieve an (urn:ietf:params:jmap:sieve)'));
-    const caps = session.accounts[accountId].accountCapabilities[SIEVE] ?? {};
-    this.session = { ...session, accountId, mailAccountId: session.primaryAccounts[MAIL] ?? null };
+    const caps = session.accounts?.[accountId]?.accountCapabilities?.[SIEVE];
+    if (!caps) throw new JmapError(t('Der JMAP-Server bietet kein Sieve an (urn:ietf:params:jmap:sieve)'));
+    this.session = { ...session, base: res.url, accountId, mailAccountId: session.primaryAccounts[MAIL] ?? null };
     this.capabilities = {
       ...this.capabilities,
       dialect: { name: 'rfc', extensions: (caps.sieveExtensions ?? []).map((e) => e.toLowerCase()) },
@@ -164,8 +167,9 @@ export class JmapProvider {
   }
 
   async setEnabled(id, enabled) {
-    if (enabled) return void (await this.#set({ onSuccessActivateScript: id }));
-    if ((await this.#find(id)).isActive) await this.#set({ onSuccessDeactivateScript: true });
+    const current = await this.#find(id); // an unknown id must fail, not silently change nothing
+    if (enabled) await this.#set({ onSuccessActivateScript: id });
+    else if (current.isActive) await this.#set({ onSuccessDeactivateScript: true });
   }
 
   async reorder() {
@@ -180,13 +184,16 @@ export class JmapProvider {
     } catch (error) {
       if (error.type !== 'unknownMethod') throw error;
     }
-    // servers without SieveScript/validate: create under a temporary name and remove it again
+    // servers without SieveScript/validate: create under a temporary name and remove it again;
+    // a leftover from an earlier failed cleanup would block every later check, so it goes first
+    const leftover = (await this.#list()).find((s) => s.name === CHECK_NAME);
+    if (leftover) await this.#set({ destroy: [leftover.id] });
     try {
       const r = await this.#set({ create: { check: { name: CHECK_NAME, blobId } } });
       await this.#set({ destroy: [r.created.check.id] }).catch(() => {});
       return [];
     } catch (error) {
-      if (error.type === 'invalidSieve') return issues(error.message);
+      if (/^invalid(Sieve|Script)$/.test(error.type)) return issues(error.message);
       throw error;
     }
   }
