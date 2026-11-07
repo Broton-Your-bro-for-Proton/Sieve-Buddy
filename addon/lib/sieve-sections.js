@@ -2,7 +2,7 @@
 // title between "# =====" lines. New rules go into the matching section; the manager lists, moves and
 // deletes rules per section. Pure text functions, shared by the add-on and the service.
 
-import { t } from './i18n.js';
+import { sourceOf, t } from './i18n.js';
 import { lineOf, parseSieve } from './sieve-ast.js';
 import { describeActions, sameActions } from './sieve-rules.js';
 
@@ -12,7 +12,7 @@ const DIVIDER = /^[\s=\-*#~_+]*$/;
 const MAX_TITLE = 60;
 
 const commentText = (line) => {
-  const m = line.match(/^[ \t]*(?:#(.*)|\/\*(.*)\*\/[ \t]*)$/);
+  const m = line.replace(/\r$/, '').match(/^[ \t]*(?:#(.*)|\/\*(.*)\*\/[ \t]*)$/);
   return m ? (m[1] ?? m[2]) : null;
 };
 const cleanTitle = (raw) => raw.replace(/^[\s=\-*#~_+]+|[\s=\-*#~_+]+$/g, '').trim();
@@ -63,11 +63,13 @@ function paragraphs(text, chains) {
         current = null;
         continue;
       }
+      // end before a CR, so text inserted after a heading lands before the line break
+      const end = start + line.replace(/\r$/, '').length;
       if (!current) {
-        current = { start, end: start + line.length, lines: [] };
+        current = { start, end, lines: [] };
         result.push(current);
       }
-      current.end = start + line.length;
+      current.end = end;
       current.lines.push(raw);
     }
   }
@@ -80,7 +82,8 @@ function headings(text, chains) {
     .filter((p) => !p.lines.some((l) => l.includes(GUARD_COMMENT)))
     .map((p) => {
       const titleLine = p.lines.find((l) => !DIVIDER.test(l));
-      if (titleLine === undefined) return null;
+      // long lines are prose, not titles (and would make cleanTitle slow)
+      if (titleLine === undefined || titleLine.length > 200) return null;
       const strong = p.lines.some((l) => DIVIDER.test(l)) || isStrong(titleLine);
       return { title: cleanTitle(titleLine), start: p.start, headerEnd: p.end, line: lineOf(text, p.start), strong };
     })
@@ -103,8 +106,11 @@ export function findSections(text) {
   const heads = headings(text, chains);
   return heads.map((h, index) => {
     const end = heads[index + 1]?.start ?? text.length;
-    const rules = chains.filter((c) => c.rule && c.start >= h.headerEnd && c.start < end).map((c) => ({ ...c, line: lineOf(text, c.start) }));
-    return { index, title: h.title, line: h.line, start: h.start, headerEnd: h.headerEnd, end, rules };
+    const inside = chains.filter((c) => c.start >= h.headerEnd && c.start < end);
+    const rules = inside.filter((c) => c.rule).map((c) => ({ ...c, line: lineOf(text, c.start) }));
+    // require or the spam guard right under a heading: new blocks go after them
+    const setupEnd = Math.max(h.headerEnd, ...inside.filter((c) => !c.rule && (!rules.length || c.start < rules[0].start)).map((c) => c.end));
+    return { index, title: h.title, line: h.line, start: h.start, headerEnd: h.headerEnd, setupEnd, end, rules };
   });
 }
 
@@ -123,7 +129,8 @@ const words = (s) =>
  */
 export function chooseSection(sections, rule, hints = {}) {
   const folderWords = words(rule.actions?.fileinto?.split('/').at(-1));
-  const categoryWords = words(hints.category);
+  // section titles are the user's own words: compare with the category in both languages
+  const categoryWords = [...words(hints.category), ...words(sourceOf(hints.category))];
   let best = null;
   for (const section of sections) {
     let score = 0;
@@ -148,12 +155,13 @@ export function chooseSection(sections, rule, hints = {}) {
  */
 export function sectionInsertPoint(section) {
   const last = section.rules.at(-1);
-  return last ? { offset: last.end, sep: '\n\n' } : { offset: section.headerEnd, sep: '\n' };
+  if (last) return { offset: last.end, sep: '\n\n' };
+  return section.setupEnd > section.headerEnd ? { offset: section.setupEnd, sep: '\n\n' } : { offset: section.headerEnd, sep: '\n' };
 }
 
 /** Resolves a section choice: 'auto' | 'end' | title | index | {new: title}. */
 export function resolveSection(text, choice, rule, hints) {
-  if (choice && typeof choice === 'object' && choice.new) return { section: null, at: null, heading: String(choice.new).trim() };
+  if (choice && typeof choice === 'object' && choice.new) return { section: null, at: null, heading: String(choice.new).replace(/[\r\n]+/g, ' ').trim() };
   if (choice === 'end') return { section: null, at: null };
   const sections = findSections(text);
   if (!sections.length) return { section: null, at: null };
@@ -173,25 +181,46 @@ export function resolveSection(text, choice, rule, hints) {
  */
 export function ruleUnits(text) {
   const chains = topLevel(text);
-  const heads = headings(text, chains);
+  const rules = chains.filter((x) => x.rule);
+  // a plain (undecorated) heading right above the only rule of its section is that rule's label
+  const heads = headings(text, chains).filter((h, i, all) => {
+    if (h.strong) return true;
+    const next = all[i + 1]?.start ?? text.length;
+    const own = rules.filter((c) => c.start > h.headerEnd && c.start < next);
+    return !(own.length === 1 && lineStartOf(text, own[0].start) === h.headerEnd + 1);
+  });
   const headStarts = new Set(heads.map((h) => h.start));
   const comments = paragraphs(text, chains).filter((p) => !headStarts.has(p.start));
   const units = heads.map((h) => ({ type: 'heading', title: h.title, start: h.start, end: h.headerEnd }));
-  for (const c of chains.filter((x) => x.rule)) {
-    let start = lineStartOf(text, c.start);
+  for (const c of rules) {
+    const lineStart = lineStartOf(text, c.start);
+    const lineEnd = lineEndOf(text, c.end);
+    // whole lines, unless other code shares the line (then just the rule itself)
+    let start = text.slice(lineStart, c.start).trim() ? c.start : lineStart;
+    const tail = text.slice(c.end, lineEnd);
+    const end = tail.trim() && !/^\s*#/.test(tail) ? c.end : lineEnd;
     // comment paragraph ending on the line right above belongs to the rule
-    const attached = comments.find((p) => p.end + 1 === start);
+    const attached = start === lineStart && comments.find((p) => p.end === lineStart - 1);
     if (attached) start = attached.start;
-    units.push({ type: 'rule', start, end: lineEndOf(text, c.end), commands: c.commands, ruleStart: c.start });
+    units.push({ type: 'rule', start, end, commands: c.commands, ruleStart: c.start });
   }
   return units.sort((a, b) => a.start - b.start).map((u) => ({ ...u, line: lineOf(text, u.ruleStart ?? u.start) }));
 }
+
+/** Runs a text edit on LF line endings and gives the result back in the script's own line endings. */
+const withLf = (text, edit) => (text.includes('\r\n') ? edit(text.replace(/\r\n/g, '\n')).replace(/\n/g, '\r\n') : edit(text));
+const startsWithComment = (s) => commentText(s.split('\n')[0]) !== null;
+const endsWithComment = (s) => s.endsWith('\n') && !/\n[ \t]*\n$/.test(s) && commentText(s.slice(0, -1).split('\n').at(-1)) !== null;
 
 /**
  * Moves the rule starting at `line` one step up (-1) or down (+1). Passing a heading moves the rule into
  * the neighboring section. Returns the unchanged text when there is nothing to swap with.
  */
 export function moveRule(text, line, delta) {
+  return withLf(text, (lf) => moveLf(lf, line, delta));
+}
+
+function moveLf(text, line, delta) {
   const units = ruleUnits(text);
   const i = units.findIndex((u) => u.type === 'rule' && u.line === line);
   if (i === -1) throw new Error(t('In Zeile {line} beginnt keine Regel', { line }));
@@ -205,19 +234,25 @@ export function moveRule(text, line, delta) {
   // across a heading the blank lines stay with the heading: "# H\nrule" stays tight, the gap before H stays a gap
   let after = text.slice(b.end).match(/^\n(?:[ \t]*\n)*/)?.[0] ?? '';
   const rest = text.slice(b.end + after.length);
-  if (!rest) return head + bText + between + aText + after;
-  // a rule's own comment right under a heading would read as part of the heading
+  // comment lines that end up next to each other would merge into one paragraph (and one heading)
   const tight = (s) => !/\n[ \t]*\n/.test(s);
-  if (b.type === 'heading' && tight(after) && commentText(aText.split('\n')[0]) !== null) after = '\n\n';
-  return head + bText + after + aText + between + rest;
+  const gap = (s, next) => (tight(s) && startsWithComment(next) ? '\n\n' : s);
+  const lead = b.type === 'heading' && endsWithComment(head) ? `${head}\n` : head;
+  if (!rest) return lead + bText + between + aText + after;
+  if (b.type === 'heading') after = gap(after, aText);
+  return lead + bText + after + aText + (a.type === 'heading' ? gap(between, rest) : between) + rest;
 }
 
 /** Removes the rule starting at `line`, with the blank lines that separated it. */
 export function deleteRule(text, line) {
+  return withLf(text, (lf) => deleteLf(lf, line));
+}
+
+function deleteLf(text, line) {
   const unit = ruleUnits(text).find((u) => u.type === 'rule' && u.line === line);
   if (!unit) throw new Error(t('In Zeile {line} beginnt keine Regel', { line }));
   const before = text.slice(0, unit.start);
-  const after = text.slice(unit.end + 1);
+  const after = text.slice(text[unit.end] === '\n' ? unit.end + 1 : unit.end);
   // keep a single blank line between the neighbors
   return before === '' || before.endsWith('\n\n') ? before + after.replace(/^([ \t]*\n)+/, '') : before + after;
 }
@@ -227,14 +262,18 @@ export function deleteRule(text, line) {
  * without moving anything (order matters in Sieve). Returns the text with headings inserted.
  */
 export function suggestSections(text) {
+  return withLf(text, suggestLf);
+}
+
+function suggestLf(text) {
   const rules = ruleUnits(text).filter((u) => u.type === 'rule');
   const titleOf = (unit) => {
     const actions = unit.commands[0].block && describeActions(unit.commands[0].block);
-    if (!actions) return 'Sonstiges';
-    if (actions.fileinto) return actions.fileinto;
-    if (actions.flagged) return 'Markieren';
-    if (actions.seen) return 'Als gelesen';
-    return 'Sonstiges';
+    if (!actions) return t('Sonstiges');
+    if (actions.fileinto) return actions.fileinto.replace(/[\r\n]+/g, ' ');
+    if (actions.flagged) return t('Markieren');
+    if (actions.seen) return t('Als gelesen');
+    return t('Sonstiges');
   };
   const inserts = [];
   let previous = null;

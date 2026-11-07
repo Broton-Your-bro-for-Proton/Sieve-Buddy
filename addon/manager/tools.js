@@ -39,11 +39,11 @@ export function installTools(editor, state) {
 
   const summarizeActions = (block) => {
     const a = describeActions(block);
-    if (!a) return block.commands.map((c) => c.name).join(', ') || '—';
+    if (!a) return block.commands.map((c) => c.name).join(', ') || '–';
     return (
       [a.fileinto && `→ ${a.fileinto}`, a.seen && t('gelesen'), a.flagged && t('Stern'), a.expireDays && t('löschen nach {days} T.', { days: a.expireDays }), a.stop && 'stop']
         .filter(Boolean)
-        .join(' · ') || '—'
+        .join(' · ') || '–'
     );
   };
 
@@ -92,7 +92,10 @@ export function installTools(editor, state) {
             fn();
           },
         }, label);
+      // the outline is redrawn with a delay: after an edit the line may hold another rule
+      const stale = () => editor.getValue().slice(u.start, u.end) !== text.slice(u.start, u.end) && (renderOutline(), true);
       const move = (delta) => {
+        if (stale()) return;
         const next = moveRule(editor.getValue(), u.line, delta);
         if (next === editor.getValue()) return;
         const moved = ruleUnits(next).find((x) => x.type === 'rule' && next.slice(x.start, x.end) === text.slice(u.start, u.end));
@@ -109,6 +112,7 @@ export function installTools(editor, state) {
           button('↑', t('Eine Stelle nach oben (über eine Überschrift: in den Abschnitt davor)'), () => move(-1)),
           button('↓', t('Eine Stelle nach unten (über eine Überschrift: in den Abschnitt danach)'), () => move(+1)),
           button('✕', t('Regel löschen'), () => {
+            if (stale()) return;
             if (!confirm(t('Regel in Zeile {line} löschen?\n\n{rule}', { line: u.line, rule: `${c.name} ${test}` }))) return;
             replaceText(deleteRule(editor.getValue(), u.line));
             toast(t('Regel gelöscht – zum Übernehmen speichern (Strg+Z macht es rückgängig)'));
@@ -160,13 +164,13 @@ export function installTools(editor, state) {
     if (!tok) return null;
     if (tok.type === 'identifier' && COMMANDS[tok.value]) {
       const c = COMMANDS[tok.value];
-      return `${tok.value} — ${c.doc}${c.ext ? `\n(require "${c.ext}")` : ''}`;
+      return `${tok.value}: ${c.doc}${c.ext ? `\n(require "${c.ext}")` : ''}`;
     }
     if (tok.type === 'tag' && TAGS[tok.value]) {
       const tag = TAGS[tok.value];
-      return `${tok.value} — ${tag.doc}${tag.ext ? `\n(require "${tag.ext}")` : ''}`;
+      return `${tok.value}: ${tag.doc}${tag.ext ? `\n(require "${tag.ext}")` : ''}`;
     }
-    if (tok.type === 'string' && EXTENSIONS[tok.value]) return t('Erweiterung {name} — {doc}', { name: tok.value, doc: EXTENSIONS[tok.value] });
+    if (tok.type === 'string' && EXTENSIONS[tok.value]) return t('Erweiterung {name}: {doc}', { name: tok.value, doc: EXTENSIONS[tok.value] });
     return null;
   }
 
@@ -369,7 +373,7 @@ export function installTools(editor, state) {
     return el(
       'select',
       {},
-      el('option', { value: '' }, t('— nicht verschieben —')),
+      el('option', { value: '' }, t('(nicht verschieben)')),
       options.map((o) => el('option', { value: o, selected: o === value }, o)),
     );
   }
