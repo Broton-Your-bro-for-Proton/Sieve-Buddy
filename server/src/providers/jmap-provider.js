@@ -19,7 +19,7 @@ export class JmapError extends Error {
 const setError = (e) => new JmapError(e.description || e.type, { type: e.type });
 
 /** Stalwart: "Expected token … at line 2, column 1." → [{line: 2, message}] */
-const issues = (message) => [{ line: Number(/line (d+)/i.exec(message)?.[1]) || null, message }];
+const issues = (message) => [{ line: Number(/line (\d+)/i.exec(message)?.[1]) || null, message }];
 
 export class JmapProvider {
   /** @param {{url: string, token: string, user?: string}} config  url = JMAP session resource */
