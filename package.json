@@ -15,7 +15,9 @@
     "fake-proton": "node scripts/fake-proton.mjs",
     "preview": "node scripts/serve.mjs",
     "fake-managesieve": "node scripts/fake-managesieve.mjs",
-    "dovecot:up": "docker build -t sieve-test-dovecot test/dovecot && docker run -d --name sieve-dovecot -p 127.0.0.1:14190:4190 -p 127.0.0.1:10993:993 sieve-test-dovecot"
+    "fake-jmap": "node scripts/fake-jmap.mjs",
+    "dovecot:up": "docker build -t sieve-test-dovecot test/dovecot && docker run -d --name sieve-dovecot -p 127.0.0.1:14190:4190 -p 127.0.0.1:10993:993 sieve-test-dovecot",
+    "stalwart:up": "docker run -d --name sieve-stalwart -e STALWART_RECOVERY_ADMIN=admin:test12345 -p 127.0.0.1:18480:8080 stalwartlabs/stalwart:v1.0.3"
   },
   "devDependencies": {
     "bcryptjs": "2.4.3",
