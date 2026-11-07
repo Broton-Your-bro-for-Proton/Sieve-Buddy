@@ -159,19 +159,73 @@ export function renderDiff(container, before, after) {
 }
 
 /** Minimal modal built on <dialog>. Resolves with the value passed to close(), or null when cancelled. */
-export function openModal({ title, body, actions = [], wide = false }) {
+/**
+ * Modal dialog. It can be moved by its title bar, resized at the bottom right corner and switched to the
+ * full size of the tab (⛶ or double click on the title bar). With a `key`, size and full size are
+ * remembered for the next time.
+ */
+export function openModal({ title, body, actions = [], wide = false, key = null }) {
   return new Promise((resolve) => {
     const dialog = el('dialog', { class: `modal${wide ? ' wide' : ''}` });
+    const stateKey = key && `modal:${key}`;
     const close = (value = null) => {
+      if (stateKey) {
+        const { width, height } = dialog.getBoundingClientRect();
+        storage.set(stateKey, { max: dialog.classList.contains('max'), ...(dialog.classList.contains('max') ? dialog.restoreSize : { width, height }) });
+      }
       dialog.close();
       dialog.remove();
       resolve(value);
     };
+    // pin the centered dialog to its pixel position, so moving and resizing start from where it is
+    const pin = () => {
+      if (dialog.classList.contains('max')) return; // opened at full size: pinned when it leaves it
+      dialog.pinned = true;
+      const r = dialog.getBoundingClientRect();
+      Object.assign(dialog.style, { margin: '0', left: `${r.left}px`, top: `${r.top}px`, right: 'auto', bottom: 'auto' });
+    };
+    const toggleMax = () => {
+      if (!dialog.classList.contains('max')) {
+        const { width, height } = dialog.getBoundingClientRect();
+        dialog.restoreSize = { width, height };
+      }
+      dialog.classList.toggle('max');
+      if (!dialog.pinned) pin();
+    };
+    const head = el(
+      'header',
+      { class: 'modal-head', ondblclick: (e) => !e.target.closest('button') && toggleMax() },
+      el('h2', {}, title),
+      el(
+        'span',
+        { class: 'modal-tools' },
+        el('button', { class: 'ghost small', type: 'button', title: t('Vollbild an/aus'), onclick: toggleMax }, '⛶'),
+        el('button', { class: 'ghost small', type: 'button', title: t('Schließen'), onclick: () => close(null) }, '✕'),
+      ),
+    );
+    head.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || e.target.closest('button') || dialog.classList.contains('max')) return;
+      const r = dialog.getBoundingClientRect();
+      const dx = e.clientX - r.left;
+      const dy = e.clientY - r.top;
+      const move = (ev) => {
+        // keep the title bar reachable
+        dialog.style.left = `${Math.min(Math.max(ev.clientX - dx, 0), window.innerWidth - 80)}px`;
+        dialog.style.top = `${Math.min(Math.max(ev.clientY - dy, 0), window.innerHeight - 40)}px`;
+      };
+      const stop = () => {
+        head.releasePointerCapture(e.pointerId);
+        head.removeEventListener('pointermove', move);
+      };
+      head.setPointerCapture(e.pointerId);
+      head.addEventListener('pointermove', move);
+      head.addEventListener('lostpointercapture', stop, { once: true });
+    });
     const buttons = actions.map((a) =>
       el('button', { class: a.class ?? '', type: 'button', onclick: () => (a.onClick ? a.onClick(close) : close(a.value ?? null)) }, a.label),
     );
     dialog.append(
-      el('header', { class: 'modal-head' }, el('h2', {}, title), el('button', { class: 'ghost small', type: 'button', onclick: () => close(null) }, '✕')),
+      head,
       el('div', { class: 'modal-body' }, body),
       buttons.length ? el('footer', { class: 'modal-foot' }, buttons) : '',
     );
@@ -180,7 +234,15 @@ export function openModal({ title, body, actions = [], wide = false }) {
       close(null);
     });
     document.body.append(dialog);
-    dialog.showModal();
+    (stateKey ? storage.get(stateKey) : Promise.resolve(null)).then((saved) => {
+      if (saved?.width) Object.assign(dialog.style, { width: `${saved.width}px`, height: `${saved.height}px` });
+      if (saved?.max) {
+        dialog.restoreSize = { width: saved.width, height: saved.height };
+        dialog.classList.add('max');
+      }
+      dialog.showModal();
+      pin();
+    });
   });
 }
 

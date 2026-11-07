@@ -559,6 +559,7 @@ export const EN = {
   "Virus-Score testen": "Test the virus score",
   "Von (JJJJ-MM-TT)": "From (YYYY-MM-DD)",
   "vorhanden": "exists",
+  "Vollbild an/aus": "Toggle full size",
   "Vorlage {templateId} nicht gefunden – siehe list_templates": "Template {templateId} not found, see list_templates",
   "Vorlage: {name}": "Template: {name}",
   "Weiter": "Continue",
