@@ -60,8 +60,7 @@ export function describeActions(block) {
     const values = c.args.flatMap(strings);
     switch (c.name) {
       case 'fileinto':
-        // :copy, :create, :flags change what the block does: such a block is no merge target
-        if (actions.fileinto !== null || values.length !== 1 || c.args.some((a) => a.type === 'tag')) return null;
+        if (actions.fileinto !== null || values.length !== 1) return null;
         actions.fileinto = values[0];
         break;
       case 'addflag':
@@ -248,7 +247,9 @@ export function proposeRule(scripts, rule) {
       if (!['if', 'elsif'].includes(command.name) || !command.test || !command.block) continue;
       // only a top-level if decides on its own: inside another block or as elsif the new value
       // would also depend on the conditions around it
-      const mergeable = depth === 0 && command.name === 'if';
+      // fileinto :copy keeps the mail in the inbox too, :flags sets other flags: not the plain action
+      const tagged = command.block.commands.some((c) => c.args.some((a) => a.type === 'tag' && (a.value === ':copy' || a.value === ':flags')));
+      const mergeable = depth === 0 && command.name === 'if' && !tagged;
       const actions = describeActions(command.block);
       const topTests = command.test.name === 'anyof' ? command.test.tests : [command.test];
       const descs = topTests.map(describeTest);

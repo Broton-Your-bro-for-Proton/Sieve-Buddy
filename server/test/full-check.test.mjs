@@ -71,6 +71,46 @@ test('create-filter without enabled keeps the active script', async () => {
   await rest('delete-filter', { id: 'neu' });
 });
 
+test('create-filter activates the first script when none is active, and says so', async () => {
+  const ms = createFakeManageSieve({ scripts: { old: '# old\n' }, active: null });
+  const port = await ms.listen();
+  const dir = await mkdtemp(join(tmpdir(), 'pss-fc2-'));
+  const svc = await startServer({
+    host: '127.0.0.1',
+    port: 0,
+    dataDir: dir,
+    apiToken: TOKEN,
+    allowWrite: true,
+    provider: 'managesieve',
+    managesieve: { host: '127.0.0.1', port, tls: 'none', user: 'test', password: 'test123', imap: null },
+  });
+  try {
+    const res = await fetch(`http://127.0.0.1:${svc.port}/api/ops/create-filter`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'first', sieve: 'keep;\n' }),
+    });
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).enabled, true);
+    assert.equal(ms.state.active, 'first');
+  } finally {
+    await new Promise((r) => svc.server.close(r));
+    await ms.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('update-filter with expectedSieve refuses a script that changed', async () => {
+  const before = fake.state.scripts.get('main');
+  fake.state.scripts.set('main', `${before}\n# other change\n`);
+  const r = await rest('update-filter', { id: 'main', sieve: `${before}\n# mine\n`, expectedSieve: before });
+  assert.equal(r.status, 400);
+  assert.match(r.body.error, /inzwischen geändert/);
+  assert.match(fake.state.scripts.get('main'), /# other change/);
+  const ok = await rest('update-filter', { id: 'main', sieve: fake.state.scripts.get('main'), expectedSieve: fake.state.scripts.get('main') });
+  assert.equal(ok.status, 200);
+});
+
 test('apply-rule does not overwrite a change made after the last read', async () => {
   await rest('list-filters'); // fills the cache
   const external = `${fake.state.scripts.get('main')}\n# external change\n`;

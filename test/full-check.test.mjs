@@ -5,8 +5,9 @@ import assert from 'node:assert/strict';
 import { parseHeaderBlock } from '../addon/lib/mail.js';
 import { fixRequire } from '../addon/lib/sieve-analyzer.js';
 import { formatSieve, parseSieve } from '../addon/lib/sieve-ast.js';
-import { conditionToSieve, insertBlock, mergeRuleIntoScript, ruleToSieve } from '../addon/lib/sieve-rules.js';
-import { deleteRule, moveRule, resolveSection, ruleUnits } from '../addon/lib/sieve-sections.js';
+import { SPAM_GUARD, newScript } from '../addon/lib/sieve-dialect.js';
+import { conditionToSieve, findOverlaps, insertBlock, mergeRuleIntoScript, ruleToSieve } from '../addon/lib/sieve-rules.js';
+import { deleteRule, moveRule, resolveSection, ruleUnits, suggestSections } from '../addon/lib/sieve-sections.js';
 import { simulate } from '../addon/lib/sieve-sim.js';
 
 const rule = (value, folder = 'Projekt') => ({ conditions: [{ kind: 'address', header: 'from', value }], actions: { fileinto: folder } });
@@ -25,9 +26,15 @@ test('a rule is never merged into a nested if or an elsif', () => {
   assert.equal(merged(top, rule('b@y.de')).steps[0].kind, 'append-key');
 });
 
-test('a fileinto with tags is no merge target', () => {
+test('fileinto :copy is no merge target, :create still is', () => {
   const copy = 'require ["fileinto", "copy"];\nif address :is "from" "a@x.de" {\n    fileinto :copy "Projekt";\n}\n';
   assert.equal(merged(copy, rule('b@y.de')).steps[0].kind, 'new-block');
+  const create = 'require ["fileinto", "mailbox"];\nif address :is "from" "a@x.de" {\n    fileinto :create "Projekt";\n}\n';
+  assert.equal(merged(create, rule('b@y.de')).steps[0].kind, 'append-key');
+  // the other users of describeActions still see the action
+  const twice = 'require ["fileinto", "mailbox"];\nif address :is "from" "a@x.de" { fileinto :create "X"; }\nif address :is "from" "a@x.de" { fileinto :create "X"; }\n';
+  assert.deepEqual(findOverlaps(twice).map((o) => o.kind), ['duplicate']);
+  assert.match(suggestSections(twice), /# ===== X =====/);
 });
 
 test('unquoted parts of generated code only accept known words', () => {
@@ -70,11 +77,18 @@ test('edits keep CRLF line endings', () => {
   noLoneLf(merged(crlf, rule('b@y.de', 'P')).sieve);
   noLoneLf(merged(crlf, rule('b@y.de', 'Other')).sieve);
   noLoneLf(formatSieve('if true {\r\nstop;\r\n}\r\n'));
+  // Proton's spam guard stays byte for byte in a CRLF file
+  const guarded = newScript('if exists "x-a" {\nfileinto "A";\n}').replace(/\n/g, '\r\n');
+  assert.ok(formatSieve(guarded).includes(SPAM_GUARD.replace(/\n/g, '\r\n')));
+  // a file with mixed endings keeps its untouched LF lines
+  const mixed = 'require "vacation";\r\nvacation text:\nline1\nline2\n.\n;\r\n';
+  assert.match(insertBlock(mixed, 'if exists "x-b" {\n    stop;\n}').sieve, /text:\nline1\nline2\n\.\n/);
 });
 
 test('encoded-character needs no variables, dot-stuffing is undone', () => {
   const enc = 'require ["encoded-character"];\nif header :is "subject" "${hex:41}" { stop; }\n';
   assert.equal(fixRequire(enc), enc);
+  assert.match(fixRequire('if header :is "subject" "${hex:41}" { stop; }\n'), /^require \["encoded-character"\];/);
   const stuffed = 'if header :is "subject" text:\n..x\n.\n{ discard; }\n';
   const r = simulate([{ id: 'a', name: 'A', sieve: stuffed }], { headers: parseHeaderBlock('Subject: .x\n') }, { semantics: 'rfc' });
   assert.equal(r.discarded, true);

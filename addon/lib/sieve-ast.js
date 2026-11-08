@@ -153,21 +153,23 @@ export function applyPatches(text, patches) {
   return out;
 }
 
-/** Gives an edited script the line endings of the original: a CRLF file stays CRLF throughout. */
-export const sameLineEndings = (original, out) => (original.includes('\r\n') ? out.replace(/\r?\n/g, '\r\n') : out);
+/**
+ * Gives an edited script the line endings of the original: a pure CRLF file stays CRLF throughout.
+ * A file with mixed endings is left as the edit made it, so untouched lines keep theirs.
+ */
+const pureCrlf = (s) => s.includes('\r\n') && !/(^|[^\r])\n/.test(s);
+export const sameLineEndings = (original, out) => (pureCrlf(original) ? out.replace(/\r?\n/g, '\r\n') : out);
 
 /**
  * Re-indents a script by brace/paren depth (4 spaces), keeping everything else as written.
- * Proton's spam guard is kept byte for byte.
+ * Proton's spam guard is kept byte for byte (also in a CRLF file).
  */
 export function formatSieve(text) {
-  const guardAt = text.indexOf(SPAM_GUARD);
-  if (guardAt !== -1) {
-    const before = reindent(text.slice(0, guardAt));
-    const after = reindent(text.slice(guardAt + SPAM_GUARD.length));
-    return before + SPAM_GUARD + after;
-  }
-  return sameLineEndings(text, reindent(text));
+  const lf = pureCrlf(text) ? text.replace(/\r\n/g, '\n') : text;
+  const guardAt = lf.indexOf(SPAM_GUARD);
+  const out =
+    guardAt === -1 ? reindent(lf) : reindent(lf.slice(0, guardAt)) + SPAM_GUARD + reindent(lf.slice(guardAt + SPAM_GUARD.length));
+  return sameLineEndings(text, out);
 }
 
 function reindent(text) {

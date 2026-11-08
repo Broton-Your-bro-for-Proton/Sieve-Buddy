@@ -284,16 +284,20 @@ export async function applyTemplate(account, args) {
 export async function createFilter(account, { name, sieve, enabled }) {
   return account.write(async () => {
     await account.checkOrThrow(sieve);
-    // with a single active script a new one only replaces it when asked to
-    return account.provider.createScript({ name, sieve, enabled: enabled ?? account.provider.capabilities.multipleActive });
+    // with a single active script a new one only replaces it when asked to, or when none is active yet
+    const on = enabled ?? (account.provider.capabilities.multipleActive || !(await account.data({ fresh: true })).scripts.some((s) => s.enabled));
+    const created = await account.provider.createScript({ name, sieve, enabled: on });
+    return { ...created, enabled: created?.enabled ?? on };
   });
 }
 
-export async function updateFilter(account, { id, name, sieve, enabled }) {
+/** `expectedSieve`: save only if the script still has this text (it was planned on it). */
+export async function updateFilter(account, { id, name, sieve, enabled, expectedSieve }) {
   return account.write(async () => {
     const data = await account.data({ fresh: true });
     const current = data.scripts.find((s) => s.id === id);
     if (!current) throw new Error(t('Filter/Skript {id} nicht gefunden', { id }));
+    if (expectedSieve !== undefined && current.sieve !== expectedSieve) throw new Error(t('Der Filter wurde inzwischen geändert – bitte neu planen'));
     if (sieve !== undefined) await account.checkOrThrow(sieve);
     const result = await account.provider.updateScript(id, { name, sieve, enabled });
     return { id: result?.id ?? id, name: name ?? current.name, enabled: enabled ?? current.enabled, diff: unifiedDiff(current.sieve, sieve ?? current.sieve) };

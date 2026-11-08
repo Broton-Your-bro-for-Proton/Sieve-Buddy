@@ -68,7 +68,7 @@ export class JmapProvider {
     // the token goes along to every URL of the session: never in plain text when the session came over https
     if (new URL(res.url).protocol === 'https:') {
       for (const key of ['apiUrl', 'uploadUrl', 'downloadUrl']) {
-        if (session[key] && new URL(session[key].replace(/[{}]/g, ''), res.url).protocol !== 'https:') throw new JmapError(t('JMAP: {key} zeigt auf eine unverschlüsselte Adresse', { key }));
+        if (session[key] && new URL(session[key].replace(/[{}]/g, ''), res.url).protocol !== 'https:') throw new JmapError(t('JMAP: {key} zeigt auf eine unverschlüsselte Adresse (hinter einem TLS-Proxy die öffentliche https-URL im Server eintragen)', { key }));
       }
     }
     this.session = { ...session, base: res.url, accountId, mailAccountId: session.primaryAccounts[MAIL] ?? null };

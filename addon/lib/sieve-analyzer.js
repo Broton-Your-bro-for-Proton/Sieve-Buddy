@@ -167,6 +167,7 @@ function analyze(tokens, dialect = PROTON_DIALECT) {
     if (firstVisit && tk.type === 'string') {
       // ${hex:41} and ${unicode:41} belong to encoded-character, not to variables
       if (/\$\{(?!hex:|unicode:)/i.test(tk.value)) need('variables', tk);
+      if (/\$\{(hex|unicode):/i.test(tk.value)) need('encoded-character', tk);
       if (tk.value === 'i;ascii-numeric' && tokens[i - 1]?.value === ':comparator') need('comparator-i;ascii-numeric', tk);
     }
 

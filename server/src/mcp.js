@@ -101,11 +101,17 @@ tool(
   ops.applyTemplate,
   write,
 );
-tool('create_filter', t('Legt einen neuen Filter/ein neues Skript an (nach Prüfung durch den Server). Bei ManageSieve wird es nur mit enabled=true aktiv – und ersetzt dann das bisher aktive.'), { name: z.string(), sieve: z.string(), enabled: z.boolean().optional() }, ops.createFilter, write);
+tool('create_filter', t('Legt einen neuen Filter/ein neues Skript an (nach Prüfung durch den Server). Bei ManageSieve/JMAP wird es nur mit enabled=true aktiv (oder wenn noch kein Skript aktiv ist) – und ersetzt dann das bisher aktive.'), { name: z.string(), sieve: z.string(), enabled: z.boolean().optional() }, ops.createFilter, write);
 tool(
   'update_filter',
   t('Ändert Name, Sieve-Skript oder Status eines Filters. Liefert den Diff.'),
-  { id: z.string(), name: z.string().optional(), sieve: z.string().optional(), enabled: z.boolean().optional() },
+  {
+    id: z.string(),
+    name: z.string().optional(),
+    sieve: z.string().optional(),
+    enabled: z.boolean().optional(),
+    expectedSieve: z.string().optional().describe(t('nur speichern, wenn das Skript noch genau diesen Text hat (Schutz vor gleichzeitigen Änderungen)')),
+  },
   ops.updateFilter,
   write,
 );
