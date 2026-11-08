@@ -16,7 +16,11 @@ export class ManageSieveError extends Error {
   }
 }
 
-export const quote = (s) => `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+export const quote = (s) => {
+  // a quoted string must not contain CR, LF or NUL (RFC 5804): they would start a new command
+  if (/[\0\r\n]/.test(s)) throw new ManageSieveError(t('Ungültiges Zeichen im Namen (Zeilenumbruch oder NUL)'), { code: 'BAD' });
+  return `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+};
 const literal = (s) => `{${Buffer.byteLength(s, 'utf8')}+}${CRLF}${s}`;
 
 /** Buffered reader over a socket that can be swapped (for STARTTLS). */

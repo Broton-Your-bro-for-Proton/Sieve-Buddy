@@ -65,6 +65,12 @@ export class JmapProvider {
     const accountId = session.primaryAccounts?.[SIEVE];
     const caps = session.accounts?.[accountId]?.accountCapabilities?.[SIEVE];
     if (!caps) throw new JmapError(t('Der JMAP-Server bietet kein Sieve an (urn:ietf:params:jmap:sieve)'));
+    // the token goes along to every URL of the session: never in plain text when the session came over https
+    if (new URL(res.url).protocol === 'https:') {
+      for (const key of ['apiUrl', 'uploadUrl', 'downloadUrl']) {
+        if (session[key] && new URL(session[key].replace(/[{}]/g, ''), res.url).protocol !== 'https:') throw new JmapError(t('JMAP: {key} zeigt auf eine unverschlüsselte Adresse', { key }));
+      }
+    }
     this.session = { ...session, base: res.url, accountId, mailAccountId: session.primaryAccounts[MAIL] ?? null };
     this.capabilities = {
       ...this.capabilities,
@@ -163,7 +169,13 @@ export class JmapProvider {
     const current = await this.#find(id);
     // an active script cannot be destroyed, and onSuccessDeactivateScript only runs after the destroy
     if (current.isActive) await this.#set({ onSuccessDeactivateScript: true });
-    await this.#set({ destroy: [id] });
+    try {
+      await this.#set({ destroy: [id] });
+    } catch (error) {
+      // the delete failed: the script must not stay switched off
+      if (current.isActive) await this.#set({ onSuccessActivateScript: id }).catch(() => {});
+      throw error;
+    }
   }
 
   async setEnabled(id, enabled) {

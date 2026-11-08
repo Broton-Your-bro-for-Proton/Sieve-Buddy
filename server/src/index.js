@@ -10,34 +10,37 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 
 import { Account } from './account.js';
 import { loadConfig } from './config.js';
-import { createMcpServer } from './mcp.js';
-import * as ops from './ops.js';
+import { z } from 'zod';
+
+import { TOOLS, createMcpServer } from './mcp.js';
 import { getLocale, t } from '../../addon/lib/i18n.js';
 
 const MAX_BODY = 1024 * 1024;
 
-// REST names → operations (same as the MCP tools)
-const OPERATIONS = {
-  'list-filters': ops.listFilters,
-  'get-filter': ops.getFilter,
-  'list-folders': ops.listFolders,
-  capabilities: ops.capabilities,
-  lint: ops.lintSieve,
-  check: ops.checkSieve,
-  format: ops.formatSieve,
-  simulate: ops.simulateMessage,
-  suggest: ops.suggestRule,
-  'plan-rule': ops.planRule,
-  'apply-rule': ops.applyRule,
-  templates: ops.listTemplates,
-  'plan-template': ops.buildTemplate,
-  'apply-template': ops.applyTemplate,
-  'create-filter': ops.createFilter,
-  'update-filter': ops.updateFilter,
-  'set-filter-enabled': ops.setFilterEnabled,
-  'reorder-filters': ops.reorderFilters,
-  'delete-filter': ops.deleteFilter,
-};
+// REST names → MCP tools: same operation, same input validation
+const OPERATIONS = new Map(
+  Object.entries({
+    'list-filters': 'list_filters',
+    'get-filter': 'get_filter',
+    'list-folders': 'list_folders',
+    capabilities: 'sieve_capabilities',
+    lint: 'lint_sieve',
+    check: 'check_sieve',
+    format: 'format_sieve',
+    simulate: 'simulate_message',
+    suggest: 'suggest_rule',
+    'plan-rule': 'plan_rule',
+    'apply-rule': 'apply_rule',
+    templates: 'list_templates',
+    'plan-template': 'plan_template',
+    'apply-template': 'apply_template',
+    'create-filter': 'create_filter',
+    'update-filter': 'update_filter',
+    'set-filter-enabled': 'set_filter_enabled',
+    'reorder-filters': 'reorder_filters',
+    'delete-filter': 'delete_filter',
+  }).map(([rest, name]) => [rest, TOOLS.get(name)]),
+);
 
 export async function startServer(config = loadConfig()) {
   const account = new Account(config);
@@ -119,9 +122,14 @@ export async function startServer(config = loadConfig()) {
         await account.logout();
         return send(res, 200, { ok: true });
       default: {
-        const op = OPERATIONS[path.replace(/^\/api\/ops\//, '')];
-        if (!path.startsWith('/api/ops/') || !op) return send(res, 404, { error: t('Unbekannte Operation') });
-        return send(res, 200, await op(account, body));
+        const op = path.startsWith('/api/ops/') && OPERATIONS.get(path.slice('/api/ops/'.length));
+        if (!op) return send(res, 404, { error: t('Unbekannte Operation') });
+        const args = z.object(op.input).safeParse(body);
+        if (!args.success) {
+          const list = args.error.issues.map((i) => `${i.path.join('.') || '-'}: ${i.message}`).join('; ');
+          return send(res, 400, { error: t('Ungültige Eingabe: {list}', { list }) });
+        }
+        return send(res, 200, await op.run(account, args.data));
       }
     }
   }

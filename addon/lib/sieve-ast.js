@@ -116,6 +116,9 @@ export function parseSieve(text) {
       } else {
         fail(t('„;“ oder „{“ erwartet'), end);
       }
+      // the simulator and the merge logic rely on this shape
+      if ((command.name === 'if' || command.name === 'elsif') && !command.test) fail(t('„{name}“ braucht eine Bedingung', { name: command.name }), tok);
+      if (['if', 'elsif', 'else'].includes(command.name) && !command.block) fail(t('„{name}“ braucht einen Block', { name: command.name }), tok);
       commands.push(command);
     }
     if (closing) fail(t('„}“ fehlt'));
@@ -150,6 +153,9 @@ export function applyPatches(text, patches) {
   return out;
 }
 
+/** Gives an edited script the line endings of the original: a CRLF file stays CRLF throughout. */
+export const sameLineEndings = (original, out) => (original.includes('\r\n') ? out.replace(/\r?\n/g, '\r\n') : out);
+
 /**
  * Re-indents a script by brace/paren depth (4 spaces), keeping everything else as written.
  * Proton's spam guard is kept byte for byte.
@@ -161,7 +167,7 @@ export function formatSieve(text) {
     const after = reindent(text.slice(guardAt + SPAM_GUARD.length));
     return before + SPAM_GUARD + after;
   }
-  return reindent(text);
+  return sameLineEndings(text, reindent(text));
 }
 
 function reindent(text) {

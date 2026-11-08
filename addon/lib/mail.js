@@ -106,7 +106,7 @@ export function suggestConditions(msg, { ownAddresses = [] } = {}) {
     const id = /<([^>]+)>/.exec(listId)?.[1] ?? listId.trim();
     suggestions.push({
       id: 'list-id',
-      label: `Mailingliste ${id}`,
+      label: t('Mailingliste {id}', { id }),
       condition: { kind: 'header', header: 'list-id', match: 'contains', value: id },
     });
   }
@@ -151,7 +151,7 @@ export function suggestConditions(msg, { ownAddresses = [] } = {}) {
   if (msg.headers['list-unsubscribe'] && !listId) {
     suggestions.push({
       id: 'unsubscribe',
-      label: 'Jeder Newsletter (List-Unsubscribe vorhanden)',
+      label: t('Jeder Newsletter (List-Unsubscribe vorhanden)'),
       condition: { kind: 'exists', header: 'list-unsubscribe' },
     });
   }
