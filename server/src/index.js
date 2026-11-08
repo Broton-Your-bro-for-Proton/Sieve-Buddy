@@ -162,7 +162,8 @@ export async function startServer(config = loadConfig()) {
       if (res.headersSent) return;
       // Proton's own status codes are not passed through: a Proton 401 must not look like a wrong API token
       const fromProton = error.name === 'ProtonApiError';
-      const status = fromProton ? (error.status >= 500 ? 502 : 400) : (error.status ?? 400);
+      // only HTTP codes count: a ManageSieve error carries its protocol status ("NO") in the same field
+      const status = fromProton ? (error.status >= 500 ? 502 : 400) : Number.isInteger(error.status) ? error.status : 400;
       send(res, status, {
         error: error.message,
         ...(fromProton ? { proton: { status: error.status ?? null, code: error.code ?? null } } : {}),
