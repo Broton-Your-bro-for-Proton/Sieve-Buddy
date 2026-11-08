@@ -1,41 +1,27 @@
+/* Tokens of the Calibre AIO "Modern" theme (ha-cwa/theme/modern.css), dark gold. */
 :root {
-  --bg: #f6f5fb;
-  --panel: #ffffff;
-  --text: #1c1b22;
-  --muted: #6b6880;
-  --border: #dcd9e8;
-  --accent: #6d4aff;
-  --accent-text: #ffffff;
-  --danger: #d6334a;
-  --selected: #ece7ff;
-  --code-bg: #ffffff;
-  --code-gutter: #f1eff8;
-  --kw: #6d4aff;
-  --str: #1a7f4b;
-  --tag: #b5560d;
-  --comment: #8a879c;
-  --num: #1d6fd6;
-  color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #17161d;
-    --panel: #201f28;
-    --text: #ecebf3;
-    --muted: #9c99ad;
-    --border: #35333f;
-    --accent: #8b6dff;
-    --selected: #2d2747;
-    --code-bg: #1b1a22;
-    --code-gutter: #22212b;
-    --kw: #a891ff;
-    --str: #6fd69f;
-    --tag: #f0a35e;
-    --comment: #7b788d;
-    --num: #7ab4ff;
-    color-scheme: dark;
-  }
+  --bg: #0f1217;
+  --panel: #191e25;
+  --sidebar: #14171c;
+  --text: #f2f5f9;
+  --muted: #b2bfce;
+  --border: #303842;
+  --hover-line: #697789;
+  --accent: #b49a64;
+  --accent-hover: #dfd0a3;
+  --accent-bg: #2b2419;
+  --accent-line: #78643e;
+  --accent-text: #0f1217;
+  --danger: #f1afba;
+  --selected: #282f39;
+  --code-bg: #0f1217;
+  --code-gutter: #14171c;
+  --kw: #d6bd85;
+  --str: #91d7c8;
+  --tag: #e6b27a;
+  --comment: #7d8896;
+  --num: #9fc0e8;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -45,13 +31,13 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 13px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif;
   height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-h1 { font-size: 16px; margin: 0; }
+h1 { font-size: 16px; margin: 0; color: var(--accent); }
 h2 { font-size: 15px; margin: 0 0 8px; }
 
 .topbar {
@@ -60,7 +46,7 @@ h2 { font-size: 15px; margin: 0 0 8px; }
   gap: 12px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--border);
-  background: var(--panel);
+  background: var(--sidebar);
 }
 .account { margin-left: auto; color: var(--muted); }
 
@@ -69,20 +55,26 @@ button, select, input {
   color: inherit;
 }
 button {
-  background: var(--accent);
-  color: var(--accent-text);
-  border: 1px solid var(--accent);
-  border-radius: 6px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  border: 1px solid var(--accent-line);
+  border-radius: 5px;
   padding: 5px 12px;
+  font-weight: 600;
   cursor: pointer;
 }
+button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-hover); }
+button.ghost:hover:not(:disabled) { border-color: var(--hover-line); color: var(--text); }
+button.danger:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input[type=checkbox], input[type=radio] { accent-color: var(--accent); }
 button.ghost { background: transparent; color: var(--text); border-color: var(--border); }
 button.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
 button:disabled { opacity: 0.5; cursor: default; }
 button.small { padding: 3px 8px; font-size: 12px; }
 
 input, select {
-  background: var(--panel);
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 5px 8px;
@@ -112,7 +104,7 @@ summary { cursor: pointer; color: var(--muted); margin-bottom: 8px; }
 .sidebar {
   width: 280px;
   border-right: 1px solid var(--border);
-  background: var(--panel);
+  background: var(--sidebar);
   display: flex;
   flex-direction: column;
   padding: 12px;
@@ -131,7 +123,7 @@ summary { cursor: pointer; color: var(--muted); margin-bottom: 8px; }
   cursor: pointer;
 }
 .filter-list li:hover { background: var(--selected); }
-.filter-list li.selected { background: var(--selected); font-weight: 600; }
+.filter-list li.selected { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
 .filter-list li.disabled .name { color: var(--muted); text-decoration: line-through; }
 .filter-list .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .filter-list .order { display: none; gap: 2px; }
@@ -200,7 +192,7 @@ li.CodeMirror-hint-active { background: var(--accent); color: var(--accent-text)
   max-width: 80vw;
   z-index: 100;
 }
-.toast.error { background: var(--danger); color: #fff; }
+.toast.error { background: var(--danger); color: var(--bg); }
 
 /* ---------- outline ---------- */
 .outline-head { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
@@ -293,7 +285,7 @@ label.inline { flex-direction: row; align-items: center; gap: 6px; margin: 0; }
 .tpl-main { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .tpl-form h3 { margin: 0; font-size: 15px; }
 .tpl-form textarea, .tpl-form input:not([type=checkbox]), .tpl-form select { width: 100%; }
-.tpl-form textarea { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font: inherit; }
+.tpl-form textarea { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font: inherit; }
 .field { display: block; }
 .plan .warn, .warn { color: var(--tag); }
 
