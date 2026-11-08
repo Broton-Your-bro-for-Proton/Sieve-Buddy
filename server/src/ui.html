@@ -5,18 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sieve-Dienst</title>
   <style>
-    :root { --bg:#f6f5fb; --panel:#fff; --text:#1c1b22; --muted:#6b6880; --border:#dcd9e8; --accent:#6d4aff; --ok:#1a7f4b; --bad:#d6334a; color-scheme: light; }
-    @media (prefers-color-scheme: dark) { :root { --bg:#17161d; --panel:#201f28; --text:#ecebf3; --muted:#9c99ad; --border:#35333f; --accent:#8b6dff; --ok:#6fd69f; --bad:#ff6b81; color-scheme: dark; } }
+    :root { --bg:#0f1217; --panel:#191e25; --text:#f2f5f9; --muted:#b2bfce; --border:#303842; --accent:#b49a64; --accent-bg:#2b2419; --accent-line:#78643e; --accent-hover:#dfd0a3; --ok:#91d7c8; --bad:#f1afba; color-scheme: dark; }
     * { box-sizing: border-box; }
     [hidden] { display: none !important; }
-    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
     main { width: min(560px, calc(100% - 32px)); margin: 40px auto; display: flex; flex-direction: column; gap: 16px; }
-    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 18px 20px; }
     h1 { font-size: 20px; margin: 0; } h2 { font-size: 15px; margin: 0 0 10px; }
     label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 14px; }
-    input { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; }
-    button { font: inherit; background: var(--accent); color: #fff; border: 1px solid var(--accent); border-radius: 6px; padding: 7px 14px; cursor: pointer; }
+    input { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; }
+    button { font: inherit; font-weight: 600; background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent-line); border-radius: 5px; padding: 7px 14px; cursor: pointer; }
     button.ghost { background: transparent; color: var(--text); border-color: var(--border); }
+    button:hover { border-color: var(--accent); color: var(--accent-hover); } button.ghost:hover { color: var(--text); }
+    h1 { color: var(--accent); }
     .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .muted { color: var(--muted); font-size: 13px; }
     .ok { color: var(--ok); } .bad { color: var(--bad); }
