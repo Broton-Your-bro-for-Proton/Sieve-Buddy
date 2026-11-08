@@ -173,6 +173,8 @@ export class Account {
       await this.client.listLabels(LABEL_TYPE.FOLDER);
     } catch (error) {
       this.client.session = previous;
+      // a refresh during the check may already have stored the rejected session
+      await this.store.save(previous ?? null).catch(() => {});
       throw new Error(t('Die Sitzung wurde von Proton nicht angenommen: {message}', { message: error.message }));
     }
     await this.store.save(this.client.session);

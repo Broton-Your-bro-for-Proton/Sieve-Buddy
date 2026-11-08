@@ -79,8 +79,9 @@ export class ServiceClient {
     return { ID: created.id, Name };
   }
 
-  async updateFilter(id, { Name, Sieve, Status }) {
-    const r = await this.op('update-filter', { id, name: Name, sieve: Sieve, enabled: Status === undefined ? undefined : Status === 1 });
+  /** `expected`: the service saves only if the script still has this text (its cache may be older). */
+  async updateFilter(id, { Name, Sieve, Status }, expected) {
+    const r = await this.op('update-filter', { id, name: Name, sieve: Sieve, enabled: Status === undefined ? undefined : Status === 1, expectedSieve: expected });
     return { ID: r.id, Name: r.name };
   }
 

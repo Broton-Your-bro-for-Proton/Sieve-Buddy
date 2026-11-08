@@ -39,87 +39,96 @@ const section = z
   .union([z.string(), z.object({ new: z.string() })])
   .optional()
   .describe(
-    t('Abschnitt im Zielskript für einen neuen Block (Abschnitte = Kommentar-Überschriften, siehe list_filters): "auto" (passender Abschnitt, Standard), "end" (Ende der Datei), ein Abschnittstitel oder {new: "Titel"} für einen neuen Abschnitt'),
-  );
+  t('Abschnitt im Zielskript für einen neuen Block (Abschnitte = Kommentar-Überschriften, siehe list_filters): "auto" (passender Abschnitt, Standard), "end" (Ende der Datei), ein Abschnittstitel oder {new: "Titel"} für einen neuen Abschnitt'),
+);
 
 const json = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }], structuredContent: value });
 
+const read = { readOnlyHint: true, openWorldHint: true };
+const write = { readOnlyHint: false, destructiveHint: false, openWorldHint: true };
+
+/** name → {description, input (zod shape), run, annotations}; the REST API uses the same table. */
+export const TOOLS = new Map();
+const tool = (name, description, input, run, annotations = {}) => TOOLS.set(name, { description, input, run, annotations });
+
+tool('sieve_status', t('Status des Sieve-Dienstes: Anbieter (proton/managesieve/jmap), angemeldet, Schreibzugriff, Fähigkeiten.'), {}, ops.status, read);
+tool('sieve_capabilities', t('Fähigkeiten des Servers: unterstützte Sieve-Erweiterungen, mehrere aktive Filter?, Reihenfolge?, Labels?'), {}, ops.capabilities, read);
+tool('list_filters', t('Alle Sieve-Filter (Proton) bzw. Skripte (ManageSieve) in Ausführungsreihenfolge, mit ihren Abschnitten (Kommentar-Überschriften); bei ManageSieve läuft nur das aktive.'), { includeSieve: z.boolean().optional() }, ops.listFilters, read);
+tool('get_filter', t('Einen Filter mit vollständigem Sieve-Skript und lokalen Prüfhinweisen.'), { id: z.string() }, ops.getFilter, read);
+tool('list_folders', t('Ordner und Labels des Kontos (gültige Ziele für fileinto).'), {}, ops.listFolders, read);
+tool('lint_sieve', t('Prüft ein Sieve-Skript lokal gegen den Dialekt des Servers; liefert ggf. ein Skript mit ergänztem require.'), { sieve: z.string() }, ops.lintSieve, read);
+tool('check_sieve', t('Lässt den Server selbst prüfen, ob er das Skript annehmen würde.'), { sieve: z.string() }, ops.checkSieve, read);
+tool('format_sieve', t('Rückt ein Sieve-Skript einheitlich ein (Spam-Schutz bleibt unverändert).'), { sieve: z.string() }, ops.formatSieve, { readOnlyHint: true });
+tool(
+  'simulate_message',
+  t('Zeigt, wo eine Mail mit den aktuellen Filtern landen würde und welche Regeln greifen. Optional mit geänderten Skripten (overrides).'),
+  {
+    headers,
+    size: z.number().optional().describe(t('Größe in Bytes')),
+    spamScore: z.number().optional(),
+    overrides: z.array(z.object({ id: z.string(), sieve: z.string() })).optional(),
+  },
+  ops.simulateMessage,
+  read,
+);
+tool('suggest_rule', t('Schlägt passende Bedingungen für eine Regel aus den Headern einer Mail vor (Liste, Absender, Domain, Betreff …).'), { headers }, ops.suggestRule, { readOnlyHint: true });
+tool(
+  'plan_rule',
+  t('Plant eine Regel, ohne zu speichern: findet die beste Stelle (in bestehende Liste einreihen, anyof erweitern oder neuer Block), liefert Diff, Konflikte und – mit headers – das simulierte Ergebnis.'),
+  { rule, target, section, newName: z.string().optional(), headers: headers.optional(), size: z.number().optional() },
+  ops.planRule,
+  read,
+);
+tool(
+  'apply_rule',
+  t('Wie plan_rule, speichert das Ergebnis aber auf dem Server (nach dessen eigener Prüfung).'),
+  { rule, target, section, newName: z.string().optional(), headers: headers.optional(), size: z.number().optional() },
+  ops.applyRule,
+  write,
+);
+tool('list_templates', t('Katalog der Regel-Vorlagen mit ihren Parametern.'), {}, ops.listTemplates, { readOnlyHint: true });
+tool(
+  'plan_template',
+  t('Baut eine Vorlage mit Parametern und plant sie wie plan_rule (ohne zu speichern).'),
+  { templateId: z.string(), params: z.record(z.string(), z.any()).optional(), target, section, newName: z.string().optional() },
+  ops.buildTemplate,
+  read,
+);
+tool(
+  'apply_template',
+  t('Wie plan_template, speichert das Ergebnis aber auf dem Server.'),
+  { templateId: z.string(), params: z.record(z.string(), z.any()).optional(), target, section, newName: z.string().optional() },
+  ops.applyTemplate,
+  write,
+);
+tool('create_filter', t('Legt einen neuen Filter/ein neues Skript an (nach Prüfung durch den Server). Bei ManageSieve/JMAP wird es nur mit enabled=true aktiv (oder wenn noch kein Skript aktiv ist) – und ersetzt dann das bisher aktive.'), { name: z.string(), sieve: z.string(), enabled: z.boolean().optional() }, ops.createFilter, write);
+tool(
+  'update_filter',
+  t('Ändert Name, Sieve-Skript oder Status eines Filters. Liefert den Diff.'),
+  {
+    id: z.string(),
+    name: z.string().optional(),
+    sieve: z.string().optional(),
+    enabled: z.boolean().optional(),
+    expectedSieve: z.string().optional().describe(t('nur speichern, wenn das Skript noch genau diesen Text hat (Schutz vor gleichzeitigen Änderungen)')),
+  },
+  ops.updateFilter,
+  write,
+);
+tool('set_filter_enabled', t('Aktiviert oder deaktiviert einen Filter (ManageSieve: aktiviert genau dieses Skript).'), { id: z.string(), enabled: z.boolean() }, ops.setFilterEnabled, write);
+tool('reorder_filters', t('Setzt die Ausführungsreihenfolge der Filter (nur Proton; vollständige Liste der IDs).'), { ids: z.array(z.string()) }, ops.reorderFilters, write);
+tool('delete_filter', t('Löscht einen Filter endgültig.'), { id: z.string() }, ops.deleteFilter, { ...write, destructiveHint: true });
+
 export function createMcpServer(account) {
   const server = new McpServer({ name: 'sieve', version: '0.4.0' });
-
-  const tool = (name, description, inputSchema, run, annotations = {}) =>
-    server.registerTool(name, { description, inputSchema, annotations }, async (args) => {
+  for (const [name, { description, input, run, annotations }] of TOOLS) {
+    server.registerTool(name, { description, inputSchema: input, annotations }, async (args) => {
       try {
         return json(await run(account, args ?? {}));
       } catch (error) {
         return { isError: true, content: [{ type: 'text', text: error.message }] };
       }
     });
-
-  const read = { readOnlyHint: true, openWorldHint: true };
-  const write = { readOnlyHint: false, destructiveHint: false, openWorldHint: true };
-
-  tool('sieve_status', t('Status des Sieve-Dienstes: Anbieter (proton/managesieve/jmap), angemeldet, Schreibzugriff, Fähigkeiten.'), {}, ops.status, read);
-  tool('sieve_capabilities', t('Fähigkeiten des Servers: unterstützte Sieve-Erweiterungen, mehrere aktive Filter?, Reihenfolge?, Labels?'), {}, ops.capabilities, read);
-  tool('list_filters', t('Alle Sieve-Filter (Proton) bzw. Skripte (ManageSieve) in Ausführungsreihenfolge, mit ihren Abschnitten (Kommentar-Überschriften); bei ManageSieve läuft nur das aktive.'), { includeSieve: z.boolean().optional() }, ops.listFilters, read);
-  tool('get_filter', t('Einen Filter mit vollständigem Sieve-Skript und lokalen Prüfhinweisen.'), { id: z.string() }, ops.getFilter, read);
-  tool('list_folders', t('Ordner und Labels des Kontos (gültige Ziele für fileinto).'), {}, ops.listFolders, read);
-  tool('lint_sieve', t('Prüft ein Sieve-Skript lokal gegen den Dialekt des Servers; liefert ggf. ein Skript mit ergänztem require.'), { sieve: z.string() }, ops.lintSieve, read);
-  tool('check_sieve', t('Lässt den Server selbst prüfen, ob er das Skript annehmen würde.'), { sieve: z.string() }, ops.checkSieve, read);
-  tool('format_sieve', t('Rückt ein Sieve-Skript einheitlich ein (Spam-Schutz bleibt unverändert).'), { sieve: z.string() }, ops.formatSieve, { readOnlyHint: true });
-  tool(
-    'simulate_message',
-    t('Zeigt, wo eine Mail mit den aktuellen Filtern landen würde und welche Regeln greifen. Optional mit geänderten Skripten (overrides).'),
-    {
-      headers,
-      size: z.number().optional().describe(t('Größe in Bytes')),
-      spamScore: z.number().optional(),
-      overrides: z.array(z.object({ id: z.string(), sieve: z.string() })).optional(),
-    },
-    ops.simulateMessage,
-    read,
-  );
-  tool('suggest_rule', t('Schlägt passende Bedingungen für eine Regel aus den Headern einer Mail vor (Liste, Absender, Domain, Betreff …).'), { headers }, ops.suggestRule, { readOnlyHint: true });
-  tool(
-    'plan_rule',
-    t('Plant eine Regel, ohne zu speichern: findet die beste Stelle (in bestehende Liste einreihen, anyof erweitern oder neuer Block), liefert Diff, Konflikte und – mit headers – das simulierte Ergebnis.'),
-    { rule, target, section, newName: z.string().optional(), headers: headers.optional(), size: z.number().optional() },
-    ops.planRule,
-    read,
-  );
-  tool(
-    'apply_rule',
-    t('Wie plan_rule, speichert das Ergebnis aber auf dem Server (nach dessen eigener Prüfung).'),
-    { rule, target, section, newName: z.string().optional(), headers: headers.optional(), size: z.number().optional() },
-    ops.applyRule,
-    write,
-  );
-  tool('list_templates', t('Katalog der Regel-Vorlagen mit ihren Parametern.'), {}, ops.listTemplates, { readOnlyHint: true });
-  tool(
-    'plan_template',
-    t('Baut eine Vorlage mit Parametern und plant sie wie plan_rule (ohne zu speichern).'),
-    { templateId: z.string(), params: z.record(z.string(), z.any()).optional(), target, section, newName: z.string().optional() },
-    ops.buildTemplate,
-    read,
-  );
-  tool(
-    'apply_template',
-    t('Wie plan_template, speichert das Ergebnis aber auf dem Server.'),
-    { templateId: z.string(), params: z.record(z.string(), z.any()).optional(), target, section, newName: z.string().optional() },
-    ops.applyTemplate,
-    write,
-  );
-  tool('create_filter', t('Legt einen neuen Filter/ein neues Skript an (nach Prüfung durch den Server). Bei ManageSieve wird es nur mit enabled=true aktiv – und ersetzt dann das bisher aktive.'), { name: z.string(), sieve: z.string(), enabled: z.boolean().optional() }, ops.createFilter, write);
-  tool(
-    'update_filter',
-    t('Ändert Name, Sieve-Skript oder Status eines Filters. Liefert den Diff.'),
-    { id: z.string(), name: z.string().optional(), sieve: z.string().optional(), enabled: z.boolean().optional() },
-    ops.updateFilter,
-    write,
-  );
-  tool('set_filter_enabled', t('Aktiviert oder deaktiviert einen Filter (ManageSieve: aktiviert genau dieses Skript).'), { id: z.string(), enabled: z.boolean() }, ops.setFilterEnabled, write);
-  tool('reorder_filters', t('Setzt die Ausführungsreihenfolge der Filter (nur Proton; vollständige Liste der IDs).'), { ids: z.array(z.string()) }, ops.reorderFilters, write);
-  tool('delete_filter', t('Löscht einen Filter endgültig.'), { id: z.string() }, ops.deleteFilter, { ...write, destructiveHint: true });
-
+  }
   return server;
 }

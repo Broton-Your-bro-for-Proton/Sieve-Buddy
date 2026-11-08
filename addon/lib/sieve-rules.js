@@ -3,7 +3,7 @@
 
 import { t } from './i18n.js';
 import { fixRequire } from './sieve-analyzer.js';
-import { applyPatches, lineOf, parseSieve, quoteSieve, walkCommands } from './sieve-ast.js';
+import { applyPatches, lineOf, parseSieve, quoteSieve, sameLineEndings, walkCommands } from './sieve-ast.js';
 
 /**
  * Condition: {kind: 'address', header: 'from', part: 'all'|'domain'|'localpart', match: 'is'|'contains'|'matches', value}
@@ -114,7 +114,13 @@ const keyCovered = (desc, value) => desc.keys.some((k) => k.toLowerCase() === va
 
 // ---------- Generate code ----------
 
+const MATCHES = ['is', 'contains', 'matches'];
+const PARTS = ['all', 'domain', 'localpart'];
+
 export function conditionToSieve(c) {
+  // these go into the code unquoted: only known words, never free text
+  if (!MATCHES.includes(c.match ?? 'is')) throw new Error(t('Unbekannter Vergleich „{value}“', { value: c.match }));
+  if (!PARTS.includes(c.part ?? 'all')) throw new Error(t('Unbekannter Adressteil „{value}“', { value: c.part }));
   const match = `:${c.match ?? 'is'}`;
   switch (c.kind) {
     case 'address':
@@ -124,7 +130,7 @@ export function conditionToSieve(c) {
     case 'exists':
       return `exists ${quoteSieve(c.header)}`;
     default:
-      throw new Error(`Unbekannte Bedingung ${c.kind}`);
+      throw new Error(t('Unbekannte Bedingung „{value}“', { value: c.kind }));
   }
 }
 
@@ -134,6 +140,7 @@ export function actionsToSieve(actions, indent = '    ') {
   // Proton applies flags when fileinto runs, so they go first
   if (a.seen) lines.push('addflag "\\\\Seen";');
   if (a.flagged) lines.push('addflag "\\\\Flagged";');
+  if (a.expireDays !== null && !(Number.isInteger(a.expireDays) && a.expireDays > 0)) throw new Error(t('Ungültige Anzahl Tage „{value}“', { value: actions.expireDays }));
   if (a.expireDays) lines.push(`expire "day" "${a.expireDays}";`);
   if (a.fileinto) lines.push(`fileinto ${quoteSieve(a.fileinto)};`);
   if (a.stop) lines.push('stop;');
@@ -156,6 +163,7 @@ function groupConditions(conditions) {
 }
 
 export function ruleToSieve({ conditions, combine = 'anyof', actions }) {
+  if (combine !== 'anyof' && combine !== 'allof') throw new Error(t('Unbekannte Verknüpfung „{value}“', { value: combine }));
   const tests = combine === 'allof' ? conditions.map(conditionToSieve) : groupConditions(conditions);
   const test = tests.length === 1 ? tests[0] : `${combine}(\n    ${tests.join(',\n    ')}\n)`;
   return `if ${test} {\n${actionsToSieve(actions)}\n}`;
@@ -231,12 +239,17 @@ export function proposeRule(scripts, rule) {
         score,
         description,
         line: lineOf(text, node.start),
-        sieve: fixRequire(applyPatches(text, [patch])),
+        sieve: sameLineEndings(text, fixRequire(applyPatches(text, [patch]))),
       });
     };
 
-    for (const { command } of walkCommands(ast.commands)) {
+    for (const { command, depth } of walkCommands(ast.commands)) {
       if (!['if', 'elsif'].includes(command.name) || !command.test || !command.block) continue;
+      // only a top-level if decides on its own: inside another block or as elsif the new value
+      // would also depend on the conditions around it
+      // fileinto :copy keeps the mail in the inbox too, :flags sets other flags: not the plain action
+      const tagged = command.block.commands.some((c) => c.args.some((a) => a.type === 'tag' && (a.value === ':copy' || a.value === ':flags')));
+      const mergeable = depth === 0 && command.name === 'if' && !tagged;
       const actions = describeActions(command.block);
       const topTests = command.test.name === 'anyof' ? command.test.tests : [command.test];
       const descs = topTests.map(describeTest);
@@ -252,7 +265,7 @@ export function proposeRule(scripts, rule) {
         }
       }
 
-      if (!single || !actions || !sameActions(actions, rule.actions) || command.test.name === 'allof' || command.test.name === 'not') continue;
+      if (!mergeable || !single || !actions || !sameActions(actions, rule.actions) || command.test.name === 'allof' || command.test.name === 'not') continue;
 
       const target = descs.find((d) => d && sameForm(d, single));
       if (target) {
@@ -309,7 +322,7 @@ export function insertBlock(sieve, code, at = null, heading = '') {
   const raw = `${before}${head}${code}${at ? sieve.slice(at.offset) : '\n'}`;
   const fixed = fixRequire(raw);
   // fixRequire only changes the require at the top, so everything after it moves by the same amount
-  return { sieve: fixed, line: lineOf(fixed, before.length + head.length + fixed.length - raw.length) };
+  return { sieve: sameLineEndings(sieve, fixed), line: lineOf(fixed, before.length + head.length + fixed.length - raw.length) };
 }
 
 export const insertBlockAt = (sieve, code, at = null, heading = '') => insertBlock(sieve, code, at, heading).sieve;
@@ -371,7 +384,7 @@ export function insertRuleBefore(sieve, line, rule, { stop = false } = {}) {
   const indent = indentOf(sieve, command.start);
   const placed = stop ? { ...rule, actions: { ...rule.actions, stop: true } } : rule;
   const block = ruleToSieve(placed).replace(/\n/g, `\n${indent}`);
-  return fixRequire(`${sieve.slice(0, command.start)}${block}\n\n${indent}${sieve.slice(command.start)}`);
+  return sameLineEndings(sieve, fixRequire(`${sieve.slice(0, command.start)}${block}\n\n${indent}${sieve.slice(command.start)}`));
 }
 
 /** Whether a simulation result shows the rule's actions took effect. */

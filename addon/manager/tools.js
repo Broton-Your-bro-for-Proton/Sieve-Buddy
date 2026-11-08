@@ -96,7 +96,7 @@ export function installTools(editor, state) {
       const stale = () => editor.getValue().slice(u.start, u.end) !== text.slice(u.start, u.end) && (renderOutline(), true);
       const move = (delta) => {
         if (stale()) return;
-        const next = moveRule(editor.getValue(), u.line, delta);
+        const next = moveRule(editor.getValue(), u.line, delta, u.nth);
         if (next === editor.getValue()) return;
         const moved = ruleUnits(next).find((x) => x.type === 'rule' && next.slice(x.start, x.end) === text.slice(u.start, u.end));
         replaceText(next, moved?.line);
@@ -114,7 +114,7 @@ export function installTools(editor, state) {
           button('✕', t('Regel löschen'), () => {
             if (stale()) return;
             if (!confirm(t('Regel in Zeile {line} löschen?\n\n{rule}', { line: u.line, rule: `${c.name} ${test}` }))) return;
-            replaceText(deleteRule(editor.getValue(), u.line));
+            replaceText(deleteRule(editor.getValue(), u.line, u.nth));
             toast(t('Regel gelöscht – zum Übernehmen speichern (Strg+Z macht es rückgängig)'));
           }),
         ),

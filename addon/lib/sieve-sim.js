@@ -64,7 +64,8 @@ export function simulate(scripts, message, options = {}) {
       runCommands(ast.commands, ctx);
     } catch (e) {
       if (e instanceof Stop) stopped = true;
-      else if (!(e instanceof Return)) throw e;
+      // one broken script must not take the whole simulation down
+      else if (!(e instanceof Return)) state.notes.push(t('Filter „{name}“ konnte nicht simuliert werden: {message}', { name: script.name, message: e.message }));
     }
     if (rfc) {
       if (state.rejected || stopped) {

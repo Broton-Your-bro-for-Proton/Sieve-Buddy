@@ -79,7 +79,8 @@ export function tokenize(text) {
         i = text.length;
       } else {
         const bodyEnd = bodyStart - 1 + endMatch.index;
-        tokens.push({ type: 'string', value: text.slice(bodyStart, bodyEnd), start, end: bodyEnd + endMatch[0].length });
+        // dot-stuffing (RFC 5228 2.4.2): a line starting with ".." stands for one "."
+        tokens.push({ type: 'string', value: text.slice(bodyStart, bodyEnd).replace(/^\.\./gm, '.'), start, end: bodyEnd + endMatch[0].length });
         i = bodyEnd + endMatch[0].length;
       }
     } else if (c === ':' && /[a-zA-Z_]/.test(text[i + 1] ?? '')) {
@@ -164,7 +165,9 @@ function analyze(tokens, dialect = PROTON_DIALECT) {
     }
 
     if (firstVisit && tk.type === 'string') {
-      if (tk.value.includes('${')) need('variables', tk);
+      // ${hex:41} and ${unicode:41} belong to encoded-character, not to variables
+      if (/\$\{(?!hex:|unicode:)/i.test(tk.value)) need('variables', tk);
+      if (/\$\{(hex|unicode):/i.test(tk.value)) need('encoded-character', tk);
       if (tk.value === 'i;ascii-numeric' && tokens[i - 1]?.value === ':comparator') need('comparator-i;ascii-numeric', tk);
     }
 

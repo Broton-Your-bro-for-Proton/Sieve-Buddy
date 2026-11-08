@@ -111,7 +111,13 @@ export class ManageSieveProvider {
     return this.#with(async (conn) => {
       const current = (await conn.listScripts()).find((s) => s.name === id);
       if (current?.active) await conn.setActive(''); // an active script cannot be deleted
-      await conn.deleteScript(id);
+      try {
+        await conn.deleteScript(id);
+      } catch (error) {
+        // the delete failed: the script must not stay switched off
+        if (current?.active) await conn.setActive(id).catch(() => {});
+        throw error;
+      }
     });
   }
 

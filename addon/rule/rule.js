@@ -278,9 +278,12 @@ async function applyPlan() {
   const issues = await state.client.checkSieve(plan.sieve);
   if (issues.length) throw new Error(t('Proton lehnt das Skript ab: {issues}', { issues: issues.map((i) => i.message).join('; ') }));
   if (plan.targetId) {
-    const filter = state.filters.find((f) => f.ID === plan.targetId);
+    // the plan is based on the state when the window opened: never overwrite a change made since then
+    const filter = await state.client.getFilter(plan.targetId);
+    if (filter?.Sieve !== plan.before) throw new Error(t('Der Filter wurde inzwischen geändert – bitte neu planen'));
     await pushHistory(filter.ID, filter.Name, filter.Sieve);
-    await state.client.updateFilter(filter.ID, { Name: filter.Name, Sieve: plan.sieve, Status: filter.Status });
+    // through the service its own fresh copy is compared once more (Proton's client ignores the extra argument)
+    await state.client.updateFilter(filter.ID, { Name: filter.Name, Sieve: plan.sieve, Status: filter.Status }, plan.before);
   } else {
     // with a single active script (ManageSieve) a new one must not silently replace the active one
     const caps = capabilitiesOf(state.client);

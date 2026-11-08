@@ -174,7 +174,10 @@ function planningScripts(data) {
   return data.scripts.filter((s) => s.enabled);
 }
 
-export async function planRule(account, { rule, target = 'auto', newName, section = 'auto', category, headers, size }) {
+export const planRule = async (account, args) => (await planRuleWithBase(account, args)).planned;
+
+/** The plan plus the script text it was made from, so a save can tell whether the script changed since. */
+async function planRuleWithBase(account, { rule, target = 'auto', newName, section = 'auto', category, headers, size }) {
   const data = await account.data();
   assertFolderExists(data, rule.actions?.fileinto);
   const scripts = planningScripts(data);
@@ -198,17 +201,22 @@ export async function planRule(account, { rule, target = 'auto', newName, sectio
     );
     json.activate = !scripts.length;
   }
-  return { description: describeRule(rule), ...json };
+  return { planned: { description: describeRule(rule), ...json }, before: result.plan.before };
 }
 
-export async function buildTemplate(account, { templateId, params = {}, target = 'auto', newName, section = 'auto' }) {
+export const buildTemplate = async (account, args) => (await buildTemplateWithBase(account, args)).planned;
+
+async function buildTemplateWithBase(account, { templateId, params = {}, target = 'auto', newName, section = 'auto' }) {
   const data = await account.data();
   const template = templatesFor(data.dialect).find((t) => t.id === templateId);
   if (!template) throw new Error(t('Vorlage {templateId} nicht gefunden – siehe list_templates', { templateId }));
   const merged = { ...templateDefaults(template), ...params };
   if (!data.dialect.proton) delete merged.expireDays;
   const built = buildTemplateCore(template, merged);
-  if (built.rule) return { rule: built.rule, ...(await planRule(account, { rule: built.rule, target, newName, section, category: template.category })) };
+  if (built.rule) {
+    const { planned, before } = await planRuleWithBase(account, { rule: built.rule, target, newName, section, category: template.category });
+    return { planned: { rule: built.rule, ...planned }, before };
+  }
   if (template.params.some((p) => p.type === 'folder')) assertFolderExists(data, merged.folder);
 
   // finished snippets are appended to the chosen (or first runnable) script, or become a new one
@@ -218,7 +226,7 @@ export async function buildTemplate(account, { templateId, params = {}, target =
   const base = script ? before : newScript('', data.dialect);
   const placed = resolveSection(base, section, { actions: {} }, { category: template.category });
   const sieve = insertBlockAt(base, built.code, placed.at, placed.heading);
-  return {
+  const planned = {
     target: script ? { id: script.id, name: script.name } : { id: null, name: newName || template.name, newFilter: true },
     section: placed.heading ? { title: placed.heading, new: true } : placed.section ? { title: placed.section.title, line: placed.section.line } : null,
     steps: [{ kind: 'new-block' }],
@@ -230,18 +238,22 @@ export async function buildTemplate(account, { templateId, params = {}, target =
     sieve,
     activate: !script && !data.capabilities.multipleActive && !runnable.length,
   };
+  return { planned, before };
 }
 
 // ---------- write ----------
 
-async function savePlanned(account, planned) {
+async function savePlanned(account, { planned, before }) {
   if (planned.errors.length) throw new Error(t('Das Skript hat Fehler: {list}', { list: planned.errors.map((e) => t('Zeile {line}: {message}', { line: e.line, message: e.message })).join('; ') }));
   if (planned.diff.added === 0 && planned.diff.removed === 0) return { saved: false, reason: t('Keine Änderung nötig – die Regel ist schon vorhanden'), ...planned };
   return account.write(async () => {
     await account.checkOrThrow(planned.sieve);
     if (planned.target.id) {
       const data = await account.data({ fresh: true });
-      if (!data.scripts.some((s) => s.id === planned.target.id)) throw new Error(t('Der Zielfilter existiert nicht mehr'));
+      const current = data.scripts.find((s) => s.id === planned.target.id);
+      if (!current) throw new Error(t('Der Zielfilter existiert nicht mehr'));
+      // someone else may have changed the script since it was read: never overwrite that
+      if (current.sieve !== before) throw new Error(t('Der Filter wurde inzwischen geändert – bitte neu planen'));
       await account.provider.updateScript(planned.target.id, { sieve: planned.sieve });
       return { saved: true, ...planned };
     }
@@ -256,28 +268,36 @@ async function savePlanned(account, planned) {
   });
 }
 
+// a write plans on fresh data: the cache may be up to 30 s old
 export async function applyRule(account, args) {
   account.requireWrite();
-  return savePlanned(account, await planRule(account, args));
+  await account.data({ fresh: true });
+  return savePlanned(account, await planRuleWithBase(account, args));
 }
 
 export async function applyTemplate(account, args) {
   account.requireWrite();
-  return savePlanned(account, await buildTemplate(account, args));
+  await account.data({ fresh: true });
+  return savePlanned(account, await buildTemplateWithBase(account, args));
 }
 
-export async function createFilter(account, { name, sieve, enabled = true }) {
+export async function createFilter(account, { name, sieve, enabled }) {
   return account.write(async () => {
     await account.checkOrThrow(sieve);
-    return account.provider.createScript({ name, sieve, enabled });
+    // with a single active script a new one only replaces it when asked to, or when none is active yet
+    const on = enabled ?? (account.provider.capabilities.multipleActive || !(await account.data({ fresh: true })).scripts.some((s) => s.enabled));
+    const created = await account.provider.createScript({ name, sieve, enabled: on });
+    return { ...created, enabled: created?.enabled ?? on };
   });
 }
 
-export async function updateFilter(account, { id, name, sieve, enabled }) {
+/** `expectedSieve`: save only if the script still has this text (it was planned on it). */
+export async function updateFilter(account, { id, name, sieve, enabled, expectedSieve }) {
   return account.write(async () => {
     const data = await account.data({ fresh: true });
     const current = data.scripts.find((s) => s.id === id);
     if (!current) throw new Error(t('Filter/Skript {id} nicht gefunden', { id }));
+    if (expectedSieve !== undefined && current.sieve !== expectedSieve) throw new Error(t('Der Filter wurde inzwischen geändert – bitte neu planen'));
     if (sieve !== undefined) await account.checkOrThrow(sieve);
     const result = await account.provider.updateScript(id, { name, sieve, enabled });
     return { id: result?.id ?? id, name: name ?? current.name, enabled: enabled ?? current.enabled, diff: unifiedDiff(current.sieve, sieve ?? current.sieve) };

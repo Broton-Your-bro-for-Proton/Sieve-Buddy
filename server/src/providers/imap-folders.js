@@ -16,7 +16,9 @@ export function decodeModifiedUtf7(name) {
   });
 }
 
+// only for printable ASCII: anything else goes as a literal (see login below)
 const quote = (s) => `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+const plain = (s) => /^[\x20-\x7e]*$/.test(s);
 
 /**
  * @param {{host: string, port?: number, tls?: 'tls'|'starttls'|'none', user: string, password: string, rejectUnauthorized?: boolean, timeoutMs?: number}} o
@@ -61,14 +63,22 @@ export async function listImapFolders({ host, port, tls: mode = 'tls', user, pas
     });
 
   let tagNo = 0;
-  const run = async (command) => {
+  // `literals` are sent one by one, each after the server's "+" continuation (synchronizing literals)
+  const run = async (command, literals = []) => {
     const tag = `a${++tagNo}`;
     const start = buffer.length;
-    socket.write(`${tag} ${command}\r\n`);
-    const done = await until((b) => {
+    const tagged = (b) => {
       const m = new RegExp(`(^|\\r\\n)${tag} (OK|NO|BAD)([^\\r\\n]*)\\r\\n`).exec(b.slice(start));
       return m ? { status: m[2], text: m[3].trim(), body: b.slice(start, start + m.index) } : null;
-    });
+    };
+    socket.write(`${tag} ${command}\r\n`);
+    for (const part of literals) {
+      const from = buffer.length;
+      await until((b) => tagged(b) || /(^|\r\n)\+[^\r\n]*\r\n/.test(b.slice(from)));
+      if (tagged(buffer)) break;
+      socket.write(part);
+    }
+    const done = await until(tagged);
     if (done.status !== 'OK') throw new Error(`IMAP ${command.split(' ')[0]}: ${done.text}`);
     return done.body;
   };
@@ -85,7 +95,9 @@ export async function listImapFolders({ host, port, tls: mode = 'tls', user, pas
       buffer = '';
       socket.on('data', onData);
     }
-    await run(`LOGIN ${quote(user)} ${quote(password)}`);
+    if (plain(user) && plain(password)) await run(`LOGIN ${quote(user)} ${quote(password)}`);
+    // umlauts or control characters are not allowed in a quoted string
+    else await run(`LOGIN {${Buffer.byteLength(user)}}`, [`${user} {${Buffer.byteLength(password)}}\r\n`, `${password}\r\n`]);
     const body = await run('LIST "" "*"');
     const folders = [];
     const re = /^\* LIST \(([^)]*)\) (?:NIL|"(?:[^"\\]|\\.)*") (?:"((?:[^"\\]|\\.)*)"|\{(\d+)\}\r\n|(\S+))/gm;

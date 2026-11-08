@@ -107,7 +107,9 @@ export function findSections(text) {
   return heads.map((h, index) => {
     const end = heads[index + 1]?.start ?? text.length;
     const inside = chains.filter((c) => c.start >= h.headerEnd && c.start < end);
-    const rules = inside.filter((c) => c.rule).map((c) => ({ ...c, line: lineOf(text, c.start) }));
+    // a comment on the same line after "}" stays with its rule when a block is inserted after it
+    const tailEnd = (c) => c.end + (/^[ \t]*#[^\n]*/.exec(text.slice(c.end))?.[0].length ?? 0);
+    const rules = inside.filter((c) => c.rule).map((c) => ({ ...c, line: lineOf(text, c.start), tailEnd: tailEnd(c) }));
     // require or the spam guard right under a heading: new blocks go after them
     const setupEnd = Math.max(h.headerEnd, ...inside.filter((c) => !c.rule && (!rules.length || c.start < rules[0].start)).map((c) => c.end));
     return { index, title: h.title, line: h.line, start: h.start, headerEnd: h.headerEnd, setupEnd, end, rules };
@@ -155,7 +157,7 @@ export function chooseSection(sections, rule, hints = {}) {
  */
 export function sectionInsertPoint(section) {
   const last = section.rules.at(-1);
-  if (last) return { offset: last.end, sep: '\n\n' };
+  if (last) return { offset: last.tailEnd ?? last.end, sep: '\n\n' };
   return section.setupEnd > section.headerEnd ? { offset: section.setupEnd, sep: '\n\n' } : { offset: section.headerEnd, sep: '\n' };
 }
 
@@ -204,7 +206,9 @@ export function ruleUnits(text) {
     if (attached) start = attached.start;
     units.push({ type: 'rule', start, end, commands: c.commands, ruleStart: c.start });
   }
-  return units.sort((a, b) => a.start - b.start).map((u) => ({ ...u, line: lineOf(text, u.ruleStart ?? u.start) }));
+  const sorted = units.sort((a, b) => a.start - b.start).map((u) => ({ ...u, line: lineOf(text, u.ruleStart ?? u.start) }));
+  // several rules can start on one line: nth tells them apart
+  return sorted.map((u, i) => ({ ...u, nth: sorted.slice(0, i).filter((x) => x.type === u.type && x.line === u.line).length }));
 }
 
 /** Runs a text edit on LF line endings and gives the result back in the script's own line endings. */
@@ -213,16 +217,17 @@ const startsWithComment = (s) => commentText(s.split('\n')[0]) !== null;
 const endsWithComment = (s) => s.endsWith('\n') && !/\n[ \t]*\n$/.test(s) && commentText(s.slice(0, -1).split('\n').at(-1)) !== null;
 
 /**
- * Moves the rule starting at `line` one step up (-1) or down (+1). Passing a heading moves the rule into
- * the neighboring section. Returns the unchanged text when there is nothing to swap with.
+ * Moves the rule starting at `line` (the `nth` one there, see ruleUnits) one step up (-1) or down (+1).
+ * Passing a heading moves the rule into the neighboring section. Returns the unchanged text when there is
+ * nothing to swap with.
  */
-export function moveRule(text, line, delta) {
-  return withLf(text, (lf) => moveLf(lf, line, delta));
+export function moveRule(text, line, delta, nth = 0) {
+  return withLf(text, (lf) => moveLf(lf, line, delta, nth));
 }
 
-function moveLf(text, line, delta) {
+function moveLf(text, line, delta, nth) {
   const units = ruleUnits(text);
-  const i = units.findIndex((u) => u.type === 'rule' && u.line === line);
+  const i = units.findIndex((u) => u.type === 'rule' && u.line === line && u.nth === nth);
   if (i === -1) throw new Error(t('In Zeile {line} beginnt keine Regel', { line }));
   const j = i + delta;
   if (j < 0 || j >= units.length) return text;
@@ -243,15 +248,18 @@ function moveLf(text, line, delta) {
   return lead + bText + after + aText + (a.type === 'heading' ? gap(between, rest) : between) + rest;
 }
 
-/** Removes the rule starting at `line`, with the blank lines that separated it. */
-export function deleteRule(text, line) {
-  return withLf(text, (lf) => deleteLf(lf, line));
+/** Removes the rule starting at `line` (the `nth` one there), with the blank lines that separated it. */
+export function deleteRule(text, line, nth = 0) {
+  return withLf(text, (lf) => deleteLf(lf, line, nth));
 }
 
-function deleteLf(text, line) {
-  const unit = ruleUnits(text).find((u) => u.type === 'rule' && u.line === line);
+function deleteLf(text, line, nth) {
+  const unit = ruleUnits(text).find((u) => u.type === 'rule' && u.line === line && u.nth === nth);
   if (!unit) throw new Error(t('In Zeile {line} beginnt keine Regel', { line }));
   const before = text.slice(0, unit.start);
+  // other code on the same line: cut only the rule and the space next to it
+  if (before && !before.endsWith('\n')) return before.replace(/[ \t]+$/, '') + text.slice(unit.end);
+  if (unit.end < text.length && text[unit.end] !== '\n') return before + text.slice(unit.end).replace(/^[ \t]+/, '');
   const after = text.slice(text[unit.end] === '\n' ? unit.end + 1 : unit.end);
   // keep a single blank line between the neighbors
   return before === '' || before.endsWith('\n\n') ? before + after.replace(/^([ \t]*\n)+/, '') : before + after;

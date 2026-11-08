@@ -54,7 +54,7 @@ export class ProtonProvider {
       if (error.code !== TOO_MANY_ACTIVE_FILTERS) throw error;
       const added = (await this.client.listFilters()).find((f) => !before.has(f.ID) && f.Name === name);
       if (!added) throw error;
-      return { id: added.ID, name, enabled: false, warning: `Angelegt, aber deaktiviert: ${error.message}` };
+      return { id: added.ID, name, enabled: false, warning: t('Angelegt, aber deaktiviert: {message}', { message: error.message }) };
     }
   }
 
