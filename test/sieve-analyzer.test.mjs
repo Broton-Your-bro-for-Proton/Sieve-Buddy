@@ -64,6 +64,11 @@ test('Proton-specific warnings', () => {
   assert.match(out, /„X“ existiert in Proton nicht/);
 });
 
+test('Proton folder names match case-insensitively', () => {
+  const script = newScript('fileinto "Shops/eBay";').replace('"spamtest"]', '"spamtest", "fileinto"]');
+  assert.doesNotMatch(messages(lintSieve(script, { folders: ['Shops/Ebay'] })), /existiert/);
+});
+
 test('missing spam guard is a warning', () => {
   assert.match(messages(lintSieve('require "fileinto";\nfileinto "X";')), /Spam-Schutz-Block fehlt/);
 });

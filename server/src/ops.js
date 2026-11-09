@@ -149,7 +149,10 @@ function assertFolderExists(data, folder) {
   if (!folder || folder.includes('${') || !data.folders) return;
   const known = [...data.folders, ...data.labels];
   const system = data.dialect.proton ? ['inbox', 'archive', 'trash', 'spam', 'starred'] : ['inbox'];
-  if (known.includes(folder) || system.includes(folder.toLowerCase())) return;
+  const lower = folder.toLowerCase();
+  // Proton matches folder/label names case-insensitively ("eBay" files into "Ebay")
+  const exists = data.dialect.proton ? known.some((k) => k.toLowerCase() === lower) : known.includes(folder);
+  if (exists || system.includes(lower)) return;
   // two spellings of umlauts: "Einkaeufe" and "Einkaufe" should both find "Einkäufe"
   const clean = (s) => s.replace(/[^\p{L}\p{N}/.]/gu, '');
   const variants = (s) => {
