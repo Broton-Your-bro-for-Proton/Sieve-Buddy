@@ -24,6 +24,7 @@
   </main>
 
   <main id="form" class="rule-form" hidden>
+    <div class="rule-main">
     <section class="mail-summary">
       <div class="subject" id="mail-subject"></div>
       <div class="muted" id="mail-from"></div>
@@ -47,7 +48,8 @@
       <h2>… dann</h2>
       <div class="actions-grid">
         <label class="inline">Verschieben nach
-          <select id="folder"></select>
+          <input id="folder" list="folder-list" placeholder="(nicht verschieben)" autocomplete="off">
+          <datalist id="folder-list"></datalist>
         </label>
         <label class="switch"><input type="checkbox" id="seen"> als gelesen</label>
         <label class="switch"><input type="checkbox" id="flagged"> Stern</label>
@@ -67,8 +69,12 @@
         <input id="section-name" placeholder="Name des neuen Abschnitts" hidden>
       </div>
       <div id="plan" class="plan"></div>
-      <div id="diff" class="diff"></div>
       <div id="after" class="after"></div>
+    </section>
+    </div>
+
+    <section class="rule-code">
+      <div id="diff" class="diff"></div>
     </section>
 
     <footer class="row">

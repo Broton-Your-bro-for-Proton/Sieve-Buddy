@@ -6,8 +6,9 @@ function openRuleWindow(messageId) {
   return browser.windows.create({
     url: `rule/rule.html?message=${encodeURIComponent(messageId)}`,
     type: 'popup',
-    width: 760,
-    height: 860,
+    // wide enough for the code beside the form (rule.css switches at 1200px) when the screen allows it
+    width: Math.min(1500, screen.availWidth),
+    height: Math.min(900, screen.availHeight),
   });
 }
 

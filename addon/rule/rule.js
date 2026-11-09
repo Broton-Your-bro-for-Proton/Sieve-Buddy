@@ -121,29 +121,38 @@ function labelFor(c) {
   return { 'list-id': t('Mailingliste'), subject: t('Betreff') }[c.header] ?? t('Header {header}', { header: c.header });
 }
 
-function renderFolderSelect() {
-  const select = $('folder');
-  const options = [
-    el('option', { value: '' }, t('(nicht verschieben)')),
-    el('optgroup', { label: t('Ordner') }, ...state.folders.filter((f) => f !== 'INBOX').map((f) => el('option', { value: f }, f))),
-    el('optgroup', { label: t('Labels') }, ...state.labels.map((l) => el('option', { value: l }, l))),
-    el('optgroup', { label: t('System') }, ...(dialectOf(state.client).proton ? SYSTEM_FOLDERS : ['INBOX']).map((f) => el('option', { value: f }, SYSTEM_LABELS[f] ?? f))),
+/** Folder, label and system targets; the input filters them while typing (empty = don't move). */
+function folderChoices() {
+  return [
+    ...state.folders.filter((f) => f !== 'INBOX').map((f) => [f, t('Ordner')]),
+    ...state.labels.map((l) => [l, t('Labels')]),
+    ...(dialectOf(state.client).proton ? SYSTEM_FOLDERS : ['INBOX']).map((f) => [f, SYSTEM_LABELS[f] ?? t('System')]),
   ];
-  select.replaceChildren(...options);
+}
+
+function renderFolderSelect() {
+  $('folder-list').replaceChildren(...folderChoices().map(([value, label]) => el('option', { value, label })));
+}
+
+/** The folder as the account spells it; Proton matches case-insensitively, so "rechnungen" finds "Rechnungen". */
+function knownFolder(name) {
+  const proton = dialectOf(state.client).proton;
+  return folderChoices().find(([f]) => (proton ? f.toLowerCase() === name.toLowerCase() : f === name))?.[0];
 }
 
 function renderTargets() {
   const target = $('target');
   target.replaceChildren(
     el('option', { value: 'auto' }, t('Automatisch – beste Stelle finden')),
-    ...state.filters.map((f) => el('option', { value: f.ID }, f.Status === 1 ? t('In Filter „{name}“', { name: f.Name }) : t('In Filter „{name}“ (deaktiviert)', { name: f.Name }))),
+    ...runnableScripts().map((s) => el('option', { value: s.id }, t('In Filter „{name}“', { name: s.name }))),
     el('option', { value: 'new' }, t('Als neuen Filter anlegen')),
   );
   // one big script: the question is "which section", not "which filter"
   target.hidden = runnableScripts().length === 1;
 }
 
-const runnableScripts = () => asScripts(state.filters).filter((x) => capabilitiesOf(state.client).multipleActive || x.enabled);
+// disabled filters never run, so they are neither simulated nor offered as a target
+const runnableScripts = () => asScripts(state.filters).filter((x) => x.enabled);
 
 /** Section choices of the script the plan goes into; rebuilt only when that script's sections change. */
 function renderSections(plan) {
@@ -185,11 +194,12 @@ function currentRule() {
     })
     .filter((c) => c.kind === 'exists' || c.value);
   $('combine-row').hidden = conditions.length < 2;
+  const folder = $('folder').value.trim();
   return {
     conditions,
     combine: $('combine').value,
     actions: {
-      fileinto: $('folder').value || null,
+      fileinto: folder ? (knownFolder(folder) ?? folder) : null,
       seen: $('seen').checked,
       flagged: $('flagged').checked,
       expireDays: $('expire').value ? Number($('expire').value) : null,
@@ -219,6 +229,7 @@ function render() {
   if (!rule.conditions.length) return clearPlan(t('Bitte mindestens eine Bedingung auswählen.'));
   const a = rule.actions;
   if (!a.fileinto && !a.seen && !a.flagged && !a.expireDays && !a.stop) return clearPlan(t('Bitte mindestens eine Aktion wählen.'));
+  if (a.fileinto && !knownFolder(a.fileinto)) return clearPlan(t('Ordner/Label „{name}“ gibt es nicht', { name: a.fileinto }));
 
   const target = $('target').value;
   $('new-name').hidden = target !== 'new';
@@ -227,7 +238,7 @@ function render() {
   const { plan, after, notes, conflicts, errors } = planRule({
     dialect: dialectOf(state.client),
     // with a single active script (ManageSieve) only that one runs and is worth changing
-    scripts: target !== 'auto' ? asScripts(state.filters) : runnableScripts(),
+    scripts: runnableScripts(),
     rule,
     target,
     newName: $('new-name').value,
@@ -332,8 +343,7 @@ async function openInManager(draft) {
     $('mail-subject').textContent = subject;
     $('mail-from').textContent = `${senderName(state.message) || ''} ${state.message.headers.from?.[0] ? `<${state.message.headers.from[0].replace(/^.*<|>.*$/g, '')}>` : ''}`.trim();
     const caps = capabilitiesOf(state.client);
-    const runnable = asScripts(state.filters).filter((x) => caps.multipleActive || x.enabled);
-    const current = simulate(runnable, state.message, { labels: state.labels, semantics: caps.semantics ?? 'proton' });
+    const current = simulate(runnableScripts(), state.message, { labels: state.labels, semantics: caps.semantics ?? 'proton' });
     $('current').replaceChildren(
       el('span', {}, t('Aktuell: {result}', { result: describeSimulation(current) })),
       ...current.fired
