@@ -1,6 +1,6 @@
 {
   "manifest_version": 2,
-  "name": "Proton Sieve Manager",
+  "name": "Sieve Buddy",
   "version": "0.4.0",
   "description": "__MSG_extensionDescription__",
   "default_locale": "en",
@@ -28,7 +28,7 @@
     "open_in_tab": true
   },
   "browser_action": {
-    "default_title": "Proton Sieve",
+    "default_title": "Sieve Buddy",
     "default_icon": "icons/icon.svg"
   },
   "message_display_action": {

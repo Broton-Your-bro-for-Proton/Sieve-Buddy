@@ -1,4 +1,4 @@
-# Sieve-Manager für Proton und alle ManageSieve-Server
+# Sieve Buddy: Sieve-Filter für Proton und alle ManageSieve-Server
 
 Sieve-Filter bequem verwalten, ohne sich jedes Mal im Webmail anzumelden. Unterstützt werden **Proton Mail**, **jeder Mailserver mit ManageSieve** (RFC 5804), etwa Dovecot/Pigeonhole, Stalwart, Cyrus, Mailcow, Mailu, mailbox.org oder Uberspace, und **JMAP for Sieve** (RFC 9661, etwa Stalwart).
 
