@@ -17,40 +17,40 @@ const errors = (text, dialect) => lintSieve(text, { dialect }).filter((i) => i.s
 const all = (text, dialect, options = {}) => lintSieve(text, { dialect, ...options }).map((i) => i.message).join('\n');
 
 test('standard scripts: no spam guard, no Proton warnings, :copy/:create/body known', () => {
-  const script = 'require ["fileinto", "copy", "mailbox", "body", "imap4flags"];\nif body :contains "Rechnung" {\n    addflag "\\\\Answered";\n    fileinto :copy :create "Rechnungen";\n    keep;\n}\n';
+  const script = 'require ["fileinto", "copy", "mailbox", "body", "imap4flags"];\nif body :contains "Invoice" {\n    addflag "\\\\Answered";\n    fileinto :copy :create "Invoices";\n    keep;\n}\n';
   assert.equal(all(script, dovecot), '');
-  assert.match(all(script, makeDialect({ name: 'proton' })), /Spam-Schutz/);
+  assert.match(all(script, makeDialect({ name: 'proton' })), /Spam guard/);
   assert.equal(newScript('', dovecot).includes('spam-threshold'), false);
 });
 
 test('extensions the server does not offer and Proton-only commands are errors', () => {
-  assert.match(errors('require ["fileinto", "vnd.proton.expire"];\nexpire "day" "3";', dovecot).join(), /nicht angeboten/);
-  assert.match(errors('require ["fileinto", "vnd.proton.expire"];\nexpire "day" "3";', dovecot).join(), /„expire“ gibt es nur bei Proton/);
-  assert.match(errors('require "copy";\nfileinto :copy "X";', minimal).join(), /„copy“ wird von diesem Server nicht angeboten/);
+  assert.match(errors('require ["fileinto", "vnd.proton.expire"];\nexpire "day" "3";', dovecot).join(), /is not offered/);
+  assert.match(errors('require ["fileinto", "vnd.proton.expire"];\nexpire "day" "3";', dovecot).join(), /“expire” is only available on Proton/);
+  assert.match(errors('require "copy";\nfileinto :copy "X";', minimal).join(), /“copy” is not offered by this server/);
 });
 
 test('unknown folders: hint to use :create, :create silences it', () => {
-  assert.match(all('require "fileinto";\nfileinto "Neu";', dovecot, { folders: ['INBOX', 'Archiv'] }), /:create ergänzen/);
-  assert.doesNotMatch(all('require ["fileinto", "mailbox"];\nfileinto :create "Neu";', dovecot, { folders: ['INBOX'] }), /existiert nicht/);
+  assert.match(all('require "fileinto";\nfileinto "New";', dovecot, { folders: ['INBOX', 'Archive'] }), /add :create/);
+  assert.doesNotMatch(all('require ["fileinto", "mailbox"];\nfileinto :create "New";', dovecot, { folders: ['INBOX'] }), /does not exist/);
 });
 
 test('completion offers the server\'s extensions', () => {
   const list = getCompletions('require ["', 10, { dialect: minimal }).list.map((i) => i.text);
   assert.deepEqual(list, ['fileinto"']);
-  const fileinto = getCompletions('fileinto "', 10, { dialect: dovecot, folders: ['Archiv'] }).list.map((i) => i.text);
-  assert.deepEqual(fileinto, ['INBOX"', 'Archiv"']);
+  const fileinto = getCompletions('fileinto "', 10, { dialect: dovecot, folders: ['Archive'] }).list.map((i) => i.text);
+  assert.deepEqual(fileinto, ['INBOX"', 'Archive"']);
 });
 
 test('RFC simulation: implicit keep, copies, discard, redirect', () => {
   const run = (sieve, m) => simulate([{ id: 's', name: 'S', sieve }], m, { semantics: 'rfc' });
-  const m = msg('From: a@shop.de\nSubject: Rechnung 1\n');
-  assert.equal(run('# nichts', m).location, 'INBOX');
+  const m = msg('From: a@shop.de\nSubject: Invoice 1\n');
+  assert.equal(run('# nothing', m).location, 'INBOX');
   assert.equal(run('require "fileinto";\nif address :domain :is "from" "shop.de" { fileinto "Shop"; }', m).location, 'Shop');
   assert.equal(run('require ["fileinto", "copy"];\nfileinto :copy "Shop";', m).location, 'Shop + INBOX');
   assert.equal(run('require "fileinto";\nfileinto "A";\nfileinto "B";', m).location, 'A + B');
-  assert.equal(run('discard;', m).location, 'gelöscht');
+  assert.equal(run('discard;', m).location, 'deleted');
   assert.equal(run('require "fileinto";\nfileinto "A";\nkeep;', m).location, 'A + INBOX');
-  assert.equal(run('redirect "x@y.de";', m).location, 'weitergeleitet an x@y.de');
+  assert.equal(run('redirect "x@y.de";', m).location, 'forwarded to x@y.de');
   const flagged = run('require ["fileinto", "imap4flags"];\nfileinto :flags "\\\\Seen" "A";', m);
   assert.deepEqual(flagged.copies, [{ folder: 'A', flags: ['\\Seen'] }]);
 });
@@ -63,7 +63,7 @@ test('planner on a standard server: merges, no expire, verifies with RFC semanti
   assert.equal(r.plan.steps[0].kind, 'append-key');
   assert.equal(r.after.location, 'Shop');
   assert.deepEqual(r.errors, []);
-  assert.throws(() => planRule({ scripts, rule: { ...rule, actions: { expireDays: 3 } }, dialect: dovecot }), /nur bei Proton/);
+  assert.throws(() => planRule({ scripts, rule: { ...rule, actions: { expireDays: 3 } }, dialect: dovecot }), /only available on Proton/);
   assert.throws(() => planRule({ scripts, rule: { ...rule, actions: { seen: true } }, dialect: minimal }), /imap4flags/);
   const fresh = planRule({ scripts, rule, dialect: dovecot, target: 'new' });
   assert.equal(fresh.plan.sieve.includes('spam-threshold'), false);

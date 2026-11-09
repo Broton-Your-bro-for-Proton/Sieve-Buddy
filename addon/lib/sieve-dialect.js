@@ -208,21 +208,21 @@ export const EXPIRE_UNITS = ['month', 'day', 'hour', 'minute', 'second'];
 export const TEMPLATES = [
   {
     name: t('Sender → folder'),
-    body: `if address :is "from" "absender@example.com" {
-    fileinto "Ordner";
+    body: `if address :is "from" "sender@example.com" {
+    fileinto "Folder";
 }`,
   },
   {
     name: t('Domain → folder'),
     body: `if address :domain :is "from" "example.com" {
-    fileinto "Ordner";
+    fileinto "Folder";
 }`,
   },
   {
     name: t('Mailing list → folder, mark as read'),
     body: `if exists "list-id" {
     addflag "\\\\Seen";
-    fileinto "Listen";
+    fileinto "Lists";
 }`,
   },
   {

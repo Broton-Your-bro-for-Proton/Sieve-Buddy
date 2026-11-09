@@ -38,7 +38,7 @@ after(async () => {
 });
 
 test('wrong password is rejected after the captcha', async () => {
-  const first = await post('/api/login', { username: 'test@proton.local', password: 'falsch' });
+  const first = await post('/api/login', { username: 'test@proton.local', password: 'wrong' });
   assert.equal(first.body.step, 'captcha');
   await fetch(first.body.webUrl); // "solve" the captcha
   const second = await post('/api/login/continue');

@@ -29,13 +29,13 @@ const filters = [
   },
   {
     id: 'b',
-    name: 'Listen',
+    name: 'Lists',
     sieve: script(`if exists "list-id" {
-    fileinto "Listen";
+    fileinto "Lists";
     stop;
 }`),
   },
-  { id: 'c', name: 'Nie erreicht', sieve: script('fileinto "Spätfilter";', ['fileinto']) },
+  { id: 'c', name: 'Never reached', sieve: script('fileinto "Late filter";', ['fileinto']) },
 ];
 
 test('headers are parsed, unfolded and decoded', () => {
@@ -47,15 +47,15 @@ test('headers are parsed, unfolded and decoded', () => {
 
 test('later folders win, flags are applied at fileinto time, stop ends all filters', () => {
   const r = simulate(filters, NEWSLETTER);
-  assert.equal(r.location, 'Listen');
+  assert.equal(r.location, 'Lists');
   assert.deepEqual(r.flags, ['\\Seen']); // flags set by an earlier filter carry over to the later fileinto
-  assert.equal(r.stoppedBy.script, 'Listen');
-  assert.deepEqual(r.fired.map((f) => f.script), ['Shops', 'Listen']);
+  assert.equal(r.stoppedBy.script, 'Lists');
+  assert.deepEqual(r.fired.map((f) => f.script), ['Shops', 'Lists']);
 });
 
 test('spam guard returns early for spam', () => {
   const r = simulate(filters, NEWSLETTER, { spamScore: 9, spamThreshold: '5' });
-  assert.equal(r.location, 'Posteingang');
+  assert.equal(r.location, 'Inbox');
   assert.equal(r.fired.filter((f) => f.test.includes('environment')).length, 3);
 });
 
@@ -63,24 +63,24 @@ test(':matches captures, variables and labels', () => {
   const f = [
     {
       id: 'x',
-      name: 'Domain-Ordner',
+      name: 'Domain folder',
       sieve: script(`if address :domain :matches "from" "*" {
     set :lower "d" "\${1}";
     fileinto "\${d}";
-    fileinto "Wichtig";
+    fileinto "Important";
 }`, ['fileinto', 'variables']),
     },
   ];
-  const r = simulate(f, NEWSLETTER, { labels: ['Wichtig'] });
+  const r = simulate(f, NEWSLETTER, { labels: ['Important'] });
   assert.equal(r.location, 'example.com');
-  assert.deepEqual(r.labels, ['Wichtig']);
+  assert.deepEqual(r.labels, ['Important']);
 });
 
 test('discard drops only unfiled mail, keep cancels discard', () => {
-  const drop = [{ id: 'd', name: 'Weg', sieve: script('if header :contains "subject" "neuigkeiten" { discard; }') }];
-  assert.equal(simulate(drop, NEWSLETTER).location, 'gelöscht');
-  const kept = [{ id: 'k', name: 'Behalten', sieve: script('discard;\nkeep;') }];
-  assert.equal(simulate(kept, NEWSLETTER).location, 'Posteingang');
+  const drop = [{ id: 'd', name: 'Gone', sieve: script('if header :contains "subject" "neuigkeiten" { discard; }') }];
+  assert.equal(simulate(drop, NEWSLETTER).location, 'deleted');
+  const kept = [{ id: 'k', name: 'Kept', sieve: script('discard;\nkeep;') }];
+  assert.equal(simulate(kept, NEWSLETTER).location, 'Inbox');
   const filed = [filters[0], ...drop];
   assert.equal(simulate(filed, NEWSLETTER).location, 'Einkäufe');
 });
@@ -101,13 +101,13 @@ test('relational, size, date and expire', () => {
 test('disabled filters are skipped and unknown lists are noted', () => {
   const f = [
     { ...filters[1], enabled: false },
-    { id: 'l', name: 'Kontakte', sieve: script('if header :list "from" ":addrbook:personal" { fileinto "Kontakte"; }', ['fileinto', 'extlists']) },
+    { id: 'l', name: 'Contacts', sieve: script('if header :list "from" ":addrbook:personal" { fileinto "Contacts"; }', ['fileinto', 'extlists']) },
   ];
   const r = simulate(f, NEWSLETTER);
-  assert.equal(r.location, 'Posteingang');
-  assert.match(r.notes.join(), /Kontaktlisten/);
+  assert.equal(r.location, 'Inbox');
+  assert.match(r.notes.join(), /Contact lists/);
   const known = simulate(f, NEWSLETTER, { isInList: () => true });
-  assert.equal(known.location, 'Kontakte');
+  assert.equal(known.location, 'Contacts');
 });
 
 test('suggestions prefer the mailing list and strip volatile subject parts', () => {
@@ -115,7 +115,7 @@ test('suggestions prefer the mailing list and strip volatile subject parts', () 
   assert.equal(s.find((x) => x.recommended).id, 'list-id');
   assert.equal(s.find((x) => x.id === 'list-id').condition.value, 'news.example.com');
   assert.equal(s.find((x) => x.id === 'subject').condition.value, 'Neuigkeiten für Sie');
-  const personal = suggestConditions(mail('From: Anna <anna@gmail.com>\nTo: me+shop@proton.me\nSubject: Hallo\n'));
+  const personal = suggestConditions(mail('From: Anna <anna@gmail.com>\nTo: me+shop@proton.me\nSubject: Hello\n'));
   assert.equal(personal.find((x) => x.recommended).id, 'from');
   assert.ok(personal.some((x) => x.id === 'to' && x.condition.value === 'me+shop@proton.me'));
 });

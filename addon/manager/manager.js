@@ -379,7 +379,7 @@ window.addEventListener('beforeunload', (e) => {
   if (state.dirty) e.preventDefault();
 });
 
-// ---------- Drafts from "Sieve-Regel aus Mail" ----------
+// ---------- Drafts from "Sieve rule from mail" ----------
 
 async function loadDraft() {
   const draft = await storage.get('draft');

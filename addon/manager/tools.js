@@ -396,7 +396,7 @@ export function installTools(editor, state) {
         }),
       );
 
-    // same section choice as "Sieve-Regel aus Mail"
+    // same section choice as "Sieve rule from mail"
     const sections = findSections(editor.getValue());
     const sectionSelect = el(
       'select',

@@ -36,11 +36,11 @@ export function defaultFilters() {
     },
     {
       ID: 'f-lists',
-      Name: 'Listen',
+      Name: 'Lists',
       Status: 1,
       Priority: 2,
       Version: 2,
-      Sieve: withExtensions('if exists "list-id" {\n    fileinto "Listen";\n    stop;\n}', ['fileinto']),
+      Sieve: withExtensions('if exists "list-id" {\n    fileinto "Lists";\n    stop;\n}', ['fileinto']),
     },
   ];
 }
@@ -54,8 +54,8 @@ export function createFakeProton(options = {}) {
   const totp = options.totp ?? null; // e.g. '123456'
   const state = {
     filters: structuredClone(options.filters ?? defaultFilters()),
-    folders: ['Einkäufe', 'Listen', 'Newsletter', 'Rechnungen', 'Archiv/2026'],
-    labels: ['Wichtig'],
+    folders: ['Einkäufe', 'Lists', 'Newsletter', 'Invoices', 'Archive/2026'],
+    labels: ['Important'],
     sessions: new Map(), // UID → {access, refresh, scope}
     srp: new Map(), // SRPSession → {b, B}
     hv: { required: Boolean(options.captcha), token: null, solved: false },
@@ -101,7 +101,7 @@ export function createFakeProton(options = {}) {
       if (path === 'verify') {
         if (url.searchParams.get('token') === state.hv.token) state.hv.solved = true;
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        return res.end('<!doctype html><title>Fake verify</title><p>Captcha gelöst ✓ – zurück zur App.</p>');
+        return res.end('<!doctype html><title>Fake verify</title><p>Captcha solved ✓ – back to the app.</p>');
       }
 
       // ---------- auth ----------

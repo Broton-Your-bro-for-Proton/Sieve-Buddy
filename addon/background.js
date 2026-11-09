@@ -1,7 +1,7 @@
 // The manager is the add-on's options page (open_in_tab), so Thunderbird reuses an already open tab.
 browser.browserAction.onClicked.addListener(() => browser.runtime.openOptionsPage());
 
-// "Sieve-Regel aus dieser Mail": button in the message view and context menu in the message list.
+// "Sieve rule from this mail": button in the message view and context menu in the message list.
 function openRuleWindow(messageId) {
   return browser.windows.create({
     url: `rule/rule.html?message=${encodeURIComponent(messageId)}`,

@@ -43,7 +43,7 @@ test('abuse response pauses logins; retries never reach Proton', async () => {
   const before = authCalls();
   const second = await post('/api/login', { username: 'test@proton.local', password: 'test123' });
   assert.equal(second.status, 400);
-  assert.match(second.body.error, /Anmeldung pausiert bis/);
+  assert.match(second.body.error, /Sign-in paused until|Login paused until/);
   assert.equal(authCalls(), before, 'blocked attempt must not contact Proton');
   assert.equal(fake.state.requests.filter((r) => r.path === 'core/v4/auth/info').length, 1);
 

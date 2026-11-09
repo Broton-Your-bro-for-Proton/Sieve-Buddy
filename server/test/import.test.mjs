@@ -58,7 +58,7 @@ test('import needs the API token', async () => {
 test('an invalid session is rejected and nothing is stored', async () => {
   const r = await call('/api/session/import', { UID: 'nope', RefreshToken: 'nope' });
   assert.equal(r.status, 400);
-  assert.match(r.body.error, /nicht angenommen/);
+  assert.match(r.body.error, /did not accept the session/);
   assert.equal((await call('/api/status')).body.loggedIn, false);
 });
 
@@ -88,7 +88,7 @@ test('CORS allows the add-on origin for the API, but not other web origins', asy
 test('password login in the service is off by default', async () => {
   const r = await call('/api/login', { username: 'test@proton.local', password: 'test123' });
   assert.equal(r.status, 400);
-  assert.match(r.body.error, /Passwort-Login im Dienst ist abgeschaltet/);
+  assert.match(r.body.error, /Password login in the service is disabled/);
 });
 
 test('free-plan limit: Proton creates the filter disabled and answers 50016 – reported as created', async () => {
@@ -103,7 +103,7 @@ test('free-plan limit: Proton creates the filter disabled and answers 50016 – 
     const provider = new ProtonProvider(client);
     const r = await provider.createScript({ name: 'zz', sieve: '# x\n', enabled: true });
     assert.equal(r.enabled, false);
-    assert.match(r.warning, /deaktiviert/);
+    assert.match(r.warning, /disabled/);
     assert.equal(limited.state.filters.filter((f) => f.Name === 'zz').length, 1, 'no duplicate');
   } finally {
     await limited.close();

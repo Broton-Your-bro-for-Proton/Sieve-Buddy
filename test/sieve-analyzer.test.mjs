@@ -20,7 +20,7 @@ test('valid rule with merged require has no errors', () => {
 });
 
 test('missing require is reported and fixRequire merges it into the single require', () => {
-  const script = newScript('if exists "list-id" {\n    fileinto "Listen";\n}');
+  const script = newScript('if exists "list-id" {\n    fileinto "Lists";\n}');
   assert.match(messages(errors(script)), /require "fileinto"/);
   const fixed = fixRequire(script);
   assert.match(fixed, /^require \[[^\]]*"spamtest", "fileinto"\];/);
@@ -36,19 +36,19 @@ test('fixRequire merges two require statements', () => {
 
 test('missing semicolon is detected', () => {
   const issues = errors('require "fileinto";\nif true {\n    fileinto "A"\n    stop;\n}');
-  assert.match(messages(issues), /Fehlendes ;/);
+  assert.match(messages(issues), /Missing ;/);
 });
 
 test('unbalanced braces and unterminated strings are errors', () => {
-  assert.match(messages(errors('if true {\n  stop;\n')), /wird nicht geschlossen/);
-  assert.match(messages(errors('if header :is "subject" "abc {\n stop;\n}')), /nicht mit " geschlossen/);
+  assert.match(messages(errors('if true {\n  stop;\n')), /is not closed/);
+  assert.match(messages(errors('if header :is "subject" "abc {\n stop;\n}')), /not closed with "/);
 });
 
 test('unknown command, unknown extension and test outside if', () => {
   const out = messages(errors('require "notify";\nfoo;\naddress :is "from" "a";'));
-  assert.match(out, /„notify“ wird von Proton nicht unterstützt/);
-  assert.match(out, /Unbekannter Befehl „foo“/);
-  assert.match(out, /nur in einer Bedingung/);
+  assert.match(out, /“notify” is not supported by Proton/);
+  assert.match(out, /Unknown command “foo”/);
+  assert.match(out, /only allowed in a condition/);
 });
 
 test('Proton-specific warnings', () => {
@@ -59,18 +59,18 @@ test('Proton-specific warnings', () => {
 }`).replace('"spamtest"]', '"spamtest", "fileinto", "imap4flags", "regex"]');
   const out = messages(lintSieve(script, { folders: ['Y'] }));
   assert.match(out, /\\d, \\w/);
-  assert.match(out, /Flag-Änderungen nach fileinto/);
-  assert.match(out, /„drafts“ wird von Proton bei fileinto ignoriert/);
-  assert.match(out, /„X“ existiert in Proton nicht/);
+  assert.match(out, /Flag changes after fileinto/);
+  assert.match(out, /“drafts” is ignored by Proton in fileinto/);
+  assert.match(out, /“X” does not exist in Proton/);
 });
 
 test('Proton folder names match case-insensitively', () => {
   const script = newScript('fileinto "Shops/eBay";').replace('"spamtest"]', '"spamtest", "fileinto"]');
-  assert.doesNotMatch(messages(lintSieve(script, { folders: ['Shops/Ebay'] })), /existiert/);
+  assert.doesNotMatch(messages(lintSieve(script, { folders: ['Shops/Ebay'] })), /does not exist/);
 });
 
 test('missing spam guard is a warning', () => {
-  assert.match(messages(lintSieve('require "fileinto";\nfileinto "X";')), /Spam-Schutz-Block fehlt/);
+  assert.match(messages(lintSieve('require "fileinto";\nfileinto "X";')), /Spam guard block is missing/);
 });
 
 test('tokenizer handles comments and escapes', () => {
@@ -92,8 +92,8 @@ test('completes extension names inside require', () => {
 });
 
 test('completes folders and labels after fileinto', () => {
-  const r = complete('fileinto "Rech|', { folders: ['Rechnungen', 'Privat'], labels: ['Rechtliches'] });
-  assert.deepEqual(texts(r), ['Rechnungen"', 'Rechtliches"']);
+  const r = complete('fileinto "Inv|', { folders: ['Invoices', 'Private'], labels: ['Investments'] });
+  assert.deepEqual(texts(r), ['Invoices"', 'Investments"']);
 });
 
 test('completes headers, list specs, flags and tags', () => {

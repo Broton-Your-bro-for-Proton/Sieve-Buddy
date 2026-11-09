@@ -67,7 +67,7 @@ test('wrong password is rejected by the server', async () => {
   const server = await makeServer(fixtures.password, fixtures.salt);
   const proofs = await getSrpProofs({
     version: 4,
-    password: 'falsch',
+    password: 'wrong',
     salt: fixtures.salt,
     signedModulus: fixtures.signedModulus,
     serverEphemeral: server.serverEphemeral,
@@ -91,6 +91,6 @@ test('accepts the real ServerEphemeral from the go-srp test vector', async () =>
 test('unsupported auth versions are refused', async () => {
   await assert.rejects(
     hashPassword({ version: 2, password: 'x', salt: fixtures.salt, modulusBytes: new Uint8Array(256), bcrypt }),
-    /Auth-Version 2/,
+    /Auth version 2/,
   );
 });

@@ -1,4 +1,4 @@
-// "Sieve-Regel aus Mail": suggests conditions from the selected mail, finds the best place in the existing
+// "Sieve rule from mail": suggests conditions from the selected mail, finds the best place in the existing
 // filters, shows the diff and the simulated result, then saves to Proton.
 
 import { t } from '../lib/i18n.js';
@@ -51,7 +51,7 @@ const state = {
 
 const DEMO_HEADERS = `From: "Example News" <news@example.com>
 To: me+shop@proton.me
-Subject: Neuigkeiten für Sie #4711
+Subject: News for you #4711
 List-Id: Example News <news.example.com>
 List-Unsubscribe: <https://example.com/u>
 Date: Tue, 03 Nov 2026 10:00:00 +0100
@@ -134,7 +134,7 @@ function renderFolderSelect() {
   $('folder-list').replaceChildren(...folderChoices().map(([value, label]) => el('option', { value, label })));
 }
 
-/** The folder as the account spells it; Proton matches case-insensitively, so "rechnungen" finds "Rechnungen". */
+/** The folder as the account spells it; Proton matches case-insensitively, so "invoices" finds "Invoices". */
 function knownFolder(name) {
   const proton = dialectOf(state.client).proton;
   return folderChoices().find(([f]) => (proton ? f.toLowerCase() === name.toLowerCase() : f === name))?.[0];

@@ -26,7 +26,7 @@ const proton = {
   filters: [
     {
       ID: 'f1',
-      Name: 'Hauptfilter',
+      Name: 'Main filter',
       Status: 1,
       Priority: 1,
       Version: 2,
@@ -55,7 +55,7 @@ function fakeProton() {
 
     if (path === 'core/v4/labels') {
       const type = url.searchParams.get('Type');
-      return reply(200, { Code: 1000, Labels: type === '3' ? [{ Name: 'Einkäufe', Path: 'Einkäufe' }, { Name: 'Listen', Path: 'Listen' }] : [{ Name: 'Wichtig', Path: 'Wichtig' }] });
+      return reply(200, { Code: 1000, Labels: type === '3' ? [{ Name: 'Einkäufe', Path: 'Einkäufe' }, { Name: 'Lists', Path: 'Lists' }] : [{ Name: 'Important', Path: 'Important' }] });
     }
     if (path === 'mail/v4/filters' && req.method === 'GET') return reply(200, { Code: 1000, Filters: proton.filters });
     if (path === 'mail/v4/filters/check') {
@@ -148,12 +148,12 @@ test('MCP lists all tools', async () => {
 
 test('list_filters refreshes the expired session transparently', async () => {
   const { filters } = await call('list_filters');
-  assert.deepEqual(filters, [{ id: 'f1', name: 'Hauptfilter', enabled: true, sections: [] }]);
+  assert.deepEqual(filters, [{ id: 'f1', name: 'Main filter', enabled: true, sections: [] }]);
   assert.equal(proton.refreshes, 1);
 });
 
 test('suggest + plan_rule merges into the existing list and verifies with the mail', async () => {
-  const headers = 'From: Otto <service@otto.de>\nTo: me@proton.me\nSubject: Ihre Bestellung 123\n';
+  const headers = 'From: Otto <service@otto.de>\nTo: me@proton.me\nSubject: Your order 123\n';
   const { suggestions } = await call('suggest_rule', { headers });
   const domain = suggestions.find((s) => s.id === 'domain').condition;
   const plan = await call('plan_rule', { rule: { conditions: [domain], actions: { fileinto: 'Einkäufe', seen: true } }, headers });
@@ -179,26 +179,26 @@ test('apply_rule saves the merged script at Proton', async () => {
 test('templates can be applied as a new filter', async () => {
   const { templates } = await call('list_templates');
   assert.ok(templates.length >= 16);
-  const r = await call('apply_template', { templateId: 'github', params: { folder: 'Listen' }, target: 'new', newName: 'GitHub' });
+  const r = await call('apply_template', { templateId: 'github', params: { folder: 'Lists' }, target: 'new', newName: 'GitHub' });
   assert.equal(r.saved, true);
   assert.equal(proton.filters.at(-1).Name, 'GitHub');
   assert.match(proton.filters.at(-1).Sieve, /notifications@github\.com/);
 });
 
 test('plan_rule and plan_template place new blocks by section', async () => {
-  const rule = { conditions: [{ kind: 'address', header: 'from', part: 'all', match: 'is', value: 'boss@firma.de' }], actions: { flagged: true } };
-  const plan = await call('plan_rule', { rule, target: 'f1', section: { new: 'Wichtig' } });
-  assert.deepEqual(plan.section, { title: 'Wichtig', new: true });
-  assert.match(plan.diff.text, /\+ # ===== Wichtig =====\n\+ if address :is "from" "boss@firma\.de"/);
+  const rule = { conditions: [{ kind: 'address', header: 'from', part: 'all', match: 'is', value: 'boss@company.com' }], actions: { flagged: true } };
+  const plan = await call('plan_rule', { rule, target: 'f1', section: { new: 'Important' } });
+  assert.deepEqual(plan.section, { title: 'Important', new: true });
+  assert.match(plan.diff.text, /\+ # ===== Important =====\n\+ if address :is "from" "boss@company\.com"/);
   const code = await call('plan_template', { templateId: 'domain-folder-auto', target: 'f1', section: { new: 'Domains' } });
   assert.deepEqual(code.section, { title: 'Domains', new: true });
   assert.match(code.sieve, /# ===== Domains =====\nif address :domain :matches "from" "\*"/);
 });
 
 test('Proton rejecting a script is reported as a tool error', async () => {
-  const r = await mcp.callTool({ name: 'create_filter', arguments: { name: 'Kaputt', sieve: 'BAD;' } });
+  const r = await mcp.callTool({ name: 'create_filter', arguments: { name: 'Broken', sieve: 'BAD;' } });
   assert.equal(r.isError, true);
-  assert.match(r.content[0].text, /Proton lehnt das Skript ab/);
+  assert.match(r.content[0].text, /Proton rejects the script/);
 });
 
 test('REST simulate uses the live filters', async () => {
@@ -221,7 +221,7 @@ test('Proton folder names match case-insensitively', async () => {
     name: 'plan_rule',
     arguments: { rule: { conditions: [{ kind: 'address', header: 'from', value: 'a@b.de' }], actions: { fileinto: 'EINKÄUFE' } } },
   });
-  assert.doesNotMatch(r.content[0].text, /existiert nicht/);
+  assert.doesNotMatch(r.content[0].text, /does not exist/);
 });
 
 test('unknown folders are rejected with close matches', async () => {
@@ -230,12 +230,12 @@ test('unknown folders are rejected with close matches', async () => {
     arguments: { rule: { conditions: [{ kind: 'address', header: 'from', value: 'a@b.de' }], actions: { fileinto: 'einkaeufe' } } },
   });
   assert.equal(r.isError, true);
-  assert.match(r.content[0].text, /„einkaeufe“ existiert nicht – meintest du „Einkäufe“\?/);
+  assert.match(r.content[0].text, /“einkaeufe” does not exist\. Did you mean “Einkäufe”\?/);
   const plain = await mcp.callTool({
     name: 'plan_rule',
     arguments: { rule: { conditions: [{ kind: 'address', header: 'from', value: 'a@b.de' }], actions: { fileinto: 'Einkaufe' } } },
   });
-  assert.match(plain.content[0].text, /meintest du „Einkäufe“\?/);
+  assert.match(plain.content[0].text, /Did you mean “Einkäufe”\?/);
   const ok =await call('plan_rule', { rule: { conditions: [{ kind: 'address', header: 'from', value: 'a@b.de' }], actions: { fileinto: 'archive' } } });
   assert.deepEqual(ok.errors, []);
 });

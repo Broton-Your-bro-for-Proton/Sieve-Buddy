@@ -11,7 +11,7 @@ import { makeDialect } from '../../addon/lib/sieve-dialect.js';
 import { parseHeaderBlock } from '../../addon/lib/mail.js';
 
 const target = process.env.STALWART_TEST;
-const skip = !target && 'STALWART_TEST nicht gesetzt';
+const skip = !target && 'STALWART_TEST is not set';
 const config = { url: `http://${target}/.well-known/jmap`, user: 'admin', token: 'test12345' };
 
 test('session, capabilities and wrong password', { skip }, async () => {
@@ -19,7 +19,7 @@ test('session, capabilities and wrong password', { skip }, async () => {
   const caps = await p.init();
   assert.match(caps.implementation, /Stalwart/);
   assert.ok(caps.dialect.extensions.includes('fileinto'));
-  await assert.rejects(new JmapProvider({ ...config, token: 'falsch' }).init(), /HTTP 401/);
+  await assert.rejects(new JmapProvider({ ...config, token: 'wrong' }).init(), /HTTP 401/);
   assert.ok((await p.listFolders()).folders.includes('INBOX'));
 });
 
@@ -50,13 +50,13 @@ test('full script lifecycle on Stalwart', { skip }, async () => {
   assert.match(saved, /addflag "\\\\Seen"/);
 
   // second script, activation switch, rename, delete of the active one
-  const second = await p.createScript({ name: 'zweit', sieve: '# zweit\n' });
-  assert.equal((await p.listScripts()).find((s) => s.name === 'zweit').enabled, false);
-  await assert.rejects(p.createScript({ name: 'zweit', sieve: '#\n' }), /gibt es schon/);
+  const second = await p.createScript({ name: 'second', sieve: '# second\n' });
+  assert.equal((await p.listScripts()).find((s) => s.name === 'second').enabled, false);
+  await assert.rejects(p.createScript({ name: 'second', sieve: '#\n' }), /already exists/);
   await p.setEnabled(second.id, true);
-  assert.deepEqual((await p.listScripts()).filter((s) => s.enabled).map((s) => s.name), ['zweit']);
-  await p.updateScript(second.id, { name: 'dritt' });
-  assert.ok((await p.listScripts()).some((s) => s.name === 'dritt' && s.enabled));
+  assert.deepEqual((await p.listScripts()).filter((s) => s.enabled).map((s) => s.name), ['second']);
+  await p.updateScript(second.id, { name: 'third' });
+  assert.ok((await p.listScripts()).some((s) => s.name === 'third' && s.enabled));
   await p.deleteScript(second.id);
   assert.deepEqual((await p.listScripts()).map((s) => [s.name, s.enabled]), [['main', false]]);
   await p.setEnabled(id, true);

@@ -10,26 +10,26 @@ import { conditionToSieve, findOverlaps, insertBlock, mergeRuleIntoScript, ruleT
 import { deleteRule, moveRule, resolveSection, ruleUnits, suggestSections } from '../addon/lib/sieve-sections.js';
 import { simulate } from '../addon/lib/sieve-sim.js';
 
-const rule = (value, folder = 'Projekt') => ({ conditions: [{ kind: 'address', header: 'from', value }], actions: { fileinto: folder } });
+const rule = (value, folder = 'Project') => ({ conditions: [{ kind: 'address', header: 'from', value }], actions: { fileinto: folder } });
 const merged = (sieve, r) => mergeRuleIntoScript({ id: 's', name: 's', sieve }, r);
 
 test('a rule is never merged into a nested if or an elsif', () => {
-  const nested = 'require ["fileinto"];\nif header :contains "subject" "Projekt" {\n    if address :is "from" "a@x.de" {\n        fileinto "Projekt";\n    }\n}\n';
+  const nested = 'require ["fileinto"];\nif header :contains "subject" "Project" {\n    if address :is "from" "a@x.de" {\n        fileinto "Project";\n    }\n}\n';
   const out = merged(nested, rule('b@y.de'));
   assert.equal(out.steps[0].kind, 'new-block');
   assert.match(out.sieve, /if address :is "from" "a@x\.de" \{/);
 
-  const chain = 'require ["fileinto"];\nif exists "x-a" {\n    fileinto "A";\n} elsif address :is "from" "a@x.de" {\n    fileinto "Projekt";\n}\n';
+  const chain = 'require ["fileinto"];\nif exists "x-a" {\n    fileinto "A";\n} elsif address :is "from" "a@x.de" {\n    fileinto "Project";\n}\n';
   assert.equal(merged(chain, rule('b@y.de')).steps[0].kind, 'new-block');
 
-  const top = 'require ["fileinto"];\nif address :is "from" "a@x.de" {\n    fileinto "Projekt";\n}\n';
+  const top = 'require ["fileinto"];\nif address :is "from" "a@x.de" {\n    fileinto "Project";\n}\n';
   assert.equal(merged(top, rule('b@y.de')).steps[0].kind, 'append-key');
 });
 
 test('fileinto :copy is no merge target, :create still is', () => {
-  const copy = 'require ["fileinto", "copy"];\nif address :is "from" "a@x.de" {\n    fileinto :copy "Projekt";\n}\n';
+  const copy = 'require ["fileinto", "copy"];\nif address :is "from" "a@x.de" {\n    fileinto :copy "Project";\n}\n';
   assert.equal(merged(copy, rule('b@y.de')).steps[0].kind, 'new-block');
-  const create = 'require ["fileinto", "mailbox"];\nif address :is "from" "a@x.de" {\n    fileinto :create "Projekt";\n}\n';
+  const create = 'require ["fileinto", "mailbox"];\nif address :is "from" "a@x.de" {\n    fileinto :create "Project";\n}\n';
   assert.equal(merged(create, rule('b@y.de')).steps[0].kind, 'append-key');
   // the other users of describeActions still see the action
   const twice = 'require ["fileinto", "mailbox"];\nif address :is "from" "a@x.de" { fileinto :create "X"; }\nif address :is "from" "a@x.de" { fileinto :create "X"; }\n';
@@ -39,19 +39,19 @@ test('fileinto :copy is no merge target, :create still is', () => {
 
 test('unquoted parts of generated code only accept known words', () => {
   const c = { kind: 'address', header: 'from', value: 'v' };
-  assert.throws(() => conditionToSieve({ ...c, match: 'is "x" "y" { discard; stop; } if true' }), /Unbekannter Vergleich/);
-  assert.throws(() => conditionToSieve({ ...c, part: 'all :is "x" "y" { discard; }' }), /Unbekannter Adressteil/);
-  assert.throws(() => ruleToSieve({ conditions: [c], combine: 'true) { discard; } if anyof(', actions: { fileinto: 'A' } }), /Unbekannte Verknüpfung/);
-  assert.throws(() => ruleToSieve({ conditions: [c], actions: { fileinto: 'A', expireDays: -5 } }), /Ungültige Anzahl Tage/);
+  assert.throws(() => conditionToSieve({ ...c, match: 'is "x" "y" { discard; stop; } if true' }), /Unknown match type/);
+  assert.throws(() => conditionToSieve({ ...c, part: 'all :is "x" "y" { discard; }' }), /Unknown address part/);
+  assert.throws(() => ruleToSieve({ conditions: [c], combine: 'true) { discard; } if anyof(', actions: { fileinto: 'A' } }), /Unknown combination/);
+  assert.throws(() => ruleToSieve({ conditions: [c], actions: { fileinto: 'A', expireDays: -5 } }), /Invalid number of days/);
   assert.match(ruleToSieve({ conditions: [c], actions: { fileinto: 'A', expireDays: '7' } }), /expire "day" "7";/);
 });
 
 test('if and elsif need a test and a block', () => {
-  assert.throws(() => parseSieve('if header :is "subject" "x" fileinto "y";'), /braucht einen Block/);
-  assert.throws(() => parseSieve('if { stop; }'), /braucht eine Bedingung/);
-  assert.throws(() => parseSieve('if true { stop; } else stop;'), /braucht einen Block/);
+  assert.throws(() => parseSieve('if header :is "subject" "x" fileinto "y";'), /needs a block/);
+  assert.throws(() => parseSieve('if { stop; }'), /needs a condition/);
+  assert.throws(() => parseSieve('if true { stop; } else stop;'), /needs a block/);
   const r = simulate([{ id: 'a', name: 'A', sieve: 'if header :is "subject" "x" fileinto "y";' }], { headers: parseHeaderBlock('Subject: x\n') }, { semantics: 'rfc' });
-  assert.ok(r.notes.some((n) => n.includes('konnte nicht gelesen werden')));
+  assert.ok(r.notes.some((n) => n.includes('could not be read')));
 });
 
 test('a block goes after a comment on the same line as the closing brace', () => {

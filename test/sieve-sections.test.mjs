@@ -17,7 +17,7 @@ if address :domain :is "from" ["amazon.de", "ebay.de"] {
     fileinto "Einkäufe";
 }
 
-# Zalando separat, mit Stern
+# Zalando separately, with a star
 if address :domain :is "from" "zalando.de" {
     addflag "\\\\Flagged";
     fileinto "Einkäufe";
@@ -28,9 +28,9 @@ if exists "list-unsubscribe" {
     fileinto "Newsletter";
 }
 
-### Rechnungen ###
-if header :contains "subject" "Rechnung" {
-    fileinto "Rechnungen";
+### Invoices ###
+if header :contains "subject" "Invoice" {
+    fileinto "Invoices";
 }`);
 
 const domainRule = (value, actions) => ({ conditions: [{ kind: 'address', header: 'from', part: 'domain', match: 'is', value }], actions });
@@ -42,26 +42,26 @@ test('decorated comment headings become sections; plain comments and the spam gu
     [
       ['Shops', 2],
       ['Newsletter', 1],
-      ['Rechnungen', 1],
+      ['Invoices', 1],
     ],
   );
 });
 
 test('without decorated headings, plain top-level comments are the sections', () => {
-  const text = withExt(`# Shops\nif address :domain :is "from" "a.de" {\n    fileinto "A";\n}\n\n# Listen\nif exists "list-id" {\n    fileinto "Listen";\n}`);
+  const text = withExt(`# Shops\nif address :domain :is "from" "a.de" {\n    fileinto "A";\n}\n\n# Lists\nif exists "list-id" {\n    fileinto "Lists";\n}`);
   assert.deepEqual(
     findSections(text).map((s) => s.title),
-    ['Shops', 'Listen'],
+    ['Shops', 'Lists'],
   );
 });
 
 test('a new block goes to the end of the section with the same target folder', () => {
   // same folder as the Shops rules but other actions, so no existing block can take it
-  const rule = { conditions: [{ kind: 'header', header: 'subject', match: 'contains', value: 'Bestellung' }], actions: { fileinto: 'Einkäufe', seen: true } };
-  const { plan } = planRule({ scripts: [{ id: 'f', name: 'Alles', sieve: BIG }], rule });
+  const rule = { conditions: [{ kind: 'header', header: 'subject', match: 'contains', value: 'Order' }], actions: { fileinto: 'Einkäufe', seen: true } };
+  const { plan } = planRule({ scripts: [{ id: 'f', name: 'All', sieve: BIG }], rule });
   assert.equal(plan.section.title, 'Shops');
   const lines = plan.sieve.split('\n');
-  const at = lines.findIndex((l) => l.includes('"Bestellung"'));
+  const at = lines.findIndex((l) => l.includes('"Order"'));
   assert.ok(at > lines.findIndex((l) => l.includes('zalando.de')), 'after the last Shops rule');
   assert.ok(at < lines.findIndex((l) => l.includes('### Newsletter')), 'before the next heading');
   assert.equal(plan.steps[0].line, at + 1);
@@ -69,51 +69,51 @@ test('a new block goes to the end of the section with the same target folder', (
 });
 
 test('a value still joins an existing list instead of a new block', () => {
-  const { plan } = planRule({ scripts: [{ id: 'f', name: 'Alles', sieve: BIG }], rule: domainRule('otto.de', { fileinto: 'Einkäufe' }) });
+  const { plan } = planRule({ scripts: [{ id: 'f', name: 'All', sieve: BIG }], rule: domainRule('otto.de', { fileinto: 'Einkäufe' }) });
   assert.equal(plan.steps[0].kind, 'append-key');
   assert.equal(plan.section, null);
   assert.match(plan.sieve, /\["amazon\.de", "ebay\.de", "otto\.de"\]/);
 });
 
 test('the section title matches the folder when no rule there files into it yet', () => {
-  const rule = { conditions: [{ kind: 'address', header: 'from', part: 'all', match: 'is', value: 'billing@example.com' }], actions: { fileinto: 'Archiv/Rechnungen 2026' } };
-  const { plan } = planRule({ scripts: [{ id: 'f', name: 'Alles', sieve: BIG }], rule });
-  assert.equal(plan.section.title, 'Rechnungen');
+  const rule = { conditions: [{ kind: 'address', header: 'from', part: 'all', match: 'is', value: 'billing@example.com' }], actions: { fileinto: 'Archive/Invoices 2026' } };
+  const { plan } = planRule({ scripts: [{ id: 'f', name: 'All', sieve: BIG }], rule });
+  assert.equal(plan.section.title, 'Invoices');
 });
 
 test('the template category is a hint for the section', () => {
   const sections = findSections(BIG);
   const rule = { actions: { flagged: true } };
-  assert.equal(chooseSection(sections, rule, { category: 'Newsletter & Listen' }).title, 'Newsletter');
+  assert.equal(chooseSection(sections, rule, { category: 'Newsletters & lists' }).title, 'Newsletter');
   assert.equal(chooseSection(sections, rule, {}), null);
 });
 
 test('an explicit section only extends blocks inside it', () => {
   // same actions as the Shops list, but the user wants it under Newsletter
-  const { plan } = planRule({ scripts: [{ id: 'f', name: 'Alles', sieve: BIG }], rule: domainRule('otto.de', { fileinto: 'Einkäufe' }), section: 'Newsletter' });
+  const { plan } = planRule({ scripts: [{ id: 'f', name: 'All', sieve: BIG }], rule: domainRule('otto.de', { fileinto: 'Einkäufe' }), section: 'Newsletter' });
   assert.equal(plan.steps[0].kind, 'new-block');
   assert.equal(plan.section.title, 'Newsletter');
   const lines = plan.sieve.split('\n');
   assert.ok(lines.findIndex((l) => l.includes('"otto.de"')) > lines.findIndex((l) => l.includes('list-unsubscribe')));
-  assert.ok(lines.findIndex((l) => l.includes('"otto.de"')) < lines.findIndex((l) => l.includes('### Rechnungen')));
+  assert.ok(lines.findIndex((l) => l.includes('"otto.de"')) < lines.findIndex((l) => l.includes('### Invoices')));
 });
 
 test('"end" and a new section put the block at the end of the file', () => {
-  const scripts = [{ id: 'f', name: 'Alles', sieve: BIG }];
+  const scripts = [{ id: 'f', name: 'All', sieve: BIG }];
   const rule = domainRule('github.com', { fileinto: 'Dev' });
   const end = planRule({ scripts, rule, section: 'end' }).plan;
-  assert.match(end.sieve, /"Rechnungen";\n}\n\nif address :domain :is "from" "github\.com"/);
-  const fresh = planRule({ scripts, rule, section: { new: 'Entwicklung' } }).plan;
-  assert.match(fresh.sieve, /\n# ===== Entwicklung =====\nif address :domain :is "from" "github\.com"/);
-  assert.equal(fresh.section.title, 'Entwicklung');
-  assert.equal(findSections(fresh.sieve).at(-1).title, 'Entwicklung');
+  assert.match(end.sieve, /"Invoices";\n}\n\nif address :domain :is "from" "github\.com"/);
+  const fresh = planRule({ scripts, rule, section: { new: 'Development' } }).plan;
+  assert.match(fresh.sieve, /\n# ===== Development =====\nif address :domain :is "from" "github\.com"/);
+  assert.equal(fresh.section.title, 'Development');
+  assert.equal(findSections(fresh.sieve).at(-1).title, 'Development');
   assert.deepEqual(errors(fresh.sieve), []);
 });
 
 test('an empty section gets the block right below its heading', () => {
-  const text = withExt('### Shops ###\n\n### Listen ###\nif exists "list-id" {\n    fileinto "Listen";\n}');
+  const text = withExt('### Shops ###\n\n### Lists ###\nif exists "list-id" {\n    fileinto "Lists";\n}');
   const { plan } = planRule({ scripts: [{ id: 'f', name: 'x', sieve: text }], rule: domainRule('a.de', { fileinto: 'Einkäufe' }), section: 'Shops' });
-  assert.match(plan.sieve, /### Shops ###\nif address :domain :is "from" "a\.de" \{\n    fileinto "Einkäufe";\n\}\n\n### Listen ###/);
+  assert.match(plan.sieve, /### Shops ###\nif address :domain :is "from" "a\.de" \{\n    fileinto "Einkäufe";\n\}\n\n### Lists ###/);
 });
 
 test('rule units keep attached comments and elsif chains together', () => {
@@ -127,14 +127,14 @@ test('moving a rule swaps with its neighbor and crosses headings into the next s
   const zalando = ruleUnits(BIG).find((u) => u.type === 'rule' && BIG.slice(u.start, u.end).includes('zalando'));
   const up = moveRule(BIG, zalando.line, -1);
   assert.ok(up.indexOf('zalando') < up.indexOf('amazon'));
-  assert.ok(up.indexOf('# Zalando separat') < up.indexOf('zalando.de'), 'comment moves along');
+  assert.ok(up.indexOf('# Zalando separately') < up.indexOf('zalando.de'), 'comment moves along');
   const down = moveRule(BIG, zalando.line, +1);
   assert.ok(down.indexOf('### Newsletter') < down.indexOf('zalando.de'));
   assert.equal(findSections(down)[1].rules.length, 2);
   assert.deepEqual(errors(down), []);
   // the rule's own comment stays with the rule instead of merging into the heading
   const moved = ruleUnits(down).find((u) => u.type === 'rule' && down.slice(u.start, u.end).includes('zalando'));
-  assert.match(down.slice(moved.start, moved.end), /^# Zalando separat/);
+  assert.match(down.slice(moved.start, moved.end), /^# Zalando separately/);
   assert.equal(findSections(down)[1].title, 'Newsletter');
   // moving back restores the original order (only blank lines may differ)
   const squash = (t) => t.replace(/\n(?:[ \t]*\n)+/g, '\n');
@@ -153,19 +153,19 @@ test('a rule without comment moved under a heading sits right below it, with the
 test('deleting a rule removes it with its blank line', () => {
   const zalando = ruleUnits(BIG).find((u) => u.type === 'rule' && BIG.slice(u.start, u.end).includes('zalando'));
   const out = deleteRule(BIG, zalando.line);
-  assert.doesNotMatch(out, /zalando|Zalando separat/);
+  assert.doesNotMatch(out, /zalando|Zalando separately/);
   assert.match(out, /"Einkäufe";\n}\n\n### Newsletter ###/);
   assert.deepEqual(errors(out), []);
 });
 
 test('suggested sections only add headings, never reorder', () => {
-  const text = withExt('if address :is "from" "a@x.de" {\n    fileinto "A";\n}\n\nif address :is "from" "b@x.de" {\n    fileinto "A";\n}\n\nif exists "list-id" {\n    fileinto "Listen";\n}');
+  const text = withExt('if address :is "from" "a@x.de" {\n    fileinto "A";\n}\n\nif address :is "from" "b@x.de" {\n    fileinto "A";\n}\n\nif exists "list-id" {\n    fileinto "Lists";\n}');
   const out = suggestSections(text);
   assert.deepEqual(
     findSections(out).map((s) => [s.title, s.rules.length]),
     [
       ['A', 2],
-      ['Listen', 1],
+      ['Lists', 1],
     ],
   );
   assert.equal(out.replace(/# ===== .* =====\n/g, ''), text);
@@ -181,7 +181,7 @@ if address :domain :is "from" "amazon.de" {
 }
 
 if address :domain :is "from" "ebay.de" {
-    fileinto "Spam-Verdacht";
+    fileinto "Suspected spam";
 }
 
 if address :is "from" "shop@ebay.de" {
@@ -204,7 +204,7 @@ test('a rule placed in its section ends with stop when a later block would move 
   const { parseHeaderBlock } = await import('../addon/lib/mail.js');
   const message = { headers: parseHeaderBlock('From: News <news@example.com>\nList-Unsubscribe: <https://example.com/u>\n'), size: 1000 };
   const rule = domainRule('example.com', { fileinto: 'Einkäufe', seen: true });
-  const { plan, notes, after } = planRule({ scripts: [{ id: 'f', name: 'Alles', sieve: BIG }], rule, message });
+  const { plan, notes, after } = planRule({ scripts: [{ id: 'f', name: 'All', sieve: BIG }], rule, message });
   assert.equal(plan.section.title, 'Shops');
   assert.match(plan.sieve, /"example\.com" \{\n    addflag "\\\\Seen";\n    fileinto "Einkäufe";\n    stop;\n\}\n\n### Newsletter ###/);
   assert.equal(after.folder, 'Einkäufe');
@@ -215,8 +215,8 @@ test('when nothing helps, the note names an existing block, not the new one', as
   const { parseHeaderBlock } = await import('../addon/lib/mail.js');
   const text = withExt('### A ###\nif exists "x-a" {\n    fileinto "A";\n}\n\n### B ###\nif true {\n    fileinto "B";\n    stop;\n}');
   const scripts = [
-    { id: 'f', name: 'Alles', sieve: text },
-    { id: 'g', name: 'Später', sieve: withExt('if exists "x-a" {\n    fileinto "Z";\n}') },
+    { id: 'f', name: 'All', sieve: text },
+    { id: 'g', name: 'Later', sieve: withExt('if exists "x-a" {\n    fileinto "Z";\n}') },
   ];
   const message = { headers: parseHeaderBlock('From: a@a.de\nX-A: 1\n'), size: 1 };
   const { notes } = planRule({ scripts, rule: domainRule('a.de', { fileinto: 'A', seen: true }), target: 'f', message });
@@ -227,7 +227,7 @@ test('when nothing helps, the note names an existing block, not the new one', as
 test('a value that would join a list overridden later becomes its own stop block in the same section', async () => {
   const { parseHeaderBlock } = await import('../addon/lib/mail.js');
   const message = { headers: parseHeaderBlock('From: News <news@example.com>\nList-Unsubscribe: <https://example.com/u>\n'), size: 1000 };
-  const { plan, after } = planRule({ scripts: [{ id: 'f', name: 'Alles', sieve: BIG }], rule: domainRule('example.com', { fileinto: 'Einkäufe' }), message });
+  const { plan, after } = planRule({ scripts: [{ id: 'f', name: 'All', sieve: BIG }], rule: domainRule('example.com', { fileinto: 'Einkäufe' }), message });
   assert.equal(after.folder, 'Einkäufe');
   assert.equal(plan.section.title, 'Shops');
   assert.match(plan.sieve, /"example\.com" \{\n    fileinto "Einkäufe";\n    stop;\n\}\n\n### Newsletter ###/);
