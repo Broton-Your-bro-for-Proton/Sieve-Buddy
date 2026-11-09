@@ -105,3 +105,9 @@ test('rfc: i;ascii-casemap folds only ASCII letters', async () => {
   assert.equal(run('header :matches "subject" "*ÜBERWEISUNG"', 'rfc'), 'INBOX');
   assert.equal(run('header :matches "subject" "IHRE *"', 'rfc'), 'Bank');
 });
+
+test('rfc: an escaped letter in :matches still ignores ASCII case', async () => {
+  const { simulate } = await import('../addon/lib/sieve-sim.js');
+  const r = simulate([{ id: 's', name: 's', sieve: 'require ["fileinto"];\nif header :matches "subject" "\\Invoice*" {\n    fileinto "Bank";\n}\n' }], { headers: parseHeaderBlock('From: a@b.com\nSubject: invoice 42\n') }, { semantics: 'rfc' });
+  assert.equal(r.folder, 'Bank');
+});

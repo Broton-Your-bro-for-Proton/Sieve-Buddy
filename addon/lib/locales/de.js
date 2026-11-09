@@ -161,6 +161,7 @@ export const DE = {
   "Create as a new filter": "Als neuen Filter anlegen",
   "Create the folder if it is missing": "Ordner anlegen, falls er fehlt",
   "Created, but disabled: {message}": "Angelegt, aber deaktiviert: {message}",
+  "Three wrong 2FA codes: please sign in again": "Dreimal ein falscher 2FA-Code: bitte neu anmelden",
   "Creates a new filter/script (after the server checked it). With ManageSieve/JMAP it only becomes active with enabled=true (or when no script is active yet), and then replaces the active one.": "Legt einen neuen Filter/ein neues Skript an (nach Prüfung durch den Server). Bei ManageSieve/JMAP wird es nur mit enabled=true aktiv (oder wenn noch kein Skript aktiv ist) – und ersetzt dann das bisher aktive.",
   "Cron, backups, uptime monitors – subject keywords.": "Cron, Backups, Uptime-Monitore – Betreff-Stichwörter.",
   "Ctrl+Space: suggestions · Ctrl+S: save · Ctrl+/: comment": "Strg+Leertaste: Vorschläge · Strg+S: speichern · Strg+/: Kommentar",

@@ -79,7 +79,11 @@ test('three wrong 2FA codes end the pending login', async () => {
   let r = await post('/api/login', { username: 'test@proton.local', password: 'test123' });
   if (r.body.step === 'captcha') r = await post('/api/login/continue');
   assert.equal(r.body.step, 'totp');
-  for (let i = 0; i < 3; i++) assert.equal((await post('/api/login/totp', { code: '000000' })).status, 400);
+  for (let i = 0; i < 2; i++) assert.equal((await post('/api/login/totp', { code: '000000' })).status, 400);
+  const third = await post('/api/login/totp', { code: '000000' });
+  assert.match(third.body.error, /Three wrong 2FA codes/);
+  assert.equal((await status()).pending, null);
+  assert.ok(fake.state.requests.some((q) => q.path === 'core/v4/auth' && q.method === 'DELETE'), 'session closed at Proton');
   const late = await post('/api/login/totp', { code: '123456' });
   assert.match(late.body.error, /No login is waiting for a 2FA code/);
   assert.equal((await status()).loggedIn, false);

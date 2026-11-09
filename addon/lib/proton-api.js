@@ -16,6 +16,7 @@ const HUMAN_VERIFICATION_CODE = 9001;
 const TWO_FACTOR_TOTP = 1;
 const MAX_TOTP_TRIES = 3;
 const TOO_MANY_ACTIVE_FILTERS = 50016;
+const WRONG_CREDENTIALS = 8002;
 
 export const LABEL_TYPE = { LABEL: 1, FOLDER: 3 };
 
@@ -178,6 +179,7 @@ export class ProtonClient {
       RefreshToken: auth.RefreshToken,
       username,
       pending2FA: Boolean(twoFactor),
+      totpFailures: 0,
     };
 
     if (twoFactor && !(twoFactor & TWO_FACTOR_TOTP)) {
@@ -197,8 +199,10 @@ export class ProtonClient {
     } catch (error) {
       await this.guard.onError(error);
       // three wrong codes end the pending login: more tries need a new password login, which the guard limits
-      this.session.totpFailures = (this.session.totpFailures ?? 0) + 1;
-      if (this.session.totpFailures >= MAX_TOTP_TRIES) this.session = null;
+      if (error.code === WRONG_CREDENTIALS && ++this.session.totpFailures >= MAX_TOTP_TRIES) {
+        await this.logout();
+        throw new ProtonApiError(t('Three wrong 2FA codes: please sign in again'), { status: error.status, code: error.code });
+      }
       throw error;
     }
     this.session.pending2FA = false;

@@ -525,7 +525,12 @@ $('login-form').addEventListener('submit', (e) => {
 $('totp-form').addEventListener('submit', (e) => {
   e.preventDefault();
   busy(e.submitter ?? e.target.querySelector('button'), async () => {
-    await state.client.submitTotp($('totp').value);
+    try {
+      await state.client.submitTotp($('totp').value);
+    } finally {
+      // after too many wrong codes the pending login is gone: back to the password
+      if (state.client.session === null) show('login');
+    }
     state.pendingLogin = null;
     await enterApp();
   });

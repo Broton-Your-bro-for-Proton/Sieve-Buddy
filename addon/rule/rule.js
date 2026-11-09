@@ -308,7 +308,9 @@ async function applyPlan() {
     const activate = caps.multipleActive || !state.filters.some((f) => f.Status === 1);
     const created = await state.client.createFilter({ Name: plan.name, Sieve: plan.sieve, Status: activate ? 1 : 0 });
     if (created?.warning) {
-      toast(created.warning, true);
+      // the filter exists (disabled): another Apply would only create a duplicate
+      clearPlan(created.warning);
+      setTimeout(() => window.close(), 4000);
       return;
     }
     if (!activate) toast(t('New script created but not activated: only one script can be active'));

@@ -439,10 +439,10 @@ function relational(value, key, op, comparator) {
 function globToRegExp(glob, comparator) {
   let re = '';
   for (let i = 0; i < glob.length; i++) {
-    const c = glob[i];
-    if (c === '\\' && i + 1 < glob.length) re += glob[++i].replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-    else if (c === '*') re += '(.*?)';
-    else if (c === '?') re += '(.)';
+    const escaped = glob[i] === '\\' && i + 1 < glob.length;
+    const c = escaped ? glob[++i] : glob[i];
+    if (!escaped && c === '*') re += '(.*?)';
+    else if (!escaped && c === '?') re += '(.)';
     else if (comparator === ASCII_ONLY && /[a-z]/i.test(c)) re += `[${c.toLowerCase()}${c.toUpperCase()}]`;
     else re += c.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
   }
