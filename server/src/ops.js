@@ -70,7 +70,7 @@ export async function listFilters(account, { includeSieve = false } = {}) {
 export async function getFilter(account, { id }) {
   const data = await account.data();
   const s = data.scripts.find((x) => x.id === id);
-  if (!s) throw new Error(t('Filter/Skript {id} nicht gefunden', { id }));
+  if (!s) throw new Error(t('Filter/script {id} not found', { id }));
   return { ...summary(s, true), issues: withLines(s.sieve, lintCore(s.sieve, { folders: knownFolders(data), dialect: data.dialect })) };
 }
 
@@ -166,8 +166,8 @@ function assertFolderExists(data, folder) {
   const similar = known.filter((k) => close(k, folder));
   throw new Error(
     similar.length
-      ? t('Ordner/Label „{folder}“ existiert nicht – meintest du {names}? (siehe list_folders; der Ordner muss vorher angelegt werden)', { folder, names: similar.map((s) => t('„{s}“', { s })).join(', ') })
-      : t('Ordner/Label „{folder}“ existiert nicht (siehe list_folders; der Ordner muss vorher angelegt werden)', { folder }),
+      ? t('Folder/label “{folder}” does not exist. Did you mean {names}? (see list_folders; the folder must be created first)', { folder, names: similar.map((s) => t('“{s}”', { s })).join(', ') })
+      : t('Folder/label “{folder}” does not exist (see list_folders; the folder must be created first)', { folder }),
   );
 }
 
@@ -199,8 +199,8 @@ async function planRuleWithBase(account, { rule, target = 'auto', newName, secti
   if (!json.target.id && !data.capabilities.multipleActive) {
     json.notes.push(
       scripts.length
-        ? t('Neues Skript wird angelegt, aber nicht aktiviert – auf diesem Server läuft nur ein aktives Skript.')
-        : t('Neues Skript wird angelegt und aktiviert (bisher war kein Skript aktiv).'),
+        ? t('A new script will be created but not activated, because this server runs only one active script.')
+        : t('A new script will be created and activated (no script was active before).'),
     );
     json.activate = !scripts.length;
   }
@@ -212,7 +212,7 @@ export const buildTemplate = async (account, args) => (await buildTemplateWithBa
 async function buildTemplateWithBase(account, { templateId, params = {}, target = 'auto', newName, section = 'auto' }) {
   const data = await account.data();
   const template = templatesFor(data.dialect).find((t) => t.id === templateId);
-  if (!template) throw new Error(t('Vorlage {templateId} nicht gefunden – siehe list_templates', { templateId }));
+  if (!template) throw new Error(t('Template {templateId} not found, see list_templates', { templateId }));
   const merged = { ...templateDefaults(template), ...params };
   if (!data.dialect.proton) delete merged.expireDays;
   const built = buildTemplateCore(template, merged);
@@ -247,16 +247,16 @@ async function buildTemplateWithBase(account, { templateId, params = {}, target 
 // ---------- write ----------
 
 async function savePlanned(account, { planned, before }) {
-  if (planned.errors.length) throw new Error(t('Das Skript hat Fehler: {list}', { list: planned.errors.map((e) => t('Zeile {line}: {message}', { line: e.line, message: e.message })).join('; ') }));
-  if (planned.diff.added === 0 && planned.diff.removed === 0) return { saved: false, reason: t('Keine Änderung nötig – die Regel ist schon vorhanden'), ...planned };
+  if (planned.errors.length) throw new Error(t('The script has errors: {list}', { list: planned.errors.map((e) => t('Line {line}: {message}', { line: e.line, message: e.message })).join('; ') }));
+  if (planned.diff.added === 0 && planned.diff.removed === 0) return { saved: false, reason: t('No change needed: the rule already exists'), ...planned };
   return account.write(async () => {
     await account.checkOrThrow(planned.sieve);
     if (planned.target.id) {
       const data = await account.data({ fresh: true });
       const current = data.scripts.find((s) => s.id === planned.target.id);
-      if (!current) throw new Error(t('Der Zielfilter existiert nicht mehr'));
+      if (!current) throw new Error(t('The target filter no longer exists'));
       // someone else may have changed the script since it was read: never overwrite that
-      if (current.sieve !== before) throw new Error(t('Der Filter wurde inzwischen geändert – bitte neu planen'));
+      if (current.sieve !== before) throw new Error(t('The filter was changed in the meantime, please plan again'));
       await account.provider.updateScript(planned.target.id, { sieve: planned.sieve });
       return { saved: true, ...planned };
     }
@@ -299,8 +299,8 @@ export async function updateFilter(account, { id, name, sieve, enabled, expected
   return account.write(async () => {
     const data = await account.data({ fresh: true });
     const current = data.scripts.find((s) => s.id === id);
-    if (!current) throw new Error(t('Filter/Skript {id} nicht gefunden', { id }));
-    if (expectedSieve !== undefined && current.sieve !== expectedSieve) throw new Error(t('Der Filter wurde inzwischen geändert – bitte neu planen'));
+    if (!current) throw new Error(t('Filter/script {id} not found', { id }));
+    if (expectedSieve !== undefined && current.sieve !== expectedSieve) throw new Error(t('The filter was changed in the meantime, please plan again'));
     if (sieve !== undefined) await account.checkOrThrow(sieve);
     const result = await account.provider.updateScript(id, { name, sieve, enabled });
     return { id: result?.id ?? id, name: name ?? current.name, enabled: enabled ?? current.enabled, diff: unifiedDiff(current.sieve, sieve ?? current.sieve) };

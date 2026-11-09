@@ -1,4 +1,4 @@
-# Sieve-Dienst (REST + MCP). Anbieter und Zugangsdaten in .env – siehe .env.example und README.
+# Sieve service (REST + MCP). Provider and credentials go into .env, see .env.example and README.
 services:
   sieve:
     build: .

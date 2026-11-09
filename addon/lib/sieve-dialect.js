@@ -14,22 +14,22 @@ spamtest :value "ge" :comparator "i;ascii-numeric" "\${1}")
 }`;
 
 export const EXTENSIONS = {
-  fileinto: t('Nachricht in Ordner/Label verschieben'),
-  imap4flags: t('Flags setzen (addflag, removeflag, setflag, hasflag)'),
-  reject: t('Nachricht mit Begründung abweisen'),
-  vacation: t('Automatische Antwort (nur bezahlte Konten)'),
-  date: t('Tests date und currentdate'),
-  envelope: t('SMTP-Envelope testen (nur from/to)'),
-  variables: t('Variablen mit set und ${…}'),
-  relational: t('Vergleiche mit :value und :count'),
-  'comparator-i;ascii-numeric': t('Numerischer Vergleich'),
-  regex: t('Match-Typ :regex'),
-  extlists: t('Kontakt-, Allow- und Blocklisten (header :list)'),
-  'vnd.proton.eval': t('Arithmetik mit set :eval'),
-  'vnd.proton.expire': t('Automatisches Löschen (expire, unexpire)'),
-  include: t('Nur für return (Spam-Schutz)'),
-  environment: t('Umgebungswerte lesen (Spam-Schutz)'),
-  spamtest: t('Spam-Score testen (Spam-Schutz)'),
+  fileinto: t('Move message to folder/label'),
+  imap4flags: t('Set flags (addflag, removeflag, setflag, hasflag)'),
+  reject: t('Reject message with a reason'),
+  vacation: t('Automatic reply (paid accounts only)'),
+  date: t('Tests date and currentdate'),
+  envelope: t('Test the SMTP envelope (from/to only)'),
+  variables: t('Variables with set and ${…}'),
+  relational: t('Comparisons with :value and :count'),
+  'comparator-i;ascii-numeric': t('Numeric comparison'),
+  regex: t('Match type :regex'),
+  extlists: t('Contact, allow and block lists (header :list)'),
+  'vnd.proton.eval': t('Arithmetic with set :eval'),
+  'vnd.proton.expire': t('Automatic deletion (expire, unexpire)'),
+  include: t('Only for return (spam guard)'),
+  environment: t('Read environment values (spam guard)'),
+  spamtest: t('Test the spam score (spam guard)'),
 };
 
 /** Extensions Proton accepts – exactly the list above. */
@@ -37,23 +37,23 @@ export const PROTON_EXTENSIONS = Object.keys(EXTENSIONS);
 
 /** Further standard extensions found on Dovecot/Pigeonhole, Stalwart, Cyrus and others. */
 export const STANDARD_EXTENSIONS = {
-  copy: t('fileinto/redirect :copy – Kopie, Original bleibt'),
-  mailbox: t('fileinto :create und Test mailboxexists'),
-  body: t('Test body – Nachrichtentext durchsuchen'),
+  copy: t('fileinto/redirect :copy – keep the original and store a copy'),
+  mailbox: t('fileinto :create and test mailboxexists'),
+  body: t('Test body – search the message text'),
   editheader: t('addheader / deleteheader'),
-  enotify: t('notify – Benachrichtigung senden'),
-  duplicate: t('Test duplicate – doppelte Nachrichten erkennen'),
-  subaddress: t('Adressteile :user und :detail (name+detail@…)'),
-  ihave: t('Test ihave – Erweiterung vorhanden?'),
-  'encoded-character': t('${hex:…} / ${unicode:…} in Strings'),
+  enotify: t('notify – send a notification'),
+  duplicate: t('Test duplicate – detect duplicate messages'),
+  subaddress: t('Address parts :user and :detail (name+detail@…)'),
+  ihave: t('Test ihave – is the extension available?'),
+  'encoded-character': t('${hex:…} / ${unicode:…} in strings'),
   'spamtestplus': 'spamtest :percent',
-  virustest: t('Virus-Score testen'),
+  virustest: t('Test the virus score'),
   'special-use': 'fileinto :specialuse',
-  imapflags: t('Veraltete Vorgängerin von imap4flags'),
-  index: t(':index / :last bei header/address/date'),
-  'comparator-i;unicode-casemap': t('Unicode-Vergleich ohne Groß-/Kleinschreibung'),
+  imapflags: t('Deprecated predecessor of imap4flags'),
+  index: t(':index / :last for header/address/date'),
+  'comparator-i;unicode-casemap': t('Unicode comparison, case-insensitive'),
   'vnd.dovecot.debug': 'debug_log (Dovecot)',
-  'vnd.dovecot.duplicate': t('Ältere Dovecot-Variante von duplicate'),
+  'vnd.dovecot.duplicate': t('Older Dovecot variant of duplicate'),
 };
 
 /** Documentation for every known extension (for hints and hover help). */
@@ -74,57 +74,57 @@ export const PROTON_DIALECT = makeDialect({ name: 'proton' });
 /** Commands and tests, each with the extension it needs (null = core Sieve). */
 export const COMMANDS = {
   // control
-  require: { ext: null, kind: 'control', doc: t('Benötigte Erweiterungen laden') },
-  if: { ext: null, kind: 'control', doc: t('Bedingung') },
-  elsif: { ext: null, kind: 'control', doc: t('Weitere Bedingung') },
-  else: { ext: null, kind: 'control', doc: t('Sonst-Zweig') },
-  stop: { ext: null, kind: 'action', doc: t('Beendet ALLE Filter (auch nachfolgende)') },
-  return: { ext: 'include', kind: 'action', doc: t('Beendet dieses Skript') },
+  require: { ext: null, kind: 'control', doc: t('Load required extensions') },
+  if: { ext: null, kind: 'control', doc: t('Condition') },
+  elsif: { ext: null, kind: 'control', doc: t('Further condition') },
+  else: { ext: null, kind: 'control', doc: t('Else branch') },
+  stop: { ext: null, kind: 'action', doc: t('Ends ALL filters (including following ones)') },
+  return: { ext: 'include', kind: 'action', doc: t('Ends this script') },
   // actions
-  keep: { ext: null, kind: 'action', doc: t('Hebt ein discard auf (keine Kopie im Posteingang!)') },
-  discard: { ext: null, kind: 'action', doc: t('Verwirft die Nachricht, nachfolgende Filter laufen nicht') },
-  fileinto: { ext: 'fileinto', kind: 'action', doc: t('In Ordner/Label verschieben') },
-  addflag: { ext: 'imap4flags', kind: 'action', doc: t('Flag hinzufügen') },
-  removeflag: { ext: 'imap4flags', kind: 'action', doc: t('Flag entfernen') },
-  setflag: { ext: 'imap4flags', kind: 'action', doc: t('Flags ersetzen') },
-  reject: { ext: 'reject', kind: 'action', doc: t('Mit Begründung abweisen') },
-  vacation: { ext: 'vacation', kind: 'action', doc: t('Automatische Antwort') },
-  set: { ext: 'variables', kind: 'action', doc: t('Variable setzen') },
-  expire: { ext: 'vnd.proton.expire', kind: 'action', doc: t('Nach Zeitraum löschen') },
-  unexpire: { ext: 'vnd.proton.expire', kind: 'action', doc: t('Ablauf entfernen') },
+  keep: { ext: null, kind: 'action', doc: t('Cancels a discard (no copy in the inbox!)') },
+  discard: { ext: null, kind: 'action', doc: t('Discards the message, following filters do not run') },
+  fileinto: { ext: 'fileinto', kind: 'action', doc: t('Move to folder/label') },
+  addflag: { ext: 'imap4flags', kind: 'action', doc: t('Add flag') },
+  removeflag: { ext: 'imap4flags', kind: 'action', doc: t('Remove flag') },
+  setflag: { ext: 'imap4flags', kind: 'action', doc: t('Replace flags') },
+  reject: { ext: 'reject', kind: 'action', doc: t('Reject with a reason') },
+  vacation: { ext: 'vacation', kind: 'action', doc: t('Automatic reply') },
+  set: { ext: 'variables', kind: 'action', doc: t('Set variable') },
+  expire: { ext: 'vnd.proton.expire', kind: 'action', doc: t('Delete after a period') },
+  unexpire: { ext: 'vnd.proton.expire', kind: 'action', doc: t('Remove expiration') },
   // tests
-  address: { ext: null, kind: 'test', doc: t('Adress-Header testen') },
-  header: { ext: null, kind: 'test', doc: t('Header-Wert testen') },
-  exists: { ext: null, kind: 'test', doc: t('Header vorhanden?') },
-  size: { ext: null, kind: 'test', doc: t('Größe (verschlüsselt) :over/:under') },
-  true: { ext: null, kind: 'test', doc: t('Immer wahr') },
-  false: { ext: null, kind: 'test', doc: t('Immer falsch') },
+  address: { ext: null, kind: 'test', doc: t('Test an address header') },
+  header: { ext: null, kind: 'test', doc: t('Test a header value') },
+  exists: { ext: null, kind: 'test', doc: t('Header present?') },
+  size: { ext: null, kind: 'test', doc: t('Size (encrypted) :over/:under') },
+  true: { ext: null, kind: 'test', doc: t('Always true') },
+  false: { ext: null, kind: 'test', doc: t('Always false') },
   not: { ext: null, kind: 'test', doc: t('Negation') },
-  anyof: { ext: null, kind: 'test', doc: t('ODER') },
-  allof: { ext: null, kind: 'test', doc: t('UND') },
+  anyof: { ext: null, kind: 'test', doc: t('OR') },
+  allof: { ext: null, kind: 'test', doc: t('AND') },
   envelope: { ext: 'envelope', kind: 'test', doc: t('Envelope from/to') },
-  date: { ext: 'date', kind: 'test', doc: t('Datum aus Header') },
-  currentdate: { ext: 'date', kind: 'test', doc: t('Aktuelles Datum') },
-  hasflag: { ext: 'imap4flags', kind: 'test', doc: t('Flag gesetzt?') },
-  string: { ext: 'variables', kind: 'test', doc: t('Zeichenkette/Variable testen') },
-  hasexpiration: { ext: 'vnd.proton.expire', kind: 'test', doc: t('Ablauf gesetzt?') },
-  expiration: { ext: 'vnd.proton.expire', kind: 'test', doc: t('Ablauf vergleichen') },
-  environment: { ext: 'environment', kind: 'test', doc: t('Umgebungswert') },
-  spamtest: { ext: 'spamtest', kind: 'test', doc: t('Spam-Score') },
+  date: { ext: 'date', kind: 'test', doc: t('Date from header') },
+  currentdate: { ext: 'date', kind: 'test', doc: t('Current date') },
+  hasflag: { ext: 'imap4flags', kind: 'test', doc: t('Flag set?') },
+  string: { ext: 'variables', kind: 'test', doc: t('Test string/variable') },
+  hasexpiration: { ext: 'vnd.proton.expire', kind: 'test', doc: t('Expiration set?') },
+  expiration: { ext: 'vnd.proton.expire', kind: 'test', doc: t('Compare expiration') },
+  environment: { ext: 'environment', kind: 'test', doc: t('Environment value') },
+  spamtest: { ext: 'spamtest', kind: 'test', doc: t('Spam score') },
   // standard extensions (not on Proton)
-  redirect: { ext: null, kind: 'action', doc: t('An andere Adresse weiterleiten') },
-  include: { ext: 'include', kind: 'action', doc: t('Anderes Skript einbinden') },
-  global: { ext: 'include', kind: 'action', doc: t('Globale Variable (include)') },
-  notify: { ext: 'enotify', kind: 'action', doc: t('Benachrichtigung senden') },
-  addheader: { ext: 'editheader', kind: 'action', doc: t('Header hinzufügen') },
-  deleteheader: { ext: 'editheader', kind: 'action', doc: t('Header entfernen') },
-  debug_log: { ext: 'vnd.dovecot.debug', kind: 'action', doc: t('Debug-Ausgabe (Dovecot)') },
-  body: { ext: 'body', kind: 'test', doc: t('Nachrichtentext durchsuchen') },
-  mailboxexists: { ext: 'mailbox', kind: 'test', doc: t('Ordner vorhanden?') },
-  duplicate: { ext: 'duplicate', kind: 'test', doc: t('Schon einmal zugestellt?') },
-  ihave: { ext: 'ihave', kind: 'test', doc: t('Erweiterung vorhanden?') },
-  virustest: { ext: 'virustest', kind: 'test', doc: t('Virus-Score') },
-  valid_notify_method: { ext: 'enotify', kind: 'test', doc: t('Benachrichtigungsweg gültig?') },
+  redirect: { ext: null, kind: 'action', doc: t('Redirect to another address') },
+  include: { ext: 'include', kind: 'action', doc: t('Include another script') },
+  global: { ext: 'include', kind: 'action', doc: t('Global variable (include)') },
+  notify: { ext: 'enotify', kind: 'action', doc: t('Send notification') },
+  addheader: { ext: 'editheader', kind: 'action', doc: t('Add header') },
+  deleteheader: { ext: 'editheader', kind: 'action', doc: t('Remove header') },
+  debug_log: { ext: 'vnd.dovecot.debug', kind: 'action', doc: t('Debug output (Dovecot)') },
+  body: { ext: 'body', kind: 'test', doc: t('Search the message text') },
+  mailboxexists: { ext: 'mailbox', kind: 'test', doc: t('Folder exists?') },
+  duplicate: { ext: 'duplicate', kind: 'test', doc: t('Already delivered once?') },
+  ihave: { ext: 'ihave', kind: 'test', doc: t('Extension available?') },
+  virustest: { ext: 'virustest', kind: 'test', doc: t('Virus score') },
+  valid_notify_method: { ext: 'enotify', kind: 'test', doc: t('Notification method valid?') },
 };
 
 /** Commands that only exist (or behave as documented here) on Proton. */
@@ -132,53 +132,53 @@ export const PROTON_ONLY_COMMANDS = new Set(['expire', 'unexpire', 'hasexpiratio
 
 /** Tagged arguments, with the extension they need. */
 export const TAGS = {
-  ':is': { ext: null, doc: t('Exakt gleich') },
-  ':contains': { ext: null, doc: t('Enthält') },
-  ':matches': { ext: null, doc: t('Wildcards * und ?') },
-  ':regex': { ext: 'regex', doc: t('Regulärer Ausdruck (POSIX, kein \\d/\\w/\\b)') },
-  ':value': { ext: 'relational', doc: t('Vergleich "gt" "ge" "eq" "le" "lt"') },
-  ':count': { ext: 'relational', doc: t('Anzahl vergleichen') },
-  ':comparator': { ext: null, doc: t('Vergleichsart, z. B. "i;ascii-numeric"') },
-  ':all': { ext: null, doc: t('Ganze Adresse') },
-  ':localpart': { ext: null, doc: t('Teil vor @') },
-  ':domain': { ext: null, doc: t('Teil nach @') },
-  ':over': { ext: null, doc: t('Größer als') },
-  ':under': { ext: null, doc: t('Kleiner als') },
-  ':zone': { ext: 'date', doc: t('Zeitzone "+0100"') },
-  ':originalzone': { ext: 'date', doc: t('Zeitzone des Headers') },
-  ':days': { ext: 'vacation', doc: t('Antwort-Intervall in Tagen') },
-  ':subject': { ext: 'vacation', doc: t('Betreff der Antwort') },
-  ':mime': { ext: 'vacation', doc: t('Antwort als MIME') },
-  ':handle': { ext: 'vacation', doc: t('Antwort-Gruppe') },
-  ':list': { ext: 'extlists', doc: t('Gegen Kontakt-/Allow-/Blockliste') },
-  ':lower': { ext: 'variables', doc: t('Kleinbuchstaben') },
-  ':upper': { ext: 'variables', doc: t('Großbuchstaben') },
-  ':lowerfirst': { ext: 'variables', doc: t('Erster Buchstabe klein') },
-  ':upperfirst': { ext: 'variables', doc: t('Erster Buchstabe groß') },
-  ':quotewildcard': { ext: 'variables', doc: t('Wildcards maskieren') },
-  ':length': { ext: 'variables', doc: t('Länge') },
-  ':eval': { ext: 'vnd.proton.eval', doc: t('Arithmetik auswerten') },
+  ':is': { ext: null, doc: t('Exactly equal') },
+  ':contains': { ext: null, doc: t('Contains') },
+  ':matches': { ext: null, doc: t('Wildcards * and ?') },
+  ':regex': { ext: 'regex', doc: t('Regular expression (POSIX, no \\d/\\w/\\b)') },
+  ':value': { ext: 'relational', doc: t('Comparison "gt" "ge" "eq" "le" "lt"') },
+  ':count': { ext: 'relational', doc: t('Compare the count') },
+  ':comparator': { ext: null, doc: t('Comparison type, e.g. "i;ascii-numeric"') },
+  ':all': { ext: null, doc: t('Entire address') },
+  ':localpart': { ext: null, doc: t('Part before @') },
+  ':domain': { ext: null, doc: t('Part after @') },
+  ':over': { ext: null, doc: t('Greater than') },
+  ':under': { ext: null, doc: t('Less than') },
+  ':zone': { ext: 'date', doc: t('Time zone "+0100"') },
+  ':originalzone': { ext: 'date', doc: t('Time zone of the header') },
+  ':days': { ext: 'vacation', doc: t('Reply interval in days') },
+  ':subject': { ext: 'vacation', doc: t('Subject of the reply') },
+  ':mime': { ext: 'vacation', doc: t('Reply as MIME') },
+  ':handle': { ext: 'vacation', doc: t('Reply group') },
+  ':list': { ext: 'extlists', doc: t('Against contact/allow/block list') },
+  ':lower': { ext: 'variables', doc: t('Lowercase') },
+  ':upper': { ext: 'variables', doc: t('Uppercase') },
+  ':lowerfirst': { ext: 'variables', doc: t('First letter lowercase') },
+  ':upperfirst': { ext: 'variables', doc: t('First letter uppercase') },
+  ':quotewildcard': { ext: 'variables', doc: t('Escape wildcards') },
+  ':length': { ext: 'variables', doc: t('Length') },
+  ':eval': { ext: 'vnd.proton.eval', doc: t('Evaluate arithmetic') },
   // standard extensions
-  ':copy': { ext: 'copy', doc: t('Kopie ablegen, Original bleibt im Posteingang') },
-  ':create': { ext: 'mailbox', doc: t('Ordner anlegen, falls er fehlt') },
-  ':specialuse': { ext: 'special-use', doc: t('Ordner über Sonderfunktion wählen (\\\\Junk …)') },
-  ':raw': { ext: 'body', doc: t('Rohtext durchsuchen') },
-  ':content': { ext: 'body', doc: t('Bestimmte MIME-Typen durchsuchen') },
-  ':text': { ext: 'body', doc: t('Dekodierten Text durchsuchen') },
-  ':user': { ext: 'subaddress', doc: t('Teil vor dem + (name+detail@…)') },
-  ':detail': { ext: 'subaddress', doc: t('Teil nach dem + (name+detail@…)') },
-  ':from': { ext: null, doc: t('Absender (vacation/notify)') },
-  ':addresses': { ext: 'vacation', doc: t('Eigene Adressen für vacation') },
-  ':seconds': { ext: 'vacation', doc: t('Antwort-Intervall in Sekunden') },
-  ':importance': { ext: 'enotify', doc: t('Wichtigkeit 1–3') },
-  ':options': { ext: 'enotify', doc: t('Optionen der Benachrichtigung') },
-  ':message': { ext: 'enotify', doc: t('Text der Benachrichtigung') },
-  ':header': { ext: 'duplicate', doc: t('Header für duplicate') },
-  ':uniqueid': { ext: 'duplicate', doc: t('Eindeutige ID für duplicate') },
-  ':last': { ext: 'editheader', doc: t('Am Ende hinzufügen / letzten wählen') },
-  ':index': { ext: 'index', doc: t('n-ten Header wählen') },
-  ':percent': { ext: 'spamtestplus', doc: t('Spam-Score in Prozent') },
-  ':flags': { ext: 'imap4flags', doc: t('Flags direkt beim fileinto/keep setzen') },
+  ':copy': { ext: 'copy', doc: t('Store a copy, the original stays in the inbox') },
+  ':create': { ext: 'mailbox', doc: t('Create the folder if it is missing') },
+  ':specialuse': { ext: 'special-use', doc: t('Select a folder by special use (\\\\Junk …)') },
+  ':raw': { ext: 'body', doc: t('Search the raw text') },
+  ':content': { ext: 'body', doc: t('Search specific MIME types') },
+  ':text': { ext: 'body', doc: t('Search the decoded text') },
+  ':user': { ext: 'subaddress', doc: t('Part before the + (name+detail@…)') },
+  ':detail': { ext: 'subaddress', doc: t('Part after the + (name+detail@…)') },
+  ':from': { ext: null, doc: t('Sender (vacation/notify)') },
+  ':addresses': { ext: 'vacation', doc: t('Own addresses for vacation') },
+  ':seconds': { ext: 'vacation', doc: t('Reply interval in seconds') },
+  ':importance': { ext: 'enotify', doc: t('Importance 1–3') },
+  ':options': { ext: 'enotify', doc: t('Notification options') },
+  ':message': { ext: 'enotify', doc: t('Notification text') },
+  ':header': { ext: 'duplicate', doc: t('Header for duplicate') },
+  ':uniqueid': { ext: 'duplicate', doc: t('Unique ID for duplicate') },
+  ':last': { ext: 'editheader', doc: t('Add at the end / select the last one') },
+  ':index': { ext: 'index', doc: t('Select the nth header') },
+  ':percent': { ext: 'spamtestplus', doc: t('Spam score in percent') },
+  ':flags': { ext: 'imap4flags', doc: t('Set flags directly with fileinto/keep') },
 };
 
 export const HEADERS = [
@@ -207,46 +207,46 @@ export const EXPIRE_UNITS = ['month', 'day', 'hour', 'minute', 'second'];
 
 export const TEMPLATES = [
   {
-    name: t('Absender → Ordner'),
-    body: `if address :is "from" "absender@example.com" {
-    fileinto "Ordner";
+    name: t('Sender → folder'),
+    body: `if address :is "from" "${t('sender@example.com')}" {
+    fileinto "${t('Folder')}";
 }`,
   },
   {
-    name: t('Domain → Ordner'),
+    name: t('Domain → folder'),
     body: `if address :domain :is "from" "example.com" {
-    fileinto "Ordner";
+    fileinto "${t('Folder')}";
 }`,
   },
   {
-    name: t('Mailingliste → Ordner, als gelesen'),
+    name: t('Mailing list → folder, mark as read'),
     body: `if exists "list-id" {
     addflag "\\\\Seen";
-    fileinto "Listen";
+    fileinto "${t('Lists')}";
 }`,
   },
   {
-    name: t('Newsletter (List-Unsubscribe) → Ordner'),
+    name: t('Newsletter (List-Unsubscribe) → folder'),
     body: `if exists "list-unsubscribe" {
     fileinto "Newsletter";
 }`,
   },
   {
-    name: t('Betreff enthält → Label + Stern'),
-    body: `if header :contains "subject" "Rechnung" {
+    name: t('Subject contains → label + star'),
+    body: `if header :contains "subject" "${t('Invoice')}" {
     addflag "\\\\Flagged";
-    fileinto "Rechnungen";
+    fileinto "${t('Invoices')}";
 }`,
   },
   {
-    name: t('Ordner nach Absender-Domain'),
+    name: t('Folder by sender domain'),
     body: `if address :domain :matches "from" "*" {
     set :lower "sender" "\${1}";
     fileinto "\${sender}";
 }`,
   },
   {
-    name: t('Nicht-Kontakte nach 30 Tagen löschen'),
+    name: t('Delete non-contacts after 30 days'),
     body: `if not anyof(
     header :list "from" ":addrbook:personal",
     header :list "from" ":addrbook:myself"
@@ -255,12 +255,12 @@ export const TEMPLATES = [
 }`,
   },
   {
-    name: t('Abwesenheitsnotiz (Zeitraum)'),
+    name: t('Out-of-office reply (date range)'),
     body: `if allof(
     currentdate :value "ge" "date" "2026-12-20",
     currentdate :value "le" "date" "2027-01-06"
 ) {
-    vacation :days 7 :subject "Abwesend" "Ich bin bis zum 6. Januar nicht erreichbar.";
+    vacation :days 7 :subject "${t('Out of Office')}" "${t('I am unavailable until January 6.')}";
 }`,
   },
 ];

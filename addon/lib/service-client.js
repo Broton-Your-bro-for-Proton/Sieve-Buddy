@@ -18,7 +18,7 @@ export class ServiceClient {
   }
 
   get session() {
-    return this.status ? { username: this.status.username ?? this.status.server ?? t('Dienst') } : null;
+    return this.status ? { username: this.status.username ?? this.status.server ?? t('Service') } : null;
   }
 
   async #call(path, body) {
@@ -30,10 +30,10 @@ export class ServiceClient {
         body: body === undefined ? undefined : JSON.stringify(body),
       });
     } catch (error) {
-      throw new Error(t('Dienst unter {url} nicht erreichbar ({message})', { url: this.baseUrl, message: error.message }));
+      throw new Error(t('Service at {url} is not reachable ({message})', { url: this.baseUrl, message: error.message }));
     }
     const data = await res.json().catch(() => ({}));
-    if (res.status === 401) throw new Error(t('API-Token des Dienstes ist falsch'));
+    if (res.status === 401) throw new Error(t('The service API token is wrong'));
     if (!res.ok) throw Object.assign(new Error(data.error || `HTTP ${res.status}`), { issues: data.issues });
     return data;
   }

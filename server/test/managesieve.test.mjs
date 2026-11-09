@@ -32,7 +32,7 @@ test('capabilities and authentication', async () => {
 
 test('STARTTLS is required by default', async () => {
   const p = new ManageSieveProvider({ host: '127.0.0.1', port, user: 'test', password: 'test123' });
-  await assert.rejects(p.init(), /kein STARTTLS/);
+  await assert.rejects(p.init(), /does not offer STARTTLS/);
 });
 
 test('list, read, create, update with literal, rename, activate, delete', async () => {
@@ -42,24 +42,24 @@ test('list, read, create, update with literal, rename, activate, delete', async 
   assert.equal(scripts[0].sieve, MAIN);
 
   const umlauts = 'require ["fileinto"];\n# Einkäufe – „Quotes“ \\ und "Anführungszeichen"\nfileinto "Einkäufe";\n';
-  await p.createScript({ name: 'neu', sieve: umlauts });
-  assert.equal(fake.state.scripts.get('neu'), umlauts, 'UTF-8 literal must arrive byte-exact');
-  await assert.rejects(p.createScript({ name: 'neu', sieve: '#' }), /gibt es schon/);
+  await p.createScript({ name: 'new', sieve: umlauts });
+  assert.equal(fake.state.scripts.get('new'), umlauts, 'UTF-8 literal must arrive byte-exact');
+  await assert.rejects(p.createScript({ name: 'new', sieve: '#' }), /already exists/);
 
-  await p.updateScript('neu', { name: 'umbenannt', enabled: true });
-  assert.equal(fake.state.active, 'umbenannt');
+  await p.updateScript('new', { name: 'renamed', enabled: true });
+  assert.equal(fake.state.active, 'renamed');
   scripts = await p.listScripts();
-  assert.deepEqual(scripts.find((s) => s.enabled).name, 'umbenannt');
+  assert.deepEqual(scripts.find((s) => s.enabled).name, 'renamed');
 
   await p.setEnabled('main', true);
   assert.equal(fake.state.active, 'main');
   await p.setEnabled('main', false);
   assert.equal(fake.state.active, null);
 
-  await p.setEnabled('umbenannt', true);
-  await p.deleteScript('umbenannt'); // active → deactivated first
-  assert.equal(fake.state.scripts.has('umbenannt'), false);
-  await assert.rejects(p.reorder(['a']), /keine Reihenfolge/);
+  await p.setEnabled('renamed', true);
+  await p.deleteScript('renamed'); // active → deactivated first
+  assert.equal(fake.state.scripts.has('renamed'), false);
+  await assert.rejects(p.reorder(['a']), /has no ordering/);
 });
 
 test('check reports server errors with line numbers', async () => {
@@ -67,7 +67,7 @@ test('check reports server errors with line numbers', async () => {
   assert.deepEqual(await p.check(MAIN), []);
   const issues = await p.check('require ["fileinto"];\n\nfoo "x";\n');
   assert.equal(issues[0].line, 3);
-  assert.match(issues[0].message, /Unbekannter Befehl/);
+  assert.match(issues[0].message, /Unknown command/);
 });
 
 test('servers without CHECKSCRIPT are checked via a temporary script', async () => {

@@ -34,7 +34,7 @@ test('capabilities, scripts and folders come from the session and blobs', () =>
     const scripts = await p.listScripts();
     assert.deepEqual(scripts.map((s) => [s.name, s.enabled]), [['main', true], ['alt', false]]);
     assert.equal(scripts[0].sieve, MAIN);
-    assert.deepEqual((await p.listFolders()).folders, ['INBOX', 'Archiv', 'Archiv/2026', 'Shop']);
+    assert.deepEqual((await p.listFolders()).folders, ['INBOX', 'Archive', 'Archive/2026', 'Shop']);
   }));
 
 test('wrong token is rejected, Basic auth with a user works', () =>
@@ -47,13 +47,13 @@ test('wrong token is rejected, Basic auth with a user works', () =>
 test('create, update, rename, activate and delete', () =>
   withFake({ scripts: { main: MAIN }, active: 'main' }, async (fake, config) => {
     const p = new JmapProvider(config);
-    const { id } = await p.createScript({ name: 'zweit', sieve: '# zweit\n' });
+    const { id } = await p.createScript({ name: 'second', sieve: '# second\n' });
     assert.equal(fake.state.active(), 'main', 'new scripts stay inactive');
-    await assert.rejects(p.createScript({ name: 'zweit', sieve: '#\n' }), /gibt es schon/);
+    await assert.rejects(p.createScript({ name: 'second', sieve: '#\n' }), /already exists/);
 
-    await p.updateScript(id, { name: 'dritt', sieve: '# dritt\n', enabled: true });
-    assert.equal(fake.state.active(), 'dritt');
-    assert.equal(fake.state.text('dritt'), '# dritt\n');
+    await p.updateScript(id, { name: 'third', sieve: '# third\n', enabled: true });
+    assert.equal(fake.state.active(), 'third');
+    assert.equal(fake.state.text('third'), '# third\n');
 
     // deleting the active script deactivates it first
     await p.deleteScript(id);
@@ -68,9 +68,9 @@ test('create, update, rename, activate and delete', () =>
     const created = await p.createScript({ name: 'live', sieve: '# live\n', enabled: true });
     assert.equal(fake.state.active(), 'live');
     assert.equal(created.name, 'live');
-    await assert.rejects(p.reorder([main]), /keine Reihenfolge/);
+    await assert.rejects(p.reorder([main]), /has no ordering/);
     // an unknown id fails instead of silently changing nothing (or switching everything off)
-    await assert.rejects(p.setEnabled('S999', true), /nicht gefunden/);
+    await assert.rejects(p.setEnabled('S999', true), /not found/);
     assert.equal(fake.state.active(), 'live');
   }));
 
@@ -152,7 +152,7 @@ test('service: status, apply_rule into the active script, server check', async (
   assert.match(fake.state.text('main'), /\["amazon\.de", "ebay\.de", "otto\.de"\]/);
   assert.ok(!fake.state.text('alt').includes('otto'));
 
-  const bad = await mcp.callTool({ name: 'create_filter', arguments: { name: 'kaputt', sieve: 'foo;' } });
+  const bad = await mcp.callTool({ name: 'create_filter', arguments: { name: 'broken', sieve: 'foo;' } });
   assert.equal(bad.isError, true);
-  assert.match(bad.content[0].text, /Der Server lehnt das Skript ab: Zeile 1/);
+  assert.match(bad.content[0].text, /The server rejects the script: Line 1/);
 });

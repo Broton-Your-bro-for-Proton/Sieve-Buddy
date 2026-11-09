@@ -13,7 +13,7 @@ import { makeDialect } from '../../addon/lib/sieve-dialect.js';
 import { parseHeaderBlock } from '../../addon/lib/mail.js';
 
 const [host, sievePort = '4190', imapsPort = '993'] = (process.env.DOVECOT_TEST ?? '').split(':');
-const skip = !host && 'DOVECOT_TEST nicht gesetzt';
+const skip = !host && 'DOVECOT_TEST is not set';
 const creds = { user: 'test@example.test', password: 'test123' };
 const config = { host, port: Number(sievePort), tls: 'starttls', rejectUnauthorized: false, ...creds, imap: { host, port: Number(imapsPort), tls: 'tls' } };
 
@@ -22,7 +22,7 @@ test('STARTTLS, capabilities and wrong password', { skip }, async () => {
   assert.match(conn.capabilities.implementation, /Dovecot/);
   assert.ok(conn.capabilities.sieve.includes('fileinto'));
   assert.ok(conn.socket.encrypted, 'connection must be TLS after STARTTLS');
-  await assert.rejects(conn.authenticate(creds.user, 'falsch'), /Authentication failed/i);
+  await assert.rejects(conn.authenticate(creds.user, 'wrong'), /Authentication failed/i);
   await conn.logout();
 });
 
@@ -32,7 +32,7 @@ test('certificate is verified unless disabled', { skip }, async () => {
 
 test('IMAP folder list over TLS incl. modified UTF-7', { skip }, async () => {
   const folders = await listImapFolders({ host, port: Number(imapsPort), tls: 'tls', rejectUnauthorized: false, ...creds });
-  for (const f of ['INBOX', 'Shop', 'Newsletter', 'Rechnungen', 'Archiv/2026', 'Entwürfe']) assert.ok(folders.includes(f), `${f} in ${folders}`);
+  for (const f of ['INBOX', 'Shop', 'Newsletter', 'Invoices', 'Archive/2026', 'Entwürfe']) assert.ok(folders.includes(f), `${f} in ${folders}`);
 });
 
 test('full script lifecycle on Dovecot', { skip }, async () => {
@@ -68,13 +68,13 @@ test('full script lifecycle on Dovecot', { skip }, async () => {
   assert.match(saved, /addflag "\\\\Seen"/);
 
   // second script, activation switch, rename, delete
-  await p.createScript({ name: 'zweit', sieve: '# zweit\n' });
-  assert.equal((await p.listScripts()).find((s) => s.name === 'zweit').enabled, false);
-  await p.setEnabled('zweit', true);
-  assert.deepEqual((await p.listScripts()).filter((s) => s.enabled).map((s) => s.name), ['zweit']);
-  await p.updateScript('zweit', { name: 'dritt' });
-  assert.ok((await p.listScripts()).some((s) => s.name === 'dritt' && s.enabled));
-  await p.deleteScript('dritt');
+  await p.createScript({ name: 'second', sieve: '# second\n' });
+  assert.equal((await p.listScripts()).find((s) => s.name === 'second').enabled, false);
+  await p.setEnabled('second', true);
+  assert.deepEqual((await p.listScripts()).filter((s) => s.enabled).map((s) => s.name), ['second']);
+  await p.updateScript('second', { name: 'third' });
+  assert.ok((await p.listScripts()).some((s) => s.name === 'third' && s.enabled));
+  await p.deleteScript('third');
   await p.setEnabled('main', true);
   assert.deepEqual((await p.listScripts()).map((s) => [s.name, s.enabled]), [['main', true]]);
 });
@@ -82,7 +82,7 @@ test('full script lifecycle on Dovecot', { skip }, async () => {
 // Delivers mails through Pigeonhole (dovecot-lda in the container) and compares where they really land with
 // the simulator. Needs DOVECOT_CONTAINER=<name> in addition to DOVECOT_TEST.
 const container = process.env.DOVECOT_CONTAINER;
-test('simulator matches real Pigeonhole delivery', { skip: skip || (!container && 'DOVECOT_CONTAINER nicht gesetzt') }, async () => {
+test('simulator matches real Pigeonhole delivery', { skip: skip || (!container && 'DOVECOT_CONTAINER is not set') }, async () => {
   const { execFileSync } = await import('node:child_process');
   const { simulate } = await import('../../addon/lib/sieve-sim.js');
   const dockerExec = (script, input) =>
@@ -96,17 +96,17 @@ test('simulator matches real Pigeonhole delivery', { skip: skip || (!container &
 if address :domain :is "from" ["shop.de", "otto.de"] { fileinto "Shop"; }
 if address :domain :is "from" "otto.de" { addflag "\\Seen"; fileinto "Shop"; }
 if header :contains "list-id" "news.example.com" { fileinto :copy "Newsletter"; }
-if header :contains "subject" "Rechnung" { setflag "\\Flagged"; fileinto "Rechnungen"; stop; }
-if exists "x-wegwerfen" { discard; }
+if header :contains "subject" "Invoice" { setflag "\\Flagged"; fileinto "Invoices"; stop; }
+if exists "x-discard" { discard; }
 `;
   await p.createScript({ name: 'cmp', sieve, enabled: true });
 
   const mails = {
-    shop: 'From: a@shop.de\nSubject: Hallo\n',
-    otto: 'From: b@otto.de\nSubject: Bestellung\n',
+    shop: 'From: a@shop.de\nSubject: Hello\n',
+    otto: 'From: b@otto.de\nSubject: Order\n',
     list: 'From: c@example.com\nList-Id: <news.example.com>\nSubject: News\n',
-    invoice: 'From: d@shop.de\nSubject: Ihre Rechnung\n',
-    discard: 'From: e@x.de\nX-Wegwerfen: ja\nSubject: weg\n',
+    invoice: 'From: d@shop.de\nSubject: Your invoice\n',
+    discard: 'From: e@x.de\nX-Discard: yes\nSubject: gone\n',
     plain: 'From: f@x.de\nSubject: normal\n',
   };
   const home = '/srv/mail/test@example.test/Maildir';
@@ -127,7 +127,7 @@ if exists "x-wegwerfen" { discard; }
   for (const [id, headers] of Object.entries(mails)) {
     const r = simulate([{ id: 'cmp', name: 'cmp', sieve }], { headers: parseHeaderBlock(headers) }, { semantics: 'rfc' });
     const predicted = r.copies.map((c) => `${c.folder}[${[...c.flags].sort().join(' ')}]`).sort();
-    assert.deepEqual(predicted, (real[id] ?? []).sort(), `${id}: Simulator ${predicted} vs. Dovecot ${real[id] ?? '(nichts)'}`);
+    assert.deepEqual(predicted, (real[id] ?? []).sort(), `${id}: Simulator ${predicted} vs. Dovecot ${real[id] ?? '(nothing)'}`);
   }
   await p.deleteScript('cmp');
 });

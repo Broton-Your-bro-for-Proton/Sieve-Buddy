@@ -12,7 +12,7 @@ import { FAKE_SIEVE_EXTENSIONS } from './fake-managesieve.mjs';
 const SIEVE = 'urn:ietf:params:jmap:sieve';
 const ACCOUNT = 'a1';
 
-export function createFakeJmap({ token = 'jmap-test-token', scripts = {}, active = null, validate = true, mailboxes = ['Shop', 'Archiv/2026'] } = {}) {
+export function createFakeJmap({ token = 'jmap-test-token', scripts = {}, active = null, validate = true, mailboxes = ['Shop', 'Archive/2026'] } = {}) {
   const dialect = makeDialect({ name: 'rfc', extensions: FAKE_SIEVE_EXTENSIONS });
   const blobs = new Map();
   let nextId = 1;

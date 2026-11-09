@@ -60,15 +60,15 @@ test('REST validates input like MCP', async () => {
   const rule = { conditions: [{ kind: 'address', header: 'from', match: 'is "x" "y" { discard; stop; } if true', value: 'v' }], actions: { fileinto: 'INBOX' } };
   const r = await rest('plan-rule', { rule });
   assert.equal(r.status, 400);
-  assert.match(r.body.error, /Ungültige Eingabe/);
+  assert.match(r.body.error, /Invalid input/);
   assert.equal((await rest('get-filter', {})).status, 400);
 });
 
 test('create-filter without enabled keeps the active script', async () => {
-  const r = await rest('create-filter', { name: 'neu', sieve: '# neu\n' });
+  const r = await rest('create-filter', { name: 'new', sieve: '# new\n' });
   assert.equal(r.status, 200);
   assert.equal(fake.state.active, 'main');
-  await rest('delete-filter', { id: 'neu' });
+  await rest('delete-filter', { id: 'new' });
 });
 
 test('create-filter activates the first script when none is active, and says so', async () => {
@@ -105,7 +105,7 @@ test('update-filter with expectedSieve refuses a script that changed', async () 
   fake.state.scripts.set('main', `${before}\n# other change\n`);
   const r = await rest('update-filter', { id: 'main', sieve: `${before}\n# mine\n`, expectedSieve: before });
   assert.equal(r.status, 400);
-  assert.match(r.body.error, /inzwischen geändert/);
+  assert.match(r.body.error, /changed in the meantime/);
   assert.match(fake.state.scripts.get('main'), /# other change/);
   const ok = await rest('update-filter', { id: 'main', sieve: fake.state.scripts.get('main'), expectedSieve: fake.state.scripts.get('main') });
   assert.equal(ok.status, 200);
@@ -131,7 +131,7 @@ test('apply-rule refuses to save when the script changed between planning and sa
   try {
     const r = await rest('apply-rule', { rule: { conditions: [{ kind: 'address', header: 'from', part: 'domain', value: 'zalando.de' }], actions: { fileinto: 'Shop' } } });
     assert.equal(r.status, 400);
-    assert.match(r.body.error, /inzwischen geändert/);
+    assert.match(r.body.error, /changed in the meantime/);
     assert.match(fake.state.scripts.get('main'), /# racing change/);
     assert.ok(!fake.state.scripts.get('main').includes('zalando'));
   } finally {
@@ -238,9 +238,9 @@ test('IMAP: non-ASCII credentials go as literals', async () => {
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   try {
-    const folders = await listImapFolders({ host: '127.0.0.1', port: server.address().port, tls: 'none', user: 'ich', password: 'pässwort' });
+    const folders = await listImapFolders({ host: '127.0.0.1', port: server.address().port, tls: 'none', user: 'bob', password: 'pässwort' });
     assert.deepEqual(folders, ['INBOX']);
-    assert.deepEqual(seen.slice(0, 3), ['a1 LOGIN {3}', 'ich {9}', 'pässwort']);
+    assert.deepEqual(seen.slice(0, 3), ['a1 LOGIN {3}', 'bob {9}', 'pässwort']);
   } finally {
     server.close();
   }

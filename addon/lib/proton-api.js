@@ -166,7 +166,7 @@ export class ProtonClient {
     });
 
     if (auth.ServerProof !== proofs.expectedServerProof) {
-      throw new ProtonApiError(t('Server-Beweis ungültig – Anmeldung abgebrochen'));
+      throw new ProtonApiError(t('Invalid server proof – login canceled'));
     }
 
     const twoFactor = auth['2FA']?.Enabled ?? auth.TwoFactor ?? 0;
@@ -180,7 +180,7 @@ export class ProtonClient {
 
     if (twoFactor && !(twoFactor & TWO_FACTOR_TOTP)) {
       this.session = null;
-      throw new ProtonApiError(t('Nur Sicherheitsschlüssel (FIDO2) als 2FA aktiv – das unterstützt das Add-on noch nicht'));
+      throw new ProtonApiError(t('Only security keys (FIDO2) are enabled as 2FA – the add-on does not support that yet'));
     }
     if (twoFactor) return { twoFactor: true };
 
@@ -189,7 +189,7 @@ export class ProtonClient {
   }
 
   async submitTotp(code) {
-    if (!this.session?.pending2FA) throw new ProtonApiError(t('Keine Anmeldung wartet auf einen 2FA-Code'));
+    if (!this.session?.pending2FA) throw new ProtonApiError(t('No login is waiting for a 2FA code'));
     try {
       await this.request('POST', 'core/v4/auth/2fa', { body: { TwoFactorCode: code.trim() }, retry: false });
     } catch (error) {

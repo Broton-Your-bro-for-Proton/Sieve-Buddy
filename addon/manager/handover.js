@@ -12,34 +12,34 @@ export function installHandover({ getClient, onHandedOver }) {
   $('handover').addEventListener('click', async () => {
     const client = getClient();
     if (!client?.isLoggedIn) {
-      toast(t('Keine Proton-Sitzung zum Übergeben'), true);
+      toast(t('No Proton session to hand over'), true);
       return;
     }
     const urlInput = el('input', { value: (await storage.get('serviceUrl')) ?? 'http://localhost:8080', placeholder: 'http://localhost:8080' });
-    const tokenInput = el('input', { type: 'password', autocomplete: 'off', placeholder: t('API_TOKEN des Dienstes') });
+    const tokenInput = el('input', { type: 'password', autocomplete: 'off', placeholder: t("The service's API_TOKEN") });
     const status = el('div', { class: 'small' });
 
     await openModal({
-      title: t('Sitzung an den Docker-Dienst übergeben'),
+      title: t('Hand over session to the Docker service'),
       body: [
-        el('p', { class: 'muted small' }, t('Der Dienst übernimmt diese Proton-Sitzung und muss sich nicht selbst mit Passwort anmelden. Das Add-on arbeitet danach über den Dienst weiter – zwei Programme können eine Proton-Sitzung nicht gleichzeitig nutzen.')),
-        el('label', {}, t('Adresse des Dienstes'), urlInput),
-        el('label', {}, t('API-Token des Dienstes'), tokenInput),
+        el('p', { class: 'muted small' }, t('The service takes over this Proton session and does not need to sign in with a password itself. Afterwards the add-on keeps working through the service, because two programs cannot use one Proton session at the same time.')),
+        el('label', {}, t('Service address'), urlInput),
+        el('label', {}, t('Service API token'), tokenInput),
         status,
       ],
       actions: [
-        { label: t('Abbrechen'), class: 'ghost', value: false },
+        { label: t('Cancel'), class: 'ghost', value: false },
         {
-          label: t('Übergeben'),
+          label: t('Hand over'),
           onClick: async (close) => {
             let origin;
             try {
               origin = await requestOrigin(urlInput.value.trim());
             } catch (error) {
-              status.textContent = error instanceof TypeError ? t('Ungültige Adresse') : error.message;
+              status.textContent = error instanceof TypeError ? t('Invalid address') : error.message;
               return;
             }
-            status.textContent = t('Übergebe …');
+            status.textContent = t('Handing over …');
             try {
               const { UID, AccessToken, RefreshToken, username } = client.session;
               const res = await fetch(`${origin}/api/session/import`, {
@@ -48,16 +48,16 @@ export function installHandover({ getClient, onHandedOver }) {
                 body: JSON.stringify({ UID, AccessToken, RefreshToken, username }),
               });
               const data = await res.json().catch(() => ({}));
-              if (!res.ok) throw new Error(res.status === 401 ? t('API-Token falsch') : data.error || `HTTP ${res.status}`);
+              if (!res.ok) throw new Error(res.status === 401 ? t('Wrong API token') : data.error || `HTTP ${res.status}`);
               await storage.set('serviceUrl', origin);
               // forget the session locally – do NOT call logout, that would end it at Proton
               client.session = null;
               await storage.set('session', null);
               close(true);
-              toast(t('Sitzung an den Dienst übergeben ({user}) – das Add-on arbeitet jetzt über den Dienst', { user: data.username ?? t('angemeldet') }));
+              toast(t('Session handed over to the service ({user}): the add-on now works through the service', { user: data.username ?? t('signed in') }));
               onHandedOver({ url: origin, token: tokenInput.value.trim() });
             } catch (error) {
-              status.textContent = t('Fehlgeschlagen: {message}', { message: error.message });
+              status.textContent = t('Failed: {message}', { message: error.message });
             }
           },
         },

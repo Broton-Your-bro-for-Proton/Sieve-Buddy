@@ -2,7 +2,7 @@
 // title between "# =====" lines. New rules go into the matching section; the manager lists, moves and
 // deletes rules per section. Pure text functions, shared by the add-on and the service.
 
-import { sourceOf, t } from './i18n.js';
+import { otherLanguage, t } from './i18n.js';
 import { lineOf, parseSieve } from './sieve-ast.js';
 import { describeActions, sameActions } from './sieve-rules.js';
 
@@ -132,7 +132,7 @@ const words = (s) =>
 export function chooseSection(sections, rule, hints = {}) {
   const folderWords = words(rule.actions?.fileinto?.split('/').at(-1));
   // section titles are the user's own words: compare with the category in both languages
-  const categoryWords = [...words(hints.category), ...words(sourceOf(hints.category))];
+  const categoryWords = [...words(hints.category), ...words(otherLanguage(hints.category))];
   let best = null;
   for (const section of sections) {
     let score = 0;
@@ -228,7 +228,7 @@ export function moveRule(text, line, delta, nth = 0) {
 function moveLf(text, line, delta, nth) {
   const units = ruleUnits(text);
   const i = units.findIndex((u) => u.type === 'rule' && u.line === line && u.nth === nth);
-  if (i === -1) throw new Error(t('In Zeile {line} beginnt keine Regel', { line }));
+  if (i === -1) throw new Error(t('No rule starts at line {line}', { line }));
   const j = i + delta;
   if (j < 0 || j >= units.length) return text;
   const [a, b] = delta < 0 ? [units[j], units[i]] : [units[i], units[j]];
@@ -255,7 +255,7 @@ export function deleteRule(text, line, nth = 0) {
 
 function deleteLf(text, line, nth) {
   const unit = ruleUnits(text).find((u) => u.type === 'rule' && u.line === line && u.nth === nth);
-  if (!unit) throw new Error(t('In Zeile {line} beginnt keine Regel', { line }));
+  if (!unit) throw new Error(t('No rule starts at line {line}', { line }));
   const before = text.slice(0, unit.start);
   // other code on the same line: cut only the rule and the space next to it
   if (before && !before.endsWith('\n')) return before.replace(/[ \t]+$/, '') + text.slice(unit.end);
@@ -277,11 +277,11 @@ function suggestLf(text) {
   const rules = ruleUnits(text).filter((u) => u.type === 'rule');
   const titleOf = (unit) => {
     const actions = unit.commands[0].block && describeActions(unit.commands[0].block);
-    if (!actions) return t('Sonstiges');
+    if (!actions) return t('Other');
     if (actions.fileinto) return actions.fileinto.replace(/[\r\n]+/g, ' ');
-    if (actions.flagged) return t('Markieren');
-    if (actions.seen) return t('Als gelesen');
-    return t('Sonstiges');
+    if (actions.flagged) return t('Flag');
+    if (actions.seen) return t('Marked as read');
+    return t('Other');
   };
   const inserts = [];
   let previous = null;

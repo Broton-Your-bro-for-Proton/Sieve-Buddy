@@ -1,10 +1,10 @@
-// Finds German UI text without an English translation: t('…') keys missing from the catalog, German string
-// literals outside t(), and German text in the HTML pages. `node scripts/i18n-check.mjs` lists them,
-// `--keys` prints the missing keys as JSON (to fill addon/lib/locales/en.js).
+// Finds UI text without a German translation: t('…') keys and page texts missing from the catalog, and
+// German string literals in the source (the source language is English). `node scripts/i18n-check.mjs`
+// lists them, `--keys` prints the missing keys as JSON (to fill addon/lib/locales/de.js).
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { EN } from '../addon/lib/locales/en.js';
+import { DE } from '../addon/lib/locales/de.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 
@@ -43,10 +43,10 @@ export const SOURCES = [
 export const PAGES = ['addon/manager/manager.html', 'addon/rule/rule.html', 'server/src/ui.html'];
 
 const GERMAN =
-  /[äöüÄÖÜß„“]|\b(nicht|und|oder|der|die|das|den|dem|des|ein|eine|einen|einem|einer|mit|für|bei|nach|ist|sind|wird|werden|kein|keine|bitte|Bitte|Zeile|Regel|Regeln|Abschnitt|Ordner|Mail|Mails|Neu|neue|neuen|schon|noch|auf|aus|vor|zum|zur|wurde|kann|gibt|Skript|Anmeldung|Fehler|Dienst|Vorlage|Absender|Betreff|erwartet|fehlt|gefunden|Erweiterung|Befehl|Tags?|Wert|Werte|Liste|Verschieben|Abbrechen|Schließen|Speichern|Laden|Anmelden|Abmelden|Prüfen|aktiv|Aktiv|aber|vorhanden|Mailingliste|deaktiviert|Angelegt)\b/;
+  /[äöüÄÖÜß„“]|\b(nicht|und|oder|der|das|den|dem|des|ein|eine|einen|einem|einer|mit|für|bei|nach|ist|sind|wird|werden|kein|keine|bitte|Bitte|Zeile|Regel|Regeln|Abschnitt|Ordner|Neu|neue|neuen|schon|noch|auf|aus|vor|zum|zur|wurde|kann|gibt|Skript|Anmeldung|Fehler|Dienst|Vorlage|Absender|Betreff|erwartet|fehlt|gefunden|Erweiterung|Befehl|Wert|Werte|Liste|Verschieben|Abbrechen|Schließen|Speichern|Laden|Anmelden|Abmelden|Prüfen|aktiv|Aktiv|aber|vorhanden|Mailingliste|deaktiviert|Angelegt)\b/;
 
-// strings that are data, not UI text (folder names in demo data, Sieve identifiers, ...)
-const IGNORE = [/^if [\s\S]*\}$/, /^From: /, /^Einkäufe$/, /^Newsletter$/, /^Listen$/, /^Rechnungen$/, /^Wichtig$/, /^Domains\/$/];
+// strings that are data or names, not UI text to translate
+const IGNORE = [/^if [\s\S]*\}$/, /^From: /, /^Sieve Buddy$/, /^API_TOKEN$/, /^http:\/\/localhost:8080$/, /^Einkäufe$/];
 
 /** String literals of a JS source: {value, template, line, inT}. Comments and regex literals are skipped. */
 export function literals(src) {
@@ -144,23 +144,37 @@ export function pageTexts(html) {
   return texts;
 }
 
+/** Keys of the t('…') calls of a source: {key, line}. Also finds calls inside template expressions, which literals() skips. */
+export function tKeys(src) {
+  return [...src.matchAll(/(?<![\w.])t\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map((m) => ({ key: unescape(m[2]), line: src.slice(0, m.index).split('\n').length }));
+}
+
+/** t(…) calls whose key is not one plain string literal, so the catalog cannot be checked: {text, line}. */
+export function dynamicKeys(src) {
+  return [...src.matchAll(/(?<![\w.])t\(\s*(?:(?!['"])[^\s)]|(['"])(?:\\.|(?!\1).)*\1\s*[^\s,)])[^\n]{0,40}/g)].map((m) => ({ text: m[0], line: src.slice(0, m.index).split('\n').length }));
+}
+
 export function check() {
   const problems = [];
+  const missing = (file, src) => {
+    for (const { key, line } of tKeys(src)) if (!Object.hasOwn(DE, key)) problems.push({ file, line, kind: 'missing', text: key });
+    for (const { text, line } of dynamicKeys(src)) problems.push({ file, line, kind: 'dynamic-key', text });
+  };
   for (const file of SOURCES) {
     const src = readFileSync(root + file, 'utf8');
+    missing(file, src);
     for (const lit of literals(src)) {
       const value = unescape(lit.value);
-      if (lit.inT) {
-        if (lit.template) problems.push({ file, line: lit.line, kind: 'template-in-t', text: value });
-        else if (!(value in EN)) problems.push({ file, line: lit.line, kind: 'missing', text: value });
-      } else if (GERMAN.test(value) && !IGNORE.some((r) => r.test(value))) {
-        problems.push({ file, line: lit.line, kind: lit.template ? 'template' : 'unwrapped', text: value });
+      if (!lit.inT && GERMAN.test(value) && !IGNORE.some((r) => r.test(value))) {
+        problems.push({ file, line: lit.line, kind: 'german', text: value });
       }
     }
   }
   for (const file of PAGES) {
-    for (const text of pageTexts(readFileSync(root + file, 'utf8'))) {
-      if (GERMAN.test(text) && !(text in EN)) problems.push({ file, line: 0, kind: 'page', text });
+    const html = readFileSync(root + file, 'utf8');
+    missing(file, html);
+    for (const text of pageTexts(html)) {
+      if (/\p{L}/u.test(text) && !Object.hasOwn(DE, text) && !IGNORE.some((r) => r.test(text))) problems.push({ file, line: 0, kind: 'page', text });
     }
   }
   return problems;

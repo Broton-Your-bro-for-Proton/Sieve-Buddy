@@ -14,16 +14,16 @@ import { messageFromThunderbird, parseHeaderBlock } from '../lib/mail.js';
 import { $, asScripts, describeSimulation, el, getHistory, openModal, renderDiff, storage, toast } from '../shared/env.js';
 
 /** Asks for confirmation with a diff of what changes. */
-export async function confirmDiff(before, after, title, confirmLabel = t('Speichern')) {
+export async function confirmDiff(before, after, title, confirmLabel = t('Save')) {
   const box = el('div', { class: 'diff' });
   const stats = renderDiff(box, before, after);
   return openModal({
     title,
     wide: true,
     key: 'diff',
-    body: [el('p', { class: 'muted' }, t('+{added} / −{removed} Zeilen', { added: stats.added, removed: stats.removed })), box],
+    body: [el('p', { class: 'muted' }, t('+{added} / −{removed} lines', { added: stats.added, removed: stats.removed })), box],
     actions: [
-      { label: t('Abbrechen'), class: 'ghost', value: false },
+      { label: t('Cancel'), class: 'ghost', value: false },
       { label: confirmLabel, value: true },
     ],
   });
@@ -41,7 +41,7 @@ export function installTools(editor, state) {
     const a = describeActions(block);
     if (!a) return block.commands.map((c) => c.name).join(', ') || '–';
     return (
-      [a.fileinto && `→ ${a.fileinto}`, a.seen && t('gelesen'), a.flagged && t('Stern'), a.expireDays && t('löschen nach {days} T.', { days: a.expireDays }), a.stop && 'stop']
+      [a.fileinto && `→ ${a.fileinto}`, a.seen && t('read'), a.flagged && t('star'), a.expireDays && t('delete after {days} d.', { days: a.expireDays }), a.stop && 'stop']
         .filter(Boolean)
         .join(' · ') || '–'
     );
@@ -70,7 +70,7 @@ export function installTools(editor, state) {
     try {
       units = ruleUnits(text);
     } catch (error) {
-      box.replaceChildren(el('div', { class: 'muted small' }, t('Gliederung nicht verfügbar: {message}', { message: error.message })));
+      box.replaceChildren(el('div', { class: 'muted small' }, t('Outline unavailable: {message}', { message: error.message })));
       return;
     }
     const rules = units.filter((u) => u.type === 'rule');
@@ -109,37 +109,37 @@ export function installTools(editor, state) {
         el(
           'span',
           { class: 'outline-tools' },
-          button('↑', t('Eine Stelle nach oben (über eine Überschrift: in den Abschnitt davor)'), () => move(-1)),
-          button('↓', t('Eine Stelle nach unten (über eine Überschrift: in den Abschnitt danach)'), () => move(+1)),
-          button('✕', t('Regel löschen'), () => {
+          button('↑', t('Move up one position (past a heading: into the previous section)'), () => move(-1)),
+          button('↓', t('Move down one position (past a heading: into the next section)'), () => move(+1)),
+          button('✕', t('Delete rule'), () => {
             if (stale()) return;
-            if (!confirm(t('Regel in Zeile {line} löschen?\n\n{rule}', { line: u.line, rule: `${c.name} ${test}` }))) return;
+            if (!confirm(t('Delete the rule on line {line}?\n\n{rule}', { line: u.line, rule: `${c.name} ${test}` }))) return;
             replaceText(deleteRule(editor.getValue(), u.line, u.nth));
-            toast(t('Regel gelöscht – zum Übernehmen speichern (Strg+Z macht es rückgängig)'));
+            toast(t('Rule deleted: save to apply (Ctrl+Z undoes it)'));
           }),
         ),
       );
     });
     const hasSections = units.some((u) => u.type === 'heading');
     box.replaceChildren(
-      rules.length ? el('ul', {}, items) : el('div', { class: 'muted small' }, t('Noch keine Regeln')),
+      rules.length ? el('ul', {}, items) : el('div', { class: 'muted small' }, t('No rules yet')),
       rules.length > 2 && !hasSections
         ? el(
             'button',
             {
               class: 'ghost small',
               type: 'button',
-              title: t('Überschriften nach Zielordner einfügen, ohne Regeln umzustellen'),
+              title: t('Insert headings by target folder without reordering rules'),
               onclick: async () => {
                 const current = editor.getValue();
                 const next = suggestSections(current);
-                if (await confirmDiff(current, next, t('Abschnitte vorschlagen'), t('In den Editor übernehmen'))) {
+                if (await confirmDiff(current, next, t('Suggest sections'), t('Apply to editor'))) {
                   replaceText(next);
-                  toast(t('Abschnitte eingefügt – Namen anpassen und speichern'));
+                  toast(t('Sections inserted: adjust the names and save'));
                 }
               },
             },
-            t('Abschnitte vorschlagen'),
+            t('Suggest sections'),
           )
         : '',
     );
@@ -170,7 +170,7 @@ export function installTools(editor, state) {
       const tag = TAGS[tok.value];
       return `${tok.value}: ${tag.doc}${tag.ext ? `\n(require "${tag.ext}")` : ''}`;
     }
-    if (tok.type === 'string' && EXTENSIONS[tok.value]) return t('Erweiterung {name}: {doc}', { name: tok.value, doc: EXTENSIONS[tok.value] });
+    if (tok.type === 'string' && EXTENSIONS[tok.value]) return t('Extension {name}: {doc}', { name: tok.value, doc: EXTENSIONS[tok.value] });
     return null;
   }
 
@@ -198,13 +198,13 @@ export function installTools(editor, state) {
   $('format').addEventListener('click', () => {
     const formatted = formatSieve(editor.getValue());
     if (formatted === editor.getValue()) {
-      toast(t('Bereits ordentlich formatiert'));
+      toast(t('Already formatted'));
       return;
     }
     const cursor = editor.getCursor();
     editor.setValue(formatted);
     editor.setCursor(cursor);
-    toast(t('Formatiert'));
+    toast(t('Formatted'));
   });
 
   // ---------- history ----------
@@ -212,7 +212,7 @@ export function installTools(editor, state) {
   $('history').addEventListener('click', async () => {
     const versions = await getHistory(state.selectedId);
     if (!versions.length) {
-      toast(t('Für diesen Filter gibt es noch keine gespeicherten Versionen'));
+      toast(t('There are no saved versions for this filter yet'));
       return;
     }
     const diffBox = el('div', { class: 'diff' });
@@ -239,23 +239,23 @@ export function installTools(editor, state) {
     );
     renderDiff(diffBox, editor.getValue(), chosen.sieve);
     const restore = await openModal({
-      title: t('Verlauf'),
+      title: t('History'),
       wide: true,
       key: 'history',
       body: el(
         'div',
         { class: 'split' },
         list,
-        el('div', {}, el('p', { class: 'muted small' }, t('Änderungen gegenüber dem Editor, wenn du diese Version übernimmst:')), diffBox),
+        el('div', {}, el('p', { class: 'muted small' }, t('Changes compared to the editor if you restore this version:')), diffBox),
       ),
       actions: [
-        { label: t('Schließen'), class: 'ghost', value: false },
-        { label: t('In den Editor übernehmen'), value: true },
+        { label: t('Close'), class: 'ghost', value: false },
+        { label: t('Apply to editor'), value: true },
       ],
     });
     if (restore) {
       editor.setValue(chosen.sieve);
-      toast(t('Version übernommen – zum Übernehmen bei Proton speichern'));
+      toast(t('Version restored: save to apply it at Proton'));
     }
   });
 
@@ -270,7 +270,7 @@ export function installTools(editor, state) {
     const input = el('textarea', {
       class: 'headers-input',
       rows: 9,
-      placeholder: 'From: Jane <jane@example.com>\nTo: ich@proton.me\nSubject: …\nList-Id: <liste.example.com>',
+      placeholder: t('From: Jane <jane@example.com>\nTo: me@proton.me\nSubject: …\nList-Id: <list.example.com>'),
     });
     input.value = (await storage.get('simHeaders')) ?? '';
     const result = el('div', { class: 'sim-result' });
@@ -281,7 +281,7 @@ export function installTools(editor, state) {
       const raw = input.value.trim();
       storage.set('simHeaders', raw);
       if (!raw) {
-        result.replaceChildren(el('div', { class: 'muted' }, t('Header einer Mail einfügen oder aus Thunderbird übernehmen.')));
+        result.replaceChildren(el('div', { class: 'muted' }, t('Paste the headers of a mail or take them from Thunderbird.')));
         return;
       }
       const message = { headers: parseHeaderBlock(raw), size: Number(sizeInput.value || 0) * 1024 };
@@ -313,10 +313,10 @@ export function installTools(editor, state) {
                   editor.setCursor({ line: f.line - 1, ch: 0 });
                 },
               },
-              t('↳ „{script}“ Zeile {line}: {test}', { script: f.script, line: f.line, test: f.test }),
+              t('↳ “{script}” line {line}: {test}', { script: f.script, line: f.line, test: f.test }),
             ),
           ),
-        r.stoppedBy ? el('div', { class: 'muted small' }, t('Verarbeitung endet in „{script}“ ({reason})', { script: r.stoppedBy.script, reason: r.stoppedBy.reason })) : '',
+        r.stoppedBy ? el('div', { class: 'muted small' }, t('Processing ends in “{script}” ({reason})', { script: r.stoppedBy.script, reason: r.stoppedBy.reason })) : '',
         ...r.notes.map((n) => el('div', { class: 'muted small' }, `ℹ ${n}`)),
       );
     };
@@ -332,7 +332,7 @@ export function installTools(editor, state) {
           try {
             const selected = await browser.mailTabs.getSelectedMessages();
             const msg = selected.messages?.[0];
-            if (!msg) throw new Error(t('In Thunderbird ist keine Mail ausgewählt'));
+            if (!msg) throw new Error(t('No mail is selected in Thunderbird'));
             const full = await browser.messages.getFull(msg.id);
             input.value = headersToText(messageFromThunderbird(full, { size: msg.size }).headers);
             sizeInput.value = Math.round((msg.size ?? 0) / 1024);
@@ -342,20 +342,20 @@ export function installTools(editor, state) {
           }
         },
       },
-      t('Ausgewählte Mail übernehmen'),
+      t('Use selected mail'),
     );
     run();
     await openModal({
-      title: t('Mail gegen die Filter testen'),
+      title: t('Test a mail against the filters'),
       wide: true,
       key: 'simulate',
       body: [
-        el('p', { class: 'muted small' }, t('Proton-Filter sehen nur die Header einer Mail. Getestet werden alle aktiven Filter in ihrer Reihenfolge – der aktuelle Filter mit dem Stand im Editor.')),
-        el('div', { class: 'row tight' }, fromMail, el('label', { class: 'inline' }, t('Größe (KB)'), sizeInput), el('label', { class: 'inline' }, t('Spam-Score'), spamInput)),
+        el('p', { class: 'muted small' }, t('Proton filters only see the headers of a mail. All active filters are tested in order, the current filter as it is in the editor.')),
+        el('div', { class: 'row tight' }, fromMail, el('label', { class: 'inline' }, t('Size (KB)'), sizeInput), el('label', { class: 'inline' }, t('Spam score'), spamInput)),
         input,
         result,
       ],
-      actions: [{ label: t('Schließen'), class: 'ghost' }],
+      actions: [{ label: t('Close'), class: 'ghost' }],
     });
   });
 
@@ -373,7 +373,7 @@ export function installTools(editor, state) {
     return el(
       'select',
       {},
-      el('option', { value: '' }, t('(nicht verschieben)')),
+      el('option', { value: '' }, t("(don't move)")),
       options.map((o) => el('option', { value: o, selected: o === value }, o)),
     );
   }
@@ -396,17 +396,17 @@ export function installTools(editor, state) {
         }),
       );
 
-    // same section choice as "Sieve-Regel aus Mail"
+    // same section choice as "Sieve rule from mail"
     const sections = findSections(editor.getValue());
     const sectionSelect = el(
       'select',
       {},
-      el('option', { value: 'auto' }, sections.length ? t('Automatisch – passenden Abschnitt finden') : t('Automatisch – beste Stelle')),
-      ...sections.map((x) => el('option', { value: `s:${x.title}` }, t('In Abschnitt „{title}“', { title: x.title }))),
-      el('option', { value: 'end' }, t('Ans Ende')),
-      el('option', { value: 'new' }, t('Neuer Abschnitt …')),
+      el('option', { value: 'auto' }, sections.length ? t('Automatic: find a matching section') : t('Automatic: best position')),
+      ...sections.map((x) => el('option', { value: `s:${x.title}` }, t('In section “{title}”', { title: x.title }))),
+      el('option', { value: 'end' }, t('At the end')),
+      el('option', { value: 'new' }, t('New section …')),
     );
-    const sectionName = el('input', { placeholder: t('Name des neuen Abschnitts'), hidden: true });
+    const sectionName = el('input', { placeholder: t('Name of the new section'), hidden: true });
     const sectionChoice = () => {
       sectionName.hidden = sectionSelect.value !== 'new';
       if (sectionSelect.value === 'new') return sectionName.value.trim() ? { new: sectionName.value.trim() } : null;
@@ -420,16 +420,16 @@ export function installTools(editor, state) {
         const built = buildTemplate(template, params);
         const current = editor.getValue();
         const section = sectionChoice();
-        if (section === null) throw new Error(t('Bitte einen Namen für den neuen Abschnitt angeben.'));
+        if (section === null) throw new Error(t('Please enter a name for the new section.'));
         if (built.code) {
           const r = resolveSection(current, section, { actions: {} }, { category: template.category });
           result = insertBlockAt(current, built.code, r.at, r.heading);
           const placed = r.heading ? { title: r.heading, new: true } : r.section;
           const text = !placed
-            ? t('Wird als neuer Block am Ende eingefügt.')
+            ? t('Will be inserted as a new block at the end.')
             : placed.new
-              ? t('Wird als neuer Block im neuen Abschnitt „{title}“ eingefügt.', { title: placed.title })
-              : t('Wird als neuer Block in Abschnitt „{title}“ eingefügt.', { title: placed.title });
+              ? t('Will be inserted as a new block in the new section “{title}”.', { title: placed.title })
+              : t('Will be inserted as a new block in section “{title}”.', { title: placed.title });
           info.replaceChildren(el('div', {}, text));
         } else {
           const { plan } = planRule({
@@ -447,10 +447,10 @@ export function installTools(editor, state) {
           const counts = { steps: plan.steps.length, merges, covered, fresh };
           const where = fresh ? plan.section : null;
           const text = !where
-            ? t('{steps} Bedingung(en): {merges} in bestehende Blöcke eingereiht, {covered} schon vorhanden, {fresh} neu.', counts)
+            ? t('{steps} condition(s): {merges} merged into existing blocks, {covered} already present, {fresh} new.', counts)
             : where.new
-              ? t('{steps} Bedingung(en): {merges} in bestehende Blöcke eingereiht, {covered} schon vorhanden, {fresh} neu im neuen Abschnitt „{title}“.', { ...counts, title: where.title })
-              : t('{steps} Bedingung(en): {merges} in bestehende Blöcke eingereiht, {covered} schon vorhanden, {fresh} neu in Abschnitt „{title}“.', { ...counts, title: where.title });
+              ? t('{steps} condition(s): {merges} merged into existing blocks, {covered} already present, {fresh} new in the new section “{title}”.', { ...counts, title: where.title })
+              : t('{steps} condition(s): {merges} merged into existing blocks, {covered} already present, {fresh} new in section “{title}”.', { ...counts, title: where.title });
           info.replaceChildren(el('div', {}, text));
         }
         renderDiff(preview, current, result);
@@ -501,23 +501,23 @@ export function installTools(editor, state) {
     showTemplate(template);
 
     const insert = await openModal({
-      title: t('Regel-Assistent'),
+      title: t('Rule assistant'),
       wide: true,
       key: 'assistant',
       body: el(
         'div',
         { class: 'tpl-layout' },
         list,
-        el('div', { class: 'tpl-main' }, form, el('label', { class: 'inline' }, t('Wo eintragen?'), sectionSelect, sectionName), info, preview),
+        el('div', { class: 'tpl-main' }, form, el('label', { class: 'inline' }, t('Where to add it?'), sectionSelect, sectionName), info, preview),
       ),
       actions: [
-        { label: t('Abbrechen'), class: 'ghost', value: false },
-        { label: t('In den Editor übernehmen'), value: true },
+        { label: t('Cancel'), class: 'ghost', value: false },
+        { label: t('Apply to editor'), value: true },
       ],
     });
     if (insert && result) {
       editor.setValue(result);
-      toast(t('Regel übernommen – prüfen und speichern'));
+      toast(t('Rule applied: review and save'));
     }
   });
 

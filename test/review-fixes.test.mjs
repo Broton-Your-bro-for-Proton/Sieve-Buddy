@@ -18,7 +18,7 @@ const titles = (text) => findSections(text).map((s) => [s.title, s.rules.length]
 const domainRule = (value, actions) => ({ conditions: [{ kind: 'address', header: 'from', part: 'domain', match: 'is', value }], actions });
 
 const THREE = withExt(
-  '### Shops ###\nif exists "x-a" {\n    stop;\n}\n\n### Newsletter ###\nif exists "x-b" {\n    stop;\n}\n\n### Rechnungen ###\nif exists "x-c" {\n    stop;\n}',
+  '### Shops ###\nif exists "x-a" {\n    stop;\n}\n\n### Newsletter ###\nif exists "x-b" {\n    stop;\n}\n\n### Invoices ###\nif exists "x-c" {\n    stop;\n}',
 );
 
 test('moving the only rule of a section keeps both headings apart', () => {
@@ -26,13 +26,13 @@ test('moving the only rule of a section keeps both headings apart', () => {
   assert.deepEqual(titles(down), [
     ['Shops', 1],
     ['Newsletter', 0],
-    ['Rechnungen', 2],
+    ['Invoices', 2],
   ]);
   const up = moveRule(THREE, ruleLine(THREE, 'x-b'), -1);
   assert.deepEqual(titles(up), [
     ['Shops', 2],
     ['Newsletter', 0],
-    ['Rechnungen', 1],
+    ['Invoices', 1],
   ]);
   assert.deepEqual(errors(down), []);
 });
@@ -75,18 +75,18 @@ test('scripts with CRLF line endings have sections and keep their line endings',
   const deleted = deleteRule(crlf, ruleLine(crlf, 'x-c'));
   assert.doesNotMatch(deleted, /x-c/);
   assert.doesNotMatch(deleted, /[^\r]\n/);
-  const { plan } = planRule({ scripts: [{ id: 'f', name: 'x', sieve: crlf }], rule: domainRule('a.de', { fileinto: 'Rechnungen' }), section: 'Rechnungen' });
-  assert.equal(plan.section.title, 'Rechnungen');
+  const { plan } = planRule({ scripts: [{ id: 'f', name: 'x', sieve: crlf }], rule: domainRule('a.de', { fileinto: 'Invoices' }), section: 'Invoices' });
+  assert.equal(plan.section.title, 'Invoices');
   assert.deepEqual(errors(plan.sieve), []);
 });
 
 test('a separate block without stop is preferred when it is enough', () => {
-  const text = withExt('if address :domain :is "from" "rabatt.de" {\n    fileinto "Einkäufe";\n}\n\nif exists "list-unsubscribe" {\n    fileinto "Newsletter";\n}');
+  const text = withExt('if address :domain :is "from" "discount.de" {\n    fileinto "Einkäufe";\n}\n\nif exists "list-unsubscribe" {\n    fileinto "Newsletter";\n}');
   const message = { headers: parseHeaderBlock('From: a@otto.de\nList-Unsubscribe: <x>\n'), size: 1 };
   const { plan, after, notes } = planRule({ scripts: [{ id: 'f', name: 'x', sieve: text }], rule: domainRule('otto.de', { fileinto: 'Einkäufe' }), section: 'end', message });
   assert.equal(after.folder, 'Einkäufe');
   assert.doesNotMatch(plan.sieve, /stop;/);
-  assert.match(notes[0], /eigener Block/);
+  assert.match(notes[0], /separate block/);
 });
 
 test('rules sharing a line with other code are cut exactly', () => {
@@ -106,7 +106,7 @@ test('reported lines point at the new block, also when require is added', () => 
   const placed = insertBlock(plain, 'if exists "x-b" {\n    fileinto "B";\n}');
   assert.match(placed.sieve.split('\n')[placed.line - 1], /^if exists "x-b"/);
   const scripts = [{ id: 'f', name: 'x', sieve: plain }];
-  for (const section of ['auto', 'end', { new: 'Neu' }]) {
+  for (const section of ['auto', 'end', { new: 'New' }]) {
     const { plan } = planRule({ scripts, rule: domainRule('a.de', { fileinto: 'A' }), section });
     assert.match(plan.sieve.split('\n')[plan.steps[0].line - 1], /^if address :domain :is "from" "a\.de"/, JSON.stringify(section));
   }
@@ -120,11 +120,11 @@ test('long comment lines do not slow down section detection', () => {
 });
 
 test('prototype names are never looked up in the catalog', () => {
-  setLocale('en');
+  setLocale('de'); // English has no catalog, only German reaches the lookup
   try {
     assert.equal(t('constructor'), 'constructor');
     assert.equal(t('toString', { a: 1 }), 'toString');
   } finally {
-    setLocale('de');
+    setLocale('en');
   }
 });

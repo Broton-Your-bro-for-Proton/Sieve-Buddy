@@ -1,23 +1,23 @@
-// Gettext-style translation: the German text is the key, a catalog maps it to English. A missing entry
-// shows the German text. Placeholders are written {name}. Free of Thunderbird APIs, shared by the add-on
+// Gettext-style translation: the English text is the key, a catalog maps it to German. A missing entry
+// shows the English text. Placeholders are written {name}. Free of Thunderbird APIs, shared by the add-on
 // and the service.
 
-import { EN } from './locales/en.js';
+import { DE } from './locales/de.js';
 
-let catalog = null; // null = German
+let catalog = null; // null = English
 
 /** 'de…' selects German, anything else English. */
 export function setLocale(lang) {
-  catalog = String(lang ?? '').toLowerCase().startsWith('de') ? null : EN;
+  catalog = String(lang ?? '').toLowerCase().startsWith('de') ? DE : null;
 }
 
-export const getLocale = () => (catalog ? 'en' : 'de');
+export const getLocale = () => (catalog ? 'de' : 'en');
 
 /** Locale tag for dates and numbers. */
-export const dateLocale = () => (catalog ? 'en-US' : 'de-DE');
+export const dateLocale = () => (catalog ? 'de-DE' : 'en-US');
 
-/** The German key of a translated text (the text itself when it is not a translation). */
-export const sourceOf = (text) => (catalog && Object.keys(catalog).find((key) => catalog[key] === text)) ?? text;
+/** A UI text in the other language, whichever one it is in (the text itself when it has no translation). */
+export const otherLanguage = (text) => (Object.hasOwn(DE, text ?? '') ? DE[text] : Object.keys(DE).find((key) => DE[key] === text)) ?? text;
 
 export function t(text, params) {
   const out = catalog && Object.hasOwn(catalog, text) ? catalog[text] : text;
@@ -44,10 +44,10 @@ export function localizeDom(root, doc = root.ownerDocument ?? root) {
 }
 
 // The add-on follows Thunderbird's language, a plain browser (preview) ?lang= or its own; Node (the
-// service, tests) stays German unless LOCALE is set.
+// service, tests) stays English unless LOCALE is set.
 setLocale(
   globalThis.browser?.i18n?.getUILanguage?.() ??
     (globalThis.process?.versions?.node
-      ? globalThis.process.env.LOCALE ?? 'de'
+      ? globalThis.process.env.LOCALE
       : new URLSearchParams(globalThis.location?.search ?? '').get('lang') ?? globalThis.navigator?.language),
 );

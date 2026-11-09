@@ -45,7 +45,7 @@ export function tokenize(text) {
     } else if (c === '/' && text[i + 1] === '*') {
       const end = text.indexOf('*/', i + 2);
       if (end === -1) {
-        errors.push({ start: i, end: text.length, message: t('Kommentar /* … */ wird nicht geschlossen') });
+        errors.push({ start: i, end: text.length, message: t('Comment /* … */ is not closed') });
         i = text.length;
       } else {
         i = end + 2;
@@ -68,13 +68,13 @@ export function tokenize(text) {
         }
       }
       tokens.push({ type: 'string', value, start, end: i, open: !closed });
-      if (!closed) errors.push({ start, end: i, message: t('Zeichenkette wird nicht mit " geschlossen') });
+      if (!closed) errors.push({ start, end: i, message: t('String is not closed with "') });
     } else if (text.startsWith('text:', i) && /^text:[ \t]*(#.*)?\r?\n/.test(text.slice(i, i + 200))) {
       const start = i;
       const bodyStart = text.indexOf('\n', i) + 1;
       const endMatch = /\r?\n\.\r?\n|\r?\n\.$/.exec(text.slice(bodyStart - 1));
       if (!endMatch) {
-        errors.push({ start, end: text.length, message: t('Mehrzeiliger text: wird nicht mit "." beendet') });
+        errors.push({ start, end: text.length, message: t('Multiline text: is not terminated with "."') });
         tokens.push({ type: 'string', value: text.slice(bodyStart), start, end: text.length, open: true });
         i = text.length;
       } else {
@@ -100,7 +100,7 @@ export function tokenize(text) {
       tokens.push({ type: 'punct', value: c, start: i, end: i + 1 });
       i++;
     } else {
-      errors.push({ start: i, end: i + 1, message: t('Unerwartetes Zeichen „{char}“', { char: c }) });
+      errors.push({ start: i, end: i + 1, message: t('Unexpected character “{char}”', { char: c }) });
       i++;
     }
   }
@@ -161,7 +161,7 @@ function analyze(tokens, dialect = PROTON_DIALECT) {
     if (firstVisit && tk.type === 'punct' && ')]}'.includes(tk.value)) {
       const open = parens.pop();
       const pair = { ')': '(', ']': '[', '}': '{' }[tk.value];
-      if (!open || open.value !== pair) issue(tk, t('„{char}“ ohne passende öffnende Klammer', { char: tk.value }));
+      if (!open || open.value !== pair) issue(tk, t('“{char}” without a matching opening bracket', { char: tk.value }));
     }
 
     if (firstVisit && tk.type === 'string') {
@@ -173,7 +173,7 @@ function analyze(tokens, dialect = PROTON_DIALECT) {
 
     if (firstVisit && tk.type === 'tag') {
       const tag = TAGS[tk.value];
-      if (!tag) issue(tk, t('Unbekanntes Argument {name}', { name: tk.value }), 'warning');
+      if (!tag) issue(tk, t('Unknown argument {name}', { name: tk.value }), 'warning');
       else need(tag.ext, tk);
       if (current) current.tags.push(tk.value);
     }
@@ -185,33 +185,33 @@ function analyze(tokens, dialect = PROTON_DIALECT) {
         continue;
       }
       if (tk.type === 'punct' && tk.value === ';') {
-        issue(tk, t('Überflüssiges ;'), 'warning');
+        issue(tk, t('Superfluous ;'), 'warning');
         continue;
       }
       if (tk.type !== 'identifier') {
-        issue(tk, t('Hier wird ein Befehl erwartet'));
+        issue(tk, t('A command is expected here'));
         continue;
       }
       const cmd = COMMANDS[tk.value];
       if (!cmd) {
-        issue(tk, t('Unbekannter Befehl „{name}“', { name: tk.value }));
+        issue(tk, t('Unknown command “{name}”', { name: tk.value }));
         expect = 'args';
         current = { command: tk.value, token: tk, tags: [], argsStart: i + 1 };
         continue;
       }
       if (cmd.kind === 'test') {
-        issue(tk, t('„{name}“ ist ein Test und nur in einer Bedingung (if/elsif) erlaubt', { name: tk.value }));
+        issue(tk, t('“{name}” is a test and only allowed in a condition (if/elsif)', { name: tk.value }));
         expect = 'args';
         current = { command: tk.value, token: tk, tags: [], argsStart: i + 1 };
         continue;
       }
       need(cmd.ext, tk);
       if (tk.value === 'require') {
-        if (sawNonRequire) issue(tk, t('require muss am Anfang des Skripts stehen'));
+        if (sawNonRequire) issue(tk, t('require must be at the start of the script'));
         requireStatements.push(tk);
         for (const s of stringsOf(tokens, i + 1)) {
           if (!dialect.extensions.has(s.value.toLowerCase())) {
-            issue(s, dialect.proton ? t('Erweiterung „{name}“ wird von Proton nicht unterstützt', { name: s.value }) : t('Erweiterung „{name}“ wird von diesem Server nicht angeboten', { name: s.value }));
+            issue(s, dialect.proton ? t('Extension “{name}” is not supported by Proton', { name: s.value }) : t('Extension “{name}” is not offered by this server', { name: s.value }));
           }
           required.set(s.value, s);
         }
@@ -228,8 +228,8 @@ function analyze(tokens, dialect = PROTON_DIALECT) {
     if (expect === 'test') {
       if (tk.type === 'identifier') {
         const cmd = COMMANDS[tk.value];
-        if (!cmd) issue(tk, t('Unbekannter Test „{name}“', { name: tk.value }));
-        else if (cmd.kind !== 'test') issue(tk, t('„{name}“ ist kein Test – fehlt die { nach der Bedingung?', { name: tk.value }));
+        if (!cmd) issue(tk, t('Unknown test “{name}”', { name: tk.value }));
+        else if (cmd.kind !== 'test') issue(tk, t('“{name}” is not a test – is the { missing after the condition?', { name: tk.value }));
         else {
           need(cmd.ext, tk);
           if (tk.value === 'header' || tk.value === 'address') current.lastTest = tk.value;
@@ -237,12 +237,12 @@ function analyze(tokens, dialect = PROTON_DIALECT) {
         current.tests = [...(current.tests ?? []), { name: tk.value, index: i }];
       } else if (tk.value === '{') {
         const open = parens.filter((p) => p.value === '(').length;
-        if (open) issue(tk, t('Bedingung hat eine nicht geschlossene „(“'));
+        if (open) issue(tk, t('Condition has an unclosed “(”'));
         finishStatement();
         blocks.push({ sawFileinto: false });
         expect = 'statement';
       } else if (tk.value === ';') {
-        issue(tk, t('Nach einer Bedingung wird { erwartet, nicht ;'));
+        issue(tk, t('A { is expected after a condition, not ;'));
         finishStatement();
         expect = 'statement';
       }
@@ -253,7 +253,7 @@ function analyze(tokens, dialect = PROTON_DIALECT) {
       if (tk.value === '{') {
         blocks.push({ sawFileinto: false });
       } else {
-        issue(tk, t('Nach else wird { erwartet'));
+        issue(tk, t('A { is expected after else'));
       }
       finishStatement();
       expect = 'statement';
@@ -266,13 +266,13 @@ function analyze(tokens, dialect = PROTON_DIALECT) {
       const block = blocks[blocks.length - 1];
       if (current.command === 'fileinto' || current.command === 'keep') block.sawFileinto = true;
       if (dialect.proton && ['addflag', 'setflag', 'removeflag'].includes(current.command) && block.sawFileinto) {
-        issue(current.token, t('Flag-Änderungen nach fileinto/keep werden von Proton ignoriert – vorher setzen'), 'warning');
+        issue(current.token, t('Flag changes after fileinto/keep are ignored by Proton – set them first'), 'warning');
       }
       finishStatement();
       expect = 'statement';
     } else if (tk.type === 'identifier' || tk.value === '{' || tk.value === '}') {
       const prev = tokens[i - 1];
-      issues.push({ start: prev.start, end: prev.end, message: t('Fehlendes ; am Ende des Befehls'), severity: 'error' });
+      issues.push({ start: prev.start, end: prev.end, message: t('Missing ; at the end of the command'), severity: 'error' });
       finishStatement();
       expect = 'statement';
       i--; // re-read this token as the start of the next statement
@@ -282,12 +282,12 @@ function analyze(tokens, dialect = PROTON_DIALECT) {
 
   if (current && expect === 'args') {
     const last = tokens[tokens.length - 1];
-    issues.push({ start: last.start, end: last.end, message: t('Fehlendes ; am Ende des Befehls'), severity: 'error' });
+    issues.push({ start: last.start, end: last.end, message: t('Missing ; at the end of the command'), severity: 'error' });
     statements.push(current);
   } else if (current && expect === 'test') {
-    issue(current.token, t('Bedingung ohne { … }-Block'));
+    issue(current.token, t('Condition without a { … } block'));
   }
-  for (const open of parens) issue(open, t('„{char}“ wird nicht geschlossen', { char: open.value }));
+  for (const open of parens) issue(open, t('“{char}” is not closed', { char: open.value }));
 
   return { issues, used, required, requireStatements, statements };
 }
@@ -310,9 +310,9 @@ function statementChecks(tokens, statements, { folders, dialect = PROTON_DIALECT
         const createsIt = dialect.proton ? false : st.tags.includes(':create');
         // Proton matches folder/label names case-insensitively ("eBay" files into "Ebay")
         const exists = dialect.proton ? folders?.some((f) => f.toLowerCase() === lower) : folders?.includes(name);
-        if (dialect.proton && (lower === 'drafts' || lower === 'sent')) issue(target, t('„{name}“ wird von Proton bei fileinto ignoriert', { name }));
+        if (dialect.proton && (lower === 'drafts' || lower === 'sent')) issue(target, t('“{name}” is ignored by Proton in fileinto', { name }));
         else if (folders && !createsIt && !name.includes('${') && !(dialect.proton ? SYSTEM_FOLDERS.includes(lower) : lower === 'inbox') && !exists) {
-          issue(target, dialect.proton ? t('Ordner/Label „{name}“ existiert in Proton nicht – fileinto würde nichts tun', { name }) : t('Ordner „{name}“ existiert nicht – :create ergänzen oder Ordner anlegen', { name }));
+          issue(target, dialect.proton ? t('Folder/label “{name}” does not exist in Proton – fileinto would do nothing', { name }) : t('Folder “{name}” does not exist – add :create or create the folder', { name }));
         }
         break;
       }
@@ -322,27 +322,27 @@ function statementChecks(tokens, statements, { folders, dialect = PROTON_DIALECT
         if (!dialect.proton) break;
         for (const s of strings) {
           if (!s.value.includes('${') && s.value !== '\\Seen' && s.value !== '\\Flagged') {
-            issue(s, t('Proton unterstützt nur die Flags \\\\Seen und \\\\Flagged, nicht „{name}“', { name: s.value }));
+            issue(s, t('Proton only supports the flags \\\\Seen and \\\\Flagged, not “{name}”', { name: s.value }));
           }
         }
         break;
       case 'expire': {
         if (!dialect.proton) break;
         const [unit, amount] = strings;
-        if (unit && !EXPIRE_UNITS.includes(unit.value)) issue(unit, t('Einheit muss eine von {units} sein', { units: EXPIRE_UNITS.join(', ') }), 'error');
+        if (unit && !EXPIRE_UNITS.includes(unit.value)) issue(unit, t('Unit must be one of {units}', { units: EXPIRE_UNITS.join(', ') }), 'error');
         if (unit?.value === 'day' && amount && Number(amount.value) > MAX_EXPIRE_DAYS) {
-          issue(amount, t('Proton begrenzt expire auf {days} Tage', { days: MAX_EXPIRE_DAYS }));
+          issue(amount, t('Proton limits expire to {days} days', { days: MAX_EXPIRE_DAYS }));
         }
         break;
       }
       case 'keep':
-        if (dialect.proton) issue(st.token, t('keep hebt bei Proton nur ein discard auf – es legt keine Kopie im Posteingang ab'), 'info');
+        if (dialect.proton) issue(st.token, t('keep only cancels a discard on Proton – it does not store a copy in the inbox'), 'info');
         break;
       case 'discard':
-        if (dialect.proton) issue(st.token, t('Nach discard laufen keine weiteren Proton-Filter mehr'), 'info');
+        if (dialect.proton) issue(st.token, t('No further Proton filters run after discard'), 'info');
         break;
       case 'stop':
-        if (dialect.proton) issue(st.token, t('stop beendet auch alle nachfolgenden Filter'), 'info');
+        if (dialect.proton) issue(st.token, t('stop also ends all following filters'), 'info');
         break;
       default:
         break;
@@ -355,7 +355,7 @@ function statementChecks(tokens, statements, { folders, dialect = PROTON_DIALECT
     for (let j = i + 1; j < tokens.length && tokens[j].value !== '{' && tokens[j].value !== ';'; j++) {
       const tk = tokens[j];
       if (tk.type === 'string' && /\\[dwWb]/.test(tk.value)) {
-        issue(tk, t('Proton-Regex kennt \\d, \\w, \\W und \\b nicht – z. B. [0-9] verwenden'), 'error');
+        issue(tk, t('Proton regex does not support \\d, \\w, \\W and \\b – use e.g. [0-9] instead'), 'error');
       }
     }
   }
@@ -365,7 +365,7 @@ function statementChecks(tokens, statements, { folders, dialect = PROTON_DIALECT
     if (tokens[i].value !== ':value' && tokens[i].value !== ':count') continue;
     const op = tokens[i + 1];
     if (op?.type === 'string' && !RELATIONAL_OPS.includes(op.value)) {
-      issue(op, t('Operator muss einer von {ops} sein', { ops: RELATIONAL_OPS.join(', ') }), 'error');
+      issue(op, t('Operator must be one of {ops}', { ops: RELATIONAL_OPS.join(', ') }), 'error');
     }
   }
   return issues;
@@ -388,11 +388,11 @@ export function lintSieve(text, options = {}) {
   issues.push(...statementChecks(tokens, result.statements, { ...options, dialect }));
   if (!dialect.proton) {
     for (const st of result.statements) {
-      if (PROTON_ONLY_COMMANDS.has(st.command)) issues.push({ start: st.token.start, end: st.token.end, message: t('„{name}“ gibt es nur bei Proton', { name: st.command }), severity: 'error' });
+      if (PROTON_ONLY_COMMANDS.has(st.command)) issues.push({ start: st.token.start, end: st.token.end, message: t('“{name}” is only available on Proton', { name: st.command }), severity: 'error' });
     }
     for (const tk of tokens) {
       if (tk.type === 'identifier' && PROTON_ONLY_COMMANDS.has(tk.value) && !result.statements.some((st) => st.token === tk)) {
-        issues.push({ start: tk.start, end: tk.end, message: t('„{name}“ gibt es nur bei Proton', { name: tk.value }), severity: 'error' });
+        issues.push({ start: tk.start, end: tk.end, message: t('“{name}” is only available on Proton', { name: tk.value }), severity: 'error' });
       }
     }
   }
@@ -402,17 +402,17 @@ export function lintSieve(text, options = {}) {
       issues.push({
         start: token.start,
         end: token.end,
-        message: t('Benötigt require "{name}" – mit „require ergänzen“ automatisch beheben', { name: ext }),
+        message: t('Requires require "{name}" – fix automatically with “Complete require”', { name: ext }),
         severity: 'error',
       });
     }
   }
   if (dialect.proton && result.requireStatements.length > 1) {
     const second = result.requireStatements[1];
-    issues.push({ start: second.start, end: second.end, message: t('Proton erwartet ein einziges require – mit „require ergänzen“ zusammenführen'), severity: 'warning' });
+    issues.push({ start: second.start, end: second.end, message: t('Proton expects a single require – merge them with “Complete require”'), severity: 'warning' });
   }
   if (dialect.proton && !text.includes('vnd.proton.spam-threshold')) {
-    issues.push({ start: 0, end: Math.min(text.length, 1), message: t('Spam-Schutz-Block fehlt – der Filter läuft dann auch auf Spam'), severity: 'warning' });
+    issues.push({ start: 0, end: Math.min(text.length, 1), message: t('Spam guard block is missing – the filter would then also run on spam'), severity: 'warning' });
   }
 
   return issues.sort((a, b) => a.start - b.start);
@@ -451,7 +451,7 @@ export function fixRequire(text) {
 const item = (text, displayText, className) => ({ text, displayText: displayText ?? text, className });
 
 const extensionsFor = (context) =>
-  [...(context.dialect ?? PROTON_DIALECT).extensions].sort().map((ext) => [ext, ALL_EXTENSIONS[ext] ?? t('Erweiterung des Servers')]);
+  [...(context.dialect ?? PROTON_DIALECT).extensions].sort().map((ext) => [ext, ALL_EXTENSIONS[ext] ?? t('Server extension')]);
 
 function filterByPrefix(items, prefix) {
   const p = prefix.toLowerCase();
@@ -502,7 +502,7 @@ export function getCompletions(text, cursor, context = {}) {
     .filter(([, info]) => (inTest ? info.kind === 'test' : info.kind !== 'test'))
     .map(([name, info]) => item(name, `${name}: ${info.doc}`, `cm-hint-${info.kind}`));
   if (!inTest) {
-    for (const tpl of TEMPLATES) candidates.push(item(tpl.body, t('Vorlage: {name}', { name: tpl.name }), 'cm-hint-template'));
+    for (const tpl of TEMPLATES) candidates.push(item(tpl.body, t('Template: {name}', { name: tpl.name }), 'cm-hint-template'));
   }
   return {
     from,
@@ -576,9 +576,9 @@ function stringCandidates(tokens, index, context) {
       return extensionsFor(context).map(([ext, doc]) => item(ext, `${ext}: ${doc}`, 'cm-hint-ext'));
     case 'fileinto':
       return [
-        ...((context.dialect ?? PROTON_DIALECT).proton ? SYSTEM_FOLDERS : ['INBOX']).map((f) => item(f, t('{name} (System)', { name: f }), 'cm-hint-folder')),
-        ...folders.map((f) => item(f, t('{name} (Ordner)', { name: f }), 'cm-hint-folder')),
-        ...labels.map((l) => item(l, t('{name} (Label)', { name: l }), 'cm-hint-label')),
+        ...((context.dialect ?? PROTON_DIALECT).proton ? SYSTEM_FOLDERS : ['INBOX']).map((f) => item(f, t('{name} (system)', { name: f }), 'cm-hint-folder')),
+        ...folders.map((f) => item(f, t('{name} (folder)', { name: f }), 'cm-hint-folder')),
+        ...labels.map((l) => item(l, t('{name} (label)', { name: l }), 'cm-hint-label')),
       ];
     case 'addflag':
     case 'removeflag':

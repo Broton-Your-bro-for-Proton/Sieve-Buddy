@@ -76,7 +76,7 @@ test('apply_rule merges into the active script only, verified with RFC semantics
 test('Proton-only features are rejected, standard extensions are fine', async () => {
   const bad = await mcp.callTool({ name: 'plan_rule', arguments: { rule: { conditions: [{ kind: 'address', header: 'from', value: 'a@b.de' }], actions: { expireDays: 3 } } } });
   assert.equal(bad.isError, true);
-  assert.match(bad.content[0].text, /nur bei Proton/);
+  assert.match(bad.content[0].text, /only available on Proton/);
   const lint = await call('lint_sieve', { sieve: 'require ["fileinto", "copy"];\nfileinto :copy "Shop";\n' });
   assert.deepEqual(lint.issues.filter((i) => i.severity === 'error'), []);
   const { templates } = await call('list_templates');
@@ -85,9 +85,9 @@ test('Proton-only features are rejected, standard extensions are fine', async ()
 });
 
 test('server-side check rejects invalid scripts', async () => {
-  const r = await mcp.callTool({ name: 'create_filter', arguments: { name: 'kaputt', sieve: 'foo;' } });
+  const r = await mcp.callTool({ name: 'create_filter', arguments: { name: 'broken', sieve: 'foo;' } });
   assert.equal(r.isError, true);
-  assert.match(r.content[0].text, /Der Server lehnt das Skript ab: Zeile 1/);
+  assert.match(r.content[0].text, /The server rejects the script: Line 1/);
   const check = await call('check_sieve', { sieve: MAIN });
   assert.deepEqual(check.issues, []);
 });

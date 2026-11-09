@@ -106,7 +106,7 @@ export function suggestConditions(msg, { ownAddresses = [] } = {}) {
     const id = /<([^>]+)>/.exec(listId)?.[1] ?? listId.trim();
     suggestions.push({
       id: 'list-id',
-      label: t('Mailingliste {id}', { id }),
+      label: t('Mailing list {id}', { id }),
       condition: { kind: 'header', header: 'list-id', match: 'contains', value: id },
     });
   }
@@ -116,13 +116,13 @@ export function suggestConditions(msg, { ownAddresses = [] } = {}) {
     const automated = /^(no-?reply|donotreply|notifications?|news(letter)?|info|mailer|support|service|updates?|hello)\b/.test(local);
     suggestions.push({
       id: 'from',
-      label: t('Absender {from}', { from }),
+      label: t('Sender {from}', { from }),
       condition: { kind: 'address', header: 'from', part: 'all', match: 'is', value: from.toLowerCase() },
     });
     if (domain) {
       suggestions.push({
         id: 'domain',
-        label: t('Absender-Domain {domain}', { domain }),
+        label: t('Sender domain {domain}', { domain }),
         condition: { kind: 'address', header: 'from', part: 'domain', match: 'is', value: domain },
         automated,
       });
@@ -133,7 +133,7 @@ export function suggestConditions(msg, { ownAddresses = [] } = {}) {
   if (alias) {
     suggestions.push({
       id: 'to',
-      label: t('Empfänger-Adresse {address}', { address: alias }),
+      label: t('Recipient address {address}', { address: alias }),
       condition: { kind: 'address', header: 'to', part: 'all', match: 'is', value: alias.toLowerCase() },
     });
   }
@@ -143,7 +143,7 @@ export function suggestConditions(msg, { ownAddresses = [] } = {}) {
     if (stable) {
       suggestions.push({
         id: 'subject',
-        label: t('Betreff enthält „{subject}“', { subject: stable }),
+        label: t('Subject contains “{subject}”', { subject: stable }),
         condition: { kind: 'header', header: 'subject', match: 'contains', value: stable },
       });
     }
@@ -151,7 +151,7 @@ export function suggestConditions(msg, { ownAddresses = [] } = {}) {
   if (msg.headers['list-unsubscribe'] && !listId) {
     suggestions.push({
       id: 'unsubscribe',
-      label: t('Jeder Newsletter (List-Unsubscribe vorhanden)'),
+      label: t('Any newsletter (List-Unsubscribe present)'),
       condition: { kind: 'exists', header: 'list-unsubscribe' },
     });
   }

@@ -40,7 +40,7 @@ export function encryptedFileStore(path, secret) {
         const plain = Buffer.concat([decipher.update(Buffer.from(data, 'base64')), decipher.final()]);
         return JSON.parse(plain.toString('utf8'));
       } catch {
-        console.warn(t('Gespeicherte Sitzung konnte nicht entschlüsselt werden (anderes SESSION_SECRET?) – bitte neu anmelden'));
+        console.warn(t('The stored session could not be decrypted (different SESSION_SECRET?). Please sign in again'));
         return null;
       }
     },

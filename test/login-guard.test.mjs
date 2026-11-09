@@ -51,9 +51,9 @@ test('Proton abuse message blocks for 24 hours', async () => {
   await g.onError(abuse);
   const s = await g.status();
   assert.equal(s.blockedUntil, now() + 24 * 60 * MIN);
-  assert.match(s.reason, /ungewöhnliche Aktivität/);
+  assert.match(s.reason, /unusual activity/);
   assert.equal(s.lastError.code, 2028);
-  await assert.rejects(g.beforeAttempt(), /Anmeldung pausiert bis/);
+  await assert.rejects(g.beforeAttempt(), /Login paused until/);
   await g.reset();
   await g.beforeAttempt();
 });

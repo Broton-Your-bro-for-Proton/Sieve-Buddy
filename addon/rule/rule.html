@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Sieve-Regel aus Mail</title>
+  <title>Sieve rule from mail</title>
   <link rel="stylesheet" href="../manager/manager.css">
   <link rel="stylesheet" href="rule.css">
   <script src="../vendor/bcrypt.min.js"></script>
@@ -11,16 +11,16 @@
 </head>
 <body class="rule-page">
   <header class="topbar">
-    <h1>Sieve-Regel aus Mail</h1>
+    <h1>Sieve rule from mail</h1>
     <span id="account" class="account"></span>
   </header>
 
-  <main id="loading" class="card"><p class="muted">Lade Mail und Filter …</p></main>
+  <main id="loading" class="card"><p class="muted">Loading mail and filters …</p></main>
 
   <main id="need-login" class="card narrow" hidden>
-    <h2>Nicht mit Proton verbunden</h2>
-    <p class="muted">Melde dich zuerst in Sieve Buddy an.</p>
-    <div class="row"><button type="button" id="open-manager">Manager öffnen</button></div>
+    <h2>Not connected to Proton</h2>
+    <p class="muted">Sign in to Sieve Buddy first.</p>
+    <div class="row"><button type="button" id="open-manager">Open manager</button></div>
   </main>
 
   <main id="form" class="rule-form" hidden>
@@ -32,41 +32,41 @@
     </section>
 
     <section>
-      <h2>Wenn …</h2>
+      <h2>If …</h2>
       <div id="conditions" class="conditions"></div>
       <div class="row tight">
-        <label class="inline" id="combine-row" hidden>Verknüpfung
+        <label class="inline" id="combine-row" hidden>Combine
           <select id="combine">
-            <option value="anyof">eine davon zutrifft (ODER)</option>
-            <option value="allof">alle zutreffen (UND)</option>
+            <option value="anyof">any of them matches (OR)</option>
+            <option value="allof">all of them match (AND)</option>
           </select>
         </label>
       </div>
     </section>
 
     <section>
-      <h2>… dann</h2>
+      <h2>… then</h2>
       <div class="actions-grid">
-        <label class="inline">Verschieben nach
-          <input id="folder" list="folder-list" placeholder="(nicht verschieben)" autocomplete="off">
+        <label class="inline">Move to
+          <input id="folder" list="folder-list" placeholder="(don't move)" autocomplete="off">
           <datalist id="folder-list"></datalist>
         </label>
-        <label class="switch"><input type="checkbox" id="seen"> als gelesen</label>
-        <label class="switch"><input type="checkbox" id="flagged"> Stern</label>
-        <label class="inline">Löschen nach
-          <input type="number" id="expire" min="1" max="730" placeholder="–" class="days"> Tagen
+        <label class="switch"><input type="checkbox" id="seen"> mark as read</label>
+        <label class="switch"><input type="checkbox" id="flagged"> star</label>
+        <label class="inline">Delete after
+          <input type="number" id="expire" min="1" max="730" placeholder="–" class="days"> days
         </label>
-        <label class="switch"><input type="checkbox" id="stop"> danach keine weiteren Filter</label>
+        <label class="switch"><input type="checkbox" id="stop"> no further filters afterwards</label>
       </div>
     </section>
 
     <section>
-      <h2>Wo eintragen?</h2>
+      <h2>Where to add it?</h2>
       <div class="row tight">
         <select id="target"></select>
-        <input id="new-name" placeholder="Name des neuen Filters" hidden>
+        <input id="new-name" placeholder="Name of the new filter" hidden>
         <select id="section" hidden></select>
-        <input id="section-name" placeholder="Name des neuen Abschnitts" hidden>
+        <input id="section-name" placeholder="Name of the new section" hidden>
       </div>
       <div id="plan" class="plan"></div>
       <div id="after" class="after"></div>
@@ -78,10 +78,10 @@
     </section>
 
     <footer class="row">
-      <button type="button" id="apply">Übernehmen</button>
-      <button type="button" id="edit" class="ghost">Im Manager bearbeiten</button>
+      <button type="button" id="apply">Apply</button>
+      <button type="button" id="edit" class="ghost">Edit in manager</button>
       <span class="spacer"></span>
-      <button type="button" id="cancel" class="ghost">Schließen</button>
+      <button type="button" id="cancel" class="ghost">Close</button>
     </footer>
   </main>
 

@@ -8,38 +8,38 @@ import { t } from '../../addon/lib/i18n.js';
 import * as ops from './ops.js';
 
 const condition = z.object({
-  kind: z.enum(['address', 'header', 'exists']).describe(t('address = Adress-Header (from/to/cc), header = beliebiger Header, exists = Header vorhanden')),
-  header: z.string().describe(t('z. B. "from", "to", "subject", "list-id", "list-unsubscribe"')),
-  part: z.enum(['all', 'domain', 'localpart']).optional().describe(t('nur bei kind=address; Standard all')),
-  match: z.enum(['is', 'contains', 'matches']).optional().describe(t('Standard is; matches mit * und ?')),
-  value: z.string().optional().describe(t('Vergleichswert (nicht bei exists)')),
+  kind: z.enum(['address', 'header', 'exists']).describe(t('address = address header (from/to/cc), header = any header, exists = header is present')),
+  header: z.string().describe(t('e.g. "from", "to", "subject", "list-id", "list-unsubscribe"')),
+  part: z.enum(['all', 'domain', 'localpart']).optional().describe(t('only with kind=address; default all')),
+  match: z.enum(['is', 'contains', 'matches']).optional().describe(t('default is; matches with * and ?')),
+  value: z.string().optional().describe(t('Value to compare (not for exists)')),
 });
 
 const actions = z.object({
-  fileinto: z.string().optional().describe(t('Zielordner oder Label (Name wie in list_folders; Proton zusätzlich inbox/archive/trash/spam, andere Server INBOX)')),
-  seen: z.boolean().optional().describe(t('als gelesen markieren')),
-  flagged: z.boolean().optional().describe(t('mit Stern markieren')),
-  expireDays: z.number().int().min(1).max(730).optional().describe(t('nach n Tagen automatisch löschen (nur Proton)')),
-  stop: z.boolean().optional().describe(t('danach keine weiteren Filter ausführen')),
+  fileinto: z.string().optional().describe(t('Target folder or label (name as in list_folders; Proton also accepts inbox/archive/trash/spam, other servers INBOX)')),
+  seen: z.boolean().optional().describe(t('mark the mail as read')),
+  flagged: z.boolean().optional().describe(t('flag with a star')),
+  expireDays: z.number().int().min(1).max(730).optional().describe(t('delete automatically after n days (Proton only)')),
+  stop: z.boolean().optional().describe(t('do not run any further filters afterwards')),
 });
 
 const rule = z.object({
   conditions: z.array(condition).min(1),
-  combine: z.enum(['anyof', 'allof']).optional().describe(t('anyof = ODER (Standard), allof = UND')),
+  combine: z.enum(['anyof', 'allof']).optional().describe(t('anyof = OR (default), allof = AND')),
   actions,
 });
 
 const headers = z
   .union([z.string(), z.record(z.string(), z.union([z.string(), z.array(z.string())]))])
-  .describe(t('Header der Mail: Roh-Text ("From: …\\nSubject: …") oder Objekt {name: wert|[werte]}'));
+  .describe(t('Headers of the mail: raw text ("From: …\\nSubject: …") or object {name: value|[values]}'));
 
-const target = z.string().optional().describe(t('"auto" (beste Stelle, Standard), "new" (neuer Filter/neues Skript) oder eine Filter-/Skript-ID'));
+const target = z.string().optional().describe(t('"auto" (best place, default), "new" (new filter/script) or a filter/script ID'));
 
 const section = z
   .union([z.string(), z.object({ new: z.string() })])
   .optional()
   .describe(
-  t('Abschnitt im Zielskript für einen neuen Block (Abschnitte = Kommentar-Überschriften, siehe list_filters): "auto" (passender Abschnitt, Standard), "end" (Ende der Datei), ein Abschnittstitel oder {new: "Titel"} für einen neuen Abschnitt'),
+  t('Section in the target script for a new block (sections = comment headings, see list_filters): "auto" (matching section, default), "end" (end of the file), a section title, or {new: "Title"} for a new section'),
 );
 
 const json = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }], structuredContent: value });
@@ -51,73 +51,73 @@ const write = { readOnlyHint: false, destructiveHint: false, openWorldHint: true
 export const TOOLS = new Map();
 const tool = (name, description, input, run, annotations = {}) => TOOLS.set(name, { description, input, run, annotations });
 
-tool('sieve_status', t('Status des Sieve-Dienstes: Anbieter (proton/managesieve/jmap), angemeldet, Schreibzugriff, Fähigkeiten.'), {}, ops.status, read);
-tool('sieve_capabilities', t('Fähigkeiten des Servers: unterstützte Sieve-Erweiterungen, mehrere aktive Filter?, Reihenfolge?, Labels?'), {}, ops.capabilities, read);
-tool('list_filters', t('Alle Sieve-Filter (Proton) bzw. Skripte (ManageSieve) in Ausführungsreihenfolge, mit ihren Abschnitten (Kommentar-Überschriften); bei ManageSieve läuft nur das aktive.'), { includeSieve: z.boolean().optional() }, ops.listFilters, read);
-tool('get_filter', t('Einen Filter mit vollständigem Sieve-Skript und lokalen Prüfhinweisen.'), { id: z.string() }, ops.getFilter, read);
-tool('list_folders', t('Ordner und Labels des Kontos (gültige Ziele für fileinto).'), {}, ops.listFolders, read);
-tool('lint_sieve', t('Prüft ein Sieve-Skript lokal gegen den Dialekt des Servers; liefert ggf. ein Skript mit ergänztem require.'), { sieve: z.string() }, ops.lintSieve, read);
-tool('check_sieve', t('Lässt den Server selbst prüfen, ob er das Skript annehmen würde.'), { sieve: z.string() }, ops.checkSieve, read);
-tool('format_sieve', t('Rückt ein Sieve-Skript einheitlich ein (Spam-Schutz bleibt unverändert).'), { sieve: z.string() }, ops.formatSieve, { readOnlyHint: true });
+tool('sieve_status', t('Status of the Sieve service: provider (proton/managesieve/jmap), signed in, write access, capabilities.'), {}, ops.status, read);
+tool('sieve_capabilities', t('Capabilities of the server: supported Sieve extensions, multiple active filters?, ordering?, labels?'), {}, ops.capabilities, read);
+tool('list_filters', t('All Sieve filters (Proton) or scripts (ManageSieve) in execution order, with their sections (comment headings); with ManageSieve only the active one runs.'), { includeSieve: z.boolean().optional() }, ops.listFilters, read);
+tool('get_filter', t('One filter with its complete Sieve script and local check notes.'), { id: z.string() }, ops.getFilter, read);
+tool('list_folders', t('Folders and labels of the account (valid targets for fileinto).'), {}, ops.listFolders, read);
+tool('lint_sieve', t('Checks a Sieve script locally against the server’s dialect; if needed, returns a script with an added require.'), { sieve: z.string() }, ops.lintSieve, read);
+tool('check_sieve', t('Has the server itself check whether it would accept the script.'), { sieve: z.string() }, ops.checkSieve, read);
+tool('format_sieve', t('Indents a Sieve script consistently (the spam guard stays unchanged).'), { sieve: z.string() }, ops.formatSieve, { readOnlyHint: true });
 tool(
   'simulate_message',
-  t('Zeigt, wo eine Mail mit den aktuellen Filtern landen würde und welche Regeln greifen. Optional mit geänderten Skripten (overrides).'),
+  t('Shows where a mail would end up with the current filters and which rules apply. Optionally with changed scripts (overrides).'),
   {
     headers,
-    size: z.number().optional().describe(t('Größe in Bytes')),
+    size: z.number().optional().describe(t('Size in bytes')),
     spamScore: z.number().optional(),
     overrides: z.array(z.object({ id: z.string(), sieve: z.string() })).optional(),
   },
   ops.simulateMessage,
   read,
 );
-tool('suggest_rule', t('Schlägt passende Bedingungen für eine Regel aus den Headern einer Mail vor (Liste, Absender, Domain, Betreff …).'), { headers }, ops.suggestRule, { readOnlyHint: true });
+tool('suggest_rule', t('Suggests suitable conditions for a rule from the headers of a mail (list, sender, domain, subject …).'), { headers }, ops.suggestRule, { readOnlyHint: true });
 tool(
   'plan_rule',
-  t('Plant eine Regel, ohne zu speichern: findet die beste Stelle (in bestehende Liste einreihen, anyof erweitern oder neuer Block), liefert Diff, Konflikte und – mit headers – das simulierte Ergebnis.'),
+  t('Plans a rule without saving: finds the best place (add to an existing list, extend anyof, or new block) and returns the diff, conflicts and, with headers, the simulated result.'),
   { rule, target, section, newName: z.string().optional(), headers: headers.optional(), size: z.number().optional() },
   ops.planRule,
   read,
 );
 tool(
   'apply_rule',
-  t('Wie plan_rule, speichert das Ergebnis aber auf dem Server (nach dessen eigener Prüfung).'),
+  t('Like plan_rule, but saves the result on the server (after its own check).'),
   { rule, target, section, newName: z.string().optional(), headers: headers.optional(), size: z.number().optional() },
   ops.applyRule,
   write,
 );
-tool('list_templates', t('Katalog der Regel-Vorlagen mit ihren Parametern.'), {}, ops.listTemplates, { readOnlyHint: true });
+tool('list_templates', t('Catalog of rule templates with their parameters.'), {}, ops.listTemplates, { readOnlyHint: true });
 tool(
   'plan_template',
-  t('Baut eine Vorlage mit Parametern und plant sie wie plan_rule (ohne zu speichern).'),
+  t('Builds a template with parameters and plans it like plan_rule (without saving).'),
   { templateId: z.string(), params: z.record(z.string(), z.any()).optional(), target, section, newName: z.string().optional() },
   ops.buildTemplate,
   read,
 );
 tool(
   'apply_template',
-  t('Wie plan_template, speichert das Ergebnis aber auf dem Server.'),
+  t('Like plan_template, but saves the result on the server.'),
   { templateId: z.string(), params: z.record(z.string(), z.any()).optional(), target, section, newName: z.string().optional() },
   ops.applyTemplate,
   write,
 );
-tool('create_filter', t('Legt einen neuen Filter/ein neues Skript an (nach Prüfung durch den Server). Bei ManageSieve/JMAP wird es nur mit enabled=true aktiv (oder wenn noch kein Skript aktiv ist) – und ersetzt dann das bisher aktive.'), { name: z.string(), sieve: z.string(), enabled: z.boolean().optional() }, ops.createFilter, write);
+tool('create_filter', t('Creates a new filter/script (after the server checked it). With ManageSieve/JMAP it only becomes active with enabled=true (or when no script is active yet), and then replaces the active one.'), { name: z.string(), sieve: z.string(), enabled: z.boolean().optional() }, ops.createFilter, write);
 tool(
   'update_filter',
-  t('Ändert Name, Sieve-Skript oder Status eines Filters. Liefert den Diff.'),
+  t('Changes the name, Sieve script or status of a filter. Returns the diff.'),
   {
     id: z.string(),
     name: z.string().optional(),
     sieve: z.string().optional(),
     enabled: z.boolean().optional(),
-    expectedSieve: z.string().optional().describe(t('nur speichern, wenn das Skript noch genau diesen Text hat (Schutz vor gleichzeitigen Änderungen)')),
+    expectedSieve: z.string().optional().describe(t('save only if the script still has exactly this text (protects against concurrent changes)')),
   },
   ops.updateFilter,
   write,
 );
-tool('set_filter_enabled', t('Aktiviert oder deaktiviert einen Filter (ManageSieve: aktiviert genau dieses Skript).'), { id: z.string(), enabled: z.boolean() }, ops.setFilterEnabled, write);
-tool('reorder_filters', t('Setzt die Ausführungsreihenfolge der Filter (nur Proton; vollständige Liste der IDs).'), { ids: z.array(z.string()) }, ops.reorderFilters, write);
-tool('delete_filter', t('Löscht einen Filter endgültig.'), { id: z.string() }, ops.deleteFilter, { ...write, destructiveHint: true });
+tool('set_filter_enabled', t('Enables or disables a filter (ManageSieve: activates exactly this script).'), { id: z.string(), enabled: z.boolean() }, ops.setFilterEnabled, write);
+tool('reorder_filters', t('Sets the execution order of the filters (Proton only; complete list of IDs).'), { ids: z.array(z.string()) }, ops.reorderFilters, write);
+tool('delete_filter', t('Deletes a filter permanently.'), { id: z.string() }, ops.deleteFilter, { ...write, destructiveHint: true });
 
 export function createMcpServer(account) {
   const server = new McpServer({ name: 'sieve', version: '0.4.0' });
