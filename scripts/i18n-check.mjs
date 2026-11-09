@@ -46,7 +46,7 @@ const GERMAN =
   /[äöüÄÖÜß„“]|\b(nicht|und|oder|der|das|den|dem|des|ein|eine|einen|einem|einer|mit|für|bei|nach|ist|sind|wird|werden|kein|keine|bitte|Bitte|Zeile|Regel|Regeln|Abschnitt|Ordner|Neu|neue|neuen|schon|noch|auf|aus|vor|zum|zur|wurde|kann|gibt|Skript|Anmeldung|Fehler|Dienst|Vorlage|Absender|Betreff|erwartet|fehlt|gefunden|Erweiterung|Befehl|Wert|Werte|Liste|Verschieben|Abbrechen|Schließen|Speichern|Laden|Anmelden|Abmelden|Prüfen|aktiv|Aktiv|aber|vorhanden|Mailingliste|deaktiviert|Angelegt)\b/;
 
 // strings that are data or names, not UI text to translate
-const IGNORE = [/^if [\s\S]*\}$/, /^From: /, /^Sieve Buddy$/, /^API_TOKEN$/, /^http:\/\/localhost:8080$/];
+const IGNORE = [/^if [\s\S]*\}$/, /^From: /, /^Sieve Buddy$/, /^API_TOKEN$/, /^http:\/\/localhost:8080$/, /^Einkäufe$/];
 
 /** String literals of a JS source: {value, template, line, inT}. Comments and regex literals are skipped. */
 export function literals(src) {
@@ -149,19 +149,23 @@ export function tKeys(src) {
   return [...src.matchAll(/(?<![\w.])t\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map((m) => ({ key: unescape(m[2]), line: src.slice(0, m.index).split('\n').length }));
 }
 
+/** t(…) calls whose key is not one plain string literal, so the catalog cannot be checked: {text, line}. */
+export function dynamicKeys(src) {
+  return [...src.matchAll(/(?<![\w.])t\(\s*(?:(?!['"])[^\s)]|(['"])(?:\\.|(?!\1).)*\1\s*[^\s,)])[^\n]{0,40}/g)].map((m) => ({ text: m[0], line: src.slice(0, m.index).split('\n').length }));
+}
+
 export function check() {
   const problems = [];
   const missing = (file, src) => {
     for (const { key, line } of tKeys(src)) if (!Object.hasOwn(DE, key)) problems.push({ file, line, kind: 'missing', text: key });
+    for (const { text, line } of dynamicKeys(src)) problems.push({ file, line, kind: 'dynamic-key', text });
   };
   for (const file of SOURCES) {
     const src = readFileSync(root + file, 'utf8');
     missing(file, src);
     for (const lit of literals(src)) {
       const value = unescape(lit.value);
-      if (lit.inT) {
-        if (lit.template) problems.push({ file, line: lit.line, kind: 'template-in-t', text: value });
-      } else if (GERMAN.test(value) && !IGNORE.some((r) => r.test(value))) {
+      if (!lit.inT && GERMAN.test(value) && !IGNORE.some((r) => r.test(value))) {
         problems.push({ file, line: lit.line, kind: 'german', text: value });
       }
     }

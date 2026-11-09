@@ -120,11 +120,11 @@ test('long comment lines do not slow down section detection', () => {
 });
 
 test('prototype names are never looked up in the catalog', () => {
-  setLocale('en');
+  setLocale('de'); // English has no catalog, only German reaches the lookup
   try {
     assert.equal(t('constructor'), 'constructor');
     assert.equal(t('toString', { a: 1 }), 'toString');
   } finally {
-    setLocale('de');
+    setLocale('en');
   }
 });

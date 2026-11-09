@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { getLocale, setLocale, t } from '../addon/lib/i18n.js';
 import { DE } from '../addon/lib/locales/de.js';
 import { parseSieve } from '../addon/lib/sieve-ast.js';
-import { check, tKeys } from '../scripts/i18n-check.mjs';
+import { check, dynamicKeys, tKeys } from '../scripts/i18n-check.mjs';
 
 test('every UI text has a German translation and the source holds no German text', () => {
   const problems = check().map((p) => `${p.file}:${p.line} [${p.kind}] ${p.text}`);
@@ -18,6 +18,15 @@ test('the check also sees t() calls inside template expressions', () => {
     { key: "It's two", line: 1 },
     { key: 'Three', line: 2 },
   ]);
+});
+
+test('the check rejects t() keys it cannot look up', () => {
+  const found = (src) => dynamicKeys(src).length;
+  assert.equal(found("t(ok ? 'One' : 'Two')"), 1);
+  assert.equal(found('t(label)'), 1);
+  assert.equal(found('t(`Folder ${name}`)'), 1);
+  assert.equal(found("t('Prefix ' + name)"), 1);
+  assert.equal(found("t('One'); t(\"Two\", { n }); x.t(label); // goes through t()"), 0);
 });
 
 test('translations keep every placeholder and use no em dash', () => {
@@ -37,6 +46,17 @@ test('t() fills placeholders, falls back to English and follows the locale', () 
     assert.equal(t('Text without a translation'), 'Text without a translation');
     // messages built at call time switch with the locale
     assert.throws(() => parseSieve('fileinto "a"'), /erwartet/);
+  } finally {
+    setLocale('en');
+  }
+});
+
+test('editor snippets carry translated sample values', async () => {
+  setLocale('de');
+  try {
+    const { TEMPLATES } = await import('../addon/lib/sieve-dialect.js?de'); // fresh copy, built in German
+    assert.match(TEMPLATES[0].body, /"absender@example\.com" \{\n {4}fileinto "Ordner";/);
+    assert.match(TEMPLATES.map((s) => s.body).join('\n'), /:subject "Abwesend" "Ich bin bis zum 6\. Januar nicht erreichbar\.";/);
   } finally {
     setLocale('en');
   }

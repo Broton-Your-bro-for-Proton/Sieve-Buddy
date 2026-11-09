@@ -208,21 +208,21 @@ export const EXPIRE_UNITS = ['month', 'day', 'hour', 'minute', 'second'];
 export const TEMPLATES = [
   {
     name: t('Sender → folder'),
-    body: `if address :is "from" "sender@example.com" {
-    fileinto "Folder";
+    body: `if address :is "from" "${t('sender@example.com')}" {
+    fileinto "${t('Folder')}";
 }`,
   },
   {
     name: t('Domain → folder'),
     body: `if address :domain :is "from" "example.com" {
-    fileinto "Folder";
+    fileinto "${t('Folder')}";
 }`,
   },
   {
     name: t('Mailing list → folder, mark as read'),
     body: `if exists "list-id" {
     addflag "\\\\Seen";
-    fileinto "Lists";
+    fileinto "${t('Lists')}";
 }`,
   },
   {
@@ -233,9 +233,9 @@ export const TEMPLATES = [
   },
   {
     name: t('Subject contains → label + star'),
-    body: `if header :contains "subject" "Invoice" {
+    body: `if header :contains "subject" "${t('Invoice')}" {
     addflag "\\\\Flagged";
-    fileinto "Invoices";
+    fileinto "${t('Invoices')}";
 }`,
   },
   {
@@ -260,7 +260,7 @@ export const TEMPLATES = [
     currentdate :value "ge" "date" "2026-12-20",
     currentdate :value "le" "date" "2027-01-06"
 ) {
-    vacation :days 7 :subject "Out of office" "I am unavailable until January 6.";
+    vacation :days 7 :subject "${t('Out of Office')}" "${t('I am unavailable until January 6.')}";
 }`,
   },
 ];

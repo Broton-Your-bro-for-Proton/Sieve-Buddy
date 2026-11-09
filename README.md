@@ -106,7 +106,7 @@ The service does **not sign in** to Proton itself. Instead you sign in to the Th
 |---|---|
 | `API_TOKEN` | **Required.** Bearer token for web UI, REST and MCP (≥ 24 characters) |
 | `PROVIDER` | `proton` (default), `managesieve` or `jmap` |
-| `LOCALE` | language of web UI, messages and MCP descriptions: `en` (default) or `de` |
+| `LOCALE` | language of web UI, messages, MCP descriptions and template defaults (folder names, out-of-office text): `en` (default) or `de`. The default used to be German, so an existing install without this variable needs `LOCALE=de` to stay as it was |
 | `ALLOW_WRITE` | `false` = only read, plan, simulate |
 | `SESSION_SECRET` | key of the stored Proton session (default: `API_TOKEN`) |
 | `CORS_ORIGINS` | additional browser origins for the API; the add-on (`moz-extension://`) is always allowed |
