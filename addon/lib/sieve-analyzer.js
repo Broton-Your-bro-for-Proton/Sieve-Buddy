@@ -308,8 +308,10 @@ function statementChecks(tokens, statements, { folders, dialect = PROTON_DIALECT
         const name = target.value;
         const lower = name.toLowerCase();
         const createsIt = dialect.proton ? false : st.tags.includes(':create');
+        // Proton matches folder/label names case-insensitively ("eBay" files into "Ebay")
+        const exists = dialect.proton ? folders?.some((f) => f.toLowerCase() === lower) : folders?.includes(name);
         if (dialect.proton && (lower === 'drafts' || lower === 'sent')) issue(target, t('„{name}“ wird von Proton bei fileinto ignoriert', { name }));
-        else if (folders && !createsIt && !name.includes('${') && !(dialect.proton ? SYSTEM_FOLDERS.includes(lower) : lower === 'inbox') && !folders.includes(name)) {
+        else if (folders && !createsIt && !name.includes('${') && !(dialect.proton ? SYSTEM_FOLDERS.includes(lower) : lower === 'inbox') && !exists) {
           issue(target, dialect.proton ? t('Ordner/Label „{name}“ existiert in Proton nicht – fileinto würde nichts tun', { name }) : t('Ordner „{name}“ existiert nicht – :create ergänzen oder Ordner anlegen', { name }));
         }
         break;

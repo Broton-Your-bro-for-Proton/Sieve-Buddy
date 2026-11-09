@@ -216,6 +216,14 @@ test('lint and format work without Proton', async () => {
   assert.equal(sieve, 'if true {\n    stop;\n}');
 });
 
+test('Proton folder names match case-insensitively', async () => {
+  const r = await mcp.callTool({
+    name: 'plan_rule',
+    arguments: { rule: { conditions: [{ kind: 'address', header: 'from', value: 'a@b.de' }], actions: { fileinto: 'EINKÄUFE' } } },
+  });
+  assert.doesNotMatch(r.content[0].text, /existiert nicht/);
+});
+
 test('unknown folders are rejected with close matches', async () => {
   const r = await mcp.callTool({
     name: 'plan_rule',
