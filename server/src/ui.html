@@ -136,8 +136,8 @@
     $('status-text').innerHTML = status.loggedIn
       ? `<span class="ok">●</span> ${managesieve ? `${kind} ${esc(status.server)}` : 'Proton'} – ${esc(status.username)}`
       : managesieve
-        ? `<span class="bad">●</span> ${status.provider === 'jmap' ? t('JMAP {server} nicht erreichbar', { server: esc(status.server) }) : t('ManageSieve {server} nicht erreichbar', { server: esc(status.server) })}`
-        : `<span class="bad">●</span> ${t('Nicht bei Proton angemeldet')}`;
+        ? `<span class="bad">●</span> ${status.provider === 'jmap' ? t('JMAP {server} unreachable', { server: esc(status.server) }) : t('ManageSieve {server} unreachable', { server: esc(status.server) })}`
+        : `<span class="bad">●</span> ${t('Not signed in to Proton')}`;
     if (managesieve && status.error) msg(status.error, 'bad');
     $('logout').hidden = managesieve || !status.loggedIn;
     $('handover-box').hidden = managesieve || status.loggedIn || status.allowPasswordLogin;

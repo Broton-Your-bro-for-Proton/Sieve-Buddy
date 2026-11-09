@@ -201,7 +201,7 @@ export const RULE_TEMPLATES = [
     header :list "from" ":incomingdefaults:inbox",
     header :list "from" ":addrbook:myself"
 ) {
-    fileinto ${quoteSieve(p.folder || t('Unbekannt'))};
+    fileinto ${quoteSieve(p.folder || t('Unknown'))};
 }`,
   },
   {

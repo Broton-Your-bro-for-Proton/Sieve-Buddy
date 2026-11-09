@@ -28,7 +28,7 @@ export async function listImapFolders({ host, port, tls: mode = 'tls', user, pas
   port ??= mode === 'tls' ? 993 : 143;
   let socket = await new Promise((resolve, reject) => {
     const s = mode === 'tls' ? tls.connect({ host, port, servername: host, rejectUnauthorized }) : net.connect({ host, port });
-    s.setTimeout(timeoutMs, () => s.destroy(new Error(t('IMAP: Zeitüberschreitung'))));
+    s.setTimeout(timeoutMs, () => s.destroy(new Error(t('IMAP: timeout'))));
     s.once(mode === 'tls' ? 'secureConnect' : 'connect', () => resolve(s));
     s.once('error', reject);
   });
@@ -49,7 +49,7 @@ export async function listImapFolders({ host, port, tls: mode = 'tls', user, pas
           resolve(result);
         }
       };
-      const timer = setTimeout(() => reject(new Error(t('IMAP: Zeitüberschreitung'))), timeoutMs);
+      const timer = setTimeout(() => reject(new Error(t('IMAP: timeout'))), timeoutMs);
       waiting = () => {
         try {
           check();

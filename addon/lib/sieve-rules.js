@@ -185,7 +185,7 @@ export function describeRule({ conditions, actions }) {
     a.expireDays && t('delete after {days} days', { days: a.expireDays }),
     a.stop && t('then stop'),
   ].filter(Boolean);
-  return `${what} → ${todo.join(', ') || t('keine Aktion')}`;
+  return `${what} → ${todo.join(', ') || t('no action')}`;
 }
 
 /** Patch adding `value` to a string or string list argument, following the list's own layout. */

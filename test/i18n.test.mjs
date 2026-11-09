@@ -5,11 +5,19 @@ import { readFileSync } from 'node:fs';
 import { getLocale, setLocale, t } from '../addon/lib/i18n.js';
 import { DE } from '../addon/lib/locales/de.js';
 import { parseSieve } from '../addon/lib/sieve-ast.js';
-import { check } from '../scripts/i18n-check.mjs';
+import { check, tKeys } from '../scripts/i18n-check.mjs';
 
 test('every UI text has a German translation and the source holds no German text', () => {
   const problems = check().map((p) => `${p.file}:${p.line} [${p.kind}] ${p.text}`);
   assert.deepEqual(problems, []);
+});
+
+test('the check also sees t() calls inside template expressions', () => {
+  assert.deepEqual(tKeys("const a = `${ok ? t('One') : t(\"It's two\")} ${x.t('no')}`;\n t('Three', { n })"), [
+    { key: 'One', line: 1 },
+    { key: "It's two", line: 1 },
+    { key: 'Three', line: 2 },
+  ]);
 });
 
 test('translations keep every placeholder and use no em dash', () => {

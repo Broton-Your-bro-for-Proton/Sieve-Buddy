@@ -144,22 +144,32 @@ export function pageTexts(html) {
   return texts;
 }
 
+/** Keys of the t('…') calls of a source: {key, line}. Also finds calls inside template expressions, which literals() skips. */
+export function tKeys(src) {
+  return [...src.matchAll(/(?<![\w.])t\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)].map((m) => ({ key: unescape(m[2]), line: src.slice(0, m.index).split('\n').length }));
+}
+
 export function check() {
   const problems = [];
+  const missing = (file, src) => {
+    for (const { key, line } of tKeys(src)) if (!Object.hasOwn(DE, key)) problems.push({ file, line, kind: 'missing', text: key });
+  };
   for (const file of SOURCES) {
     const src = readFileSync(root + file, 'utf8');
+    missing(file, src);
     for (const lit of literals(src)) {
       const value = unescape(lit.value);
       if (lit.inT) {
         if (lit.template) problems.push({ file, line: lit.line, kind: 'template-in-t', text: value });
-        else if (!Object.hasOwn(DE, value)) problems.push({ file, line: lit.line, kind: 'missing', text: value });
       } else if (GERMAN.test(value) && !IGNORE.some((r) => r.test(value))) {
         problems.push({ file, line: lit.line, kind: 'german', text: value });
       }
     }
   }
   for (const file of PAGES) {
-    for (const text of pageTexts(readFileSync(root + file, 'utf8'))) {
+    const html = readFileSync(root + file, 'utf8');
+    missing(file, html);
+    for (const text of pageTexts(html)) {
       if (/\p{L}/u.test(text) && !Object.hasOwn(DE, text) && !IGNORE.some((r) => r.test(text))) problems.push({ file, line: 0, kind: 'page', text });
     }
   }

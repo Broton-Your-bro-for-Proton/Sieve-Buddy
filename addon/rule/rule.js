@@ -260,7 +260,7 @@ function render() {
       el(
         'div',
         { class: `step${st.kind === 'covered' ? ' ok' : ''}` },
-        `${st.condition ? t('„{s}“', { s: st.condition.value ?? st.condition.header }) : t('Regel')} ${KIND_TEXT[st.kind] ?? st.kind}${st.line ? ` ${t('(Zeile {line})', { line: st.line })}` : ''}`,
+        `${st.condition ? t('“{s}”', { s: st.condition.value ?? st.condition.header }) : t('Rule')} ${KIND_TEXT[st.kind] ?? st.kind}${st.line ? ` ${t('(line {line})', { line: st.line })}` : ''}`,
       ),
     ),
     ...notes.map((n) => el('div', { class: 'warn' }, `↪ ${n}`)),

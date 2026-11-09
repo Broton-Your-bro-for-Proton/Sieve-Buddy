@@ -421,7 +421,7 @@ async function enterApp() {
   $('check').hidden = false;
   $('check').textContent = serverName === 'Proton' ? t('Check with Proton') : t('Check with server');
   $('insert-guard').hidden = !state.dialect.proton;
-  $('account').textContent = `${state.client.session?.username ?? ''}${via ? ` · ${t('über Dienst ({server})', { server: serverName })}` : ''}`;
+  $('account').textContent = `${state.client.session?.username ?? ''}${via ? ` · ${t('via service ({server})', { server: serverName })}` : ''}`;
   $('logout').hidden = false;
   $('logout').textContent = via ? t('Disconnect service') : t('Sign out');
   $('handover').hidden = via;
