@@ -270,7 +270,7 @@ export function installTools(editor, state) {
     const input = el('textarea', {
       class: 'headers-input',
       rows: 9,
-      placeholder: 'From: Jane <jane@example.com>\nTo: ich@proton.me\nSubject: …\nList-Id: <liste.example.com>',
+      placeholder: t('From: Jane <jane@example.com>\nTo: me@proton.me\nSubject: …\nList-Id: <list.example.com>'),
     });
     input.value = (await storage.get('simHeaders')) ?? '';
     const result = el('div', { class: 'sim-result' });

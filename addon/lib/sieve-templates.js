@@ -31,7 +31,7 @@ export const RULE_TEMPLATES = [
     category: t('Sender'),
     name: t('Sender to folder'),
     description: t('File messages from specific addresses.'),
-    params: [text('addresses', t('Sender addresses (one per line)'), '', 'chef@firma.de'), folder(), ...actionParams],
+    params: [text('addresses', t('Sender addresses (one per line)'), '', t('boss@company.com')), folder(), ...actionParams],
     build: (p) => ({
       conditions: list(p.addresses).map((value) => ({ kind: 'address', header: 'from', part: 'all', match: 'is', value: value.toLowerCase() })),
       actions: actionsFrom(p),

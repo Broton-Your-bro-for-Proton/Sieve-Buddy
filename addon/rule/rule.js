@@ -74,7 +74,7 @@ async function loadAccount() {
   if (inAddon) return null;
   // preview outside Thunderbird without a session: the manager's offline filters
   const local = (await storage.get('localFilters')) ?? [];
-  return { filters: local, folders: ['Shopping', 'Newsletters', 'Lists', 'Invoices'], labels: ['Important'] };
+  return { filters: local, folders: ['Einkäufe', 'Newsletter', 'Lists', 'Invoices'], labels: ['Important'] };
 }
 
 // ---------- form ----------

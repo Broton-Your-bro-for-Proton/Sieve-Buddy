@@ -402,14 +402,14 @@ export function lintSieve(text, options = {}) {
       issues.push({
         start: token.start,
         end: token.end,
-        message: t('Requires require "{name}" – fix automatically with “Add require”', { name: ext }),
+        message: t('Requires require "{name}" – fix automatically with “Complete require”', { name: ext }),
         severity: 'error',
       });
     }
   }
   if (dialect.proton && result.requireStatements.length > 1) {
     const second = result.requireStatements[1];
-    issues.push({ start: second.start, end: second.end, message: t('Proton expects a single require – merge them with “Add require”'), severity: 'warning' });
+    issues.push({ start: second.start, end: second.end, message: t('Proton expects a single require – merge them with “Complete require”'), severity: 'warning' });
   }
   if (dialect.proton && !text.includes('vnd.proton.spam-threshold')) {
     issues.push({ start: 0, end: Math.min(text.length, 1), message: t('Spam guard block is missing – the filter would then also run on spam'), severity: 'warning' });
