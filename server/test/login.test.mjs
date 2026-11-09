@@ -48,6 +48,7 @@ test('wrong password is rejected after the captcha', async () => {
 });
 
 test('captcha → TOTP → logged in, and the password is never stored', async () => {
+  await post('/api/login/reset-guard'); // the previous test used two of the three attempts
   const first = await post('/api/login', { username: 'test@proton.local', password: 'test123' });
   assert.equal(first.body.step, 'captcha', 'captcha already solved earlier stays solved, so Proton may skip it');
   assert.equal((await status()).pending, 'captcha');
@@ -70,6 +71,23 @@ test('captcha → TOTP → logged in, and the password is never stored', async (
   assert.ok(!stored.includes('test@proton.local'), 'session file is encrypted');
   const filters = await post('/api/ops/list-filters');
   assert.equal(filters.body.filters.length, 2);
+});
+
+test('three wrong 2FA codes end the pending login', async () => {
+  await post('/api/logout');
+  await post('/api/login/reset-guard');
+  let r = await post('/api/login', { username: 'test@proton.local', password: 'test123' });
+  if (r.body.step === 'captcha') r = await post('/api/login/continue');
+  assert.equal(r.body.step, 'totp');
+  for (let i = 0; i < 3; i++) assert.equal((await post('/api/login/totp', { code: '000000' })).status, 400);
+  const late = await post('/api/login/totp', { code: '123456' });
+  assert.match(late.body.error, /No login is waiting for a 2FA code/);
+  assert.equal((await status()).loggedIn, false);
+  // log in again for the following tests
+  await post('/api/login/reset-guard');
+  r = await post('/api/login', { username: 'test@proton.local', password: 'test123' });
+  if (r.body.step === 'captcha') r = await post('/api/login/continue');
+  assert.equal((await post('/api/login/totp', { code: '123456' })).body.step, 'done');
 });
 
 test('session survives a service restart', async () => {
@@ -103,6 +121,7 @@ test('ALLOW_WRITE=false blocks writes but allows planning', async () => {
   service = await startServer({ ...config(), allowWrite: false });
   base = `http://127.0.0.1:${service.port}`;
   // log in again (captcha already solved in this fake)
+  await post('/api/login/reset-guard');
   const r = await post('/api/login', { username: 'test@proton.local', password: 'test123' });
   if (r.body.step === 'captcha') {
     await fetch(r.body.webUrl);

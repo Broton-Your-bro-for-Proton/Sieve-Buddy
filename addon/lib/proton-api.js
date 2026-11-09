@@ -14,6 +14,7 @@ export const FILTER_VERSION = 2;
 const SUCCESS_CODES = new Set([1000, 1001]);
 const HUMAN_VERIFICATION_CODE = 9001;
 const TWO_FACTOR_TOTP = 1;
+const MAX_TOTP_TRIES = 3;
 
 export const LABEL_TYPE = { LABEL: 1, FOLDER: 3 };
 
@@ -117,8 +118,8 @@ export class ProtonClient {
    * Throws ProtonApiError with needsHumanVerification when Proton asks for a captcha.
    */
   async login(username, password, humanVerification) {
-    // the captcha continuation belongs to the same attempt
-    if (!humanVerification) await this.guard.beforeAttempt();
+    // a captcha continuation sends the password to Proton again, so it counts like a new attempt
+    await this.guard.beforeAttempt();
     try {
       const result = await this.#login(username, password, humanVerification);
       await this.guard.onSuccess();
@@ -194,6 +195,9 @@ export class ProtonClient {
       await this.request('POST', 'core/v4/auth/2fa', { body: { TwoFactorCode: code.trim() }, retry: false });
     } catch (error) {
       await this.guard.onError(error);
+      // three wrong codes end the pending login: more tries need a new password login, which the guard limits
+      this.session.totpFailures = (this.session.totpFailures ?? 0) + 1;
+      if (this.session.totpFailures >= MAX_TOTP_TRIES) this.session = null;
       throw error;
     }
     this.session.pending2FA = false;

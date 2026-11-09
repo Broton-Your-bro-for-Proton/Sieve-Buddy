@@ -54,3 +54,26 @@ test('abuse response pauses logins; retries never reach Proton', async () => {
   const reset = await post('/api/login/reset-guard');
   assert.equal(reset.body.loginGuard.blockedUntil, null);
 });
+
+test('unsolved captcha continuations count as attempts and stop after three', async () => {
+  const captchaFake = createFakeProton({ captcha: true });
+  const apiBase = await captchaFake.listen();
+  const dir = await mkdtemp(join(tmpdir(), 'pss-guard-captcha-'));
+  const svc = await startServer({ host: '127.0.0.1', port: 0, dataDir: dir, apiToken: TOKEN, secret: 's', allowWrite: true, allowPasswordLogin: true, proton: { apiBase, appVersion: 'Other' } });
+  const url = `http://127.0.0.1:${svc.port}`;
+  const send = async (path, body = {}) => {
+    const res = await fetch(`${url}${path}`, { method: 'POST', headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    return { status: res.status, body: await res.json() };
+  };
+  try {
+    assert.equal((await send('/api/login', { username: 'test@proton.local', password: 'test123' })).body.step, 'captcha');
+    const errors = [];
+    for (let i = 0; i < 10; i++) errors.push((await send('/api/login/continue')).body.error);
+    assert.ok(errors.some((e) => /Login paused until/.test(e)), errors.join(' | '));
+    assert.equal(captchaFake.state.requests.filter((r) => r.path === 'core/v4/auth/info').length, 3);
+  } finally {
+    await new Promise((r) => svc.server.close(r));
+    await captchaFake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});

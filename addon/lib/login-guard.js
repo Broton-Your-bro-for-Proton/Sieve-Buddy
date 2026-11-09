@@ -56,7 +56,7 @@ export class LoginGuard {
     };
   }
 
-  /** Call before a new password login (not for the captcha/2FA continuation of one). */
+  /** Call before every request that sends a password or 2FA code (also the captcha continuation). */
   async beforeAttempt() {
     const s = await this.#state();
     const now = this.now();

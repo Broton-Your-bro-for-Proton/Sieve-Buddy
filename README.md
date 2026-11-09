@@ -144,8 +144,9 @@ Proton temporarily restricted a test account twice ("unusual activity"), each ti
 
 - By default the service does **not** sign in with a password. The session comes from the add-on via handover.
 - A **login guard** (`addon/lib/login-guard.js`) applies to add-on and service:
-  - at most 3 password sign-ins in 15 minutes
-  - growing pauses after errors
+  - at most 3 password sign-ins in 15 minutes; each captcha continuation counts as one, because it sends the password again
+  - growing pauses after errors; a wrong password only uses up one of the 3 sign-ins
+  - three wrong 2FA codes end the pending sign-in
   - **24 hours pause** after an abuse report; blocked attempts do not reach Proton at all
 - Proton's error codes end up in the log (`[proton] … Code …`), never tokens or passwords.
 
