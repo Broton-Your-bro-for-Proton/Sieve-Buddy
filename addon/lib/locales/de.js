@@ -534,6 +534,7 @@ export const DE = {
   "Sender to folder": "Absender in Ordner",
   "Server does not offer SASL PLAIN (offered: {offered})": "Server bietet SASL PLAIN nicht an (angeboten: {offered})",
   "Server does not offer STARTTLS (use MANAGESIEVE_TLS=none only in your own network)": "Server bietet kein STARTTLS an (MANAGESIEVE_TLS=none nur im eigenen Netz verwenden)",
+  "Unexpected data after STARTTLS, connection closed": "Unerwartete Daten nach STARTTLS, Verbindung geschlossen",
   "Server extension": "Erweiterung des Servers",
   "Service": "Dienst",
   "Service address": "Adresse des Dienstes",
