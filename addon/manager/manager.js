@@ -283,7 +283,7 @@ async function saveFilter() {
   state.selectedId = saved?.ID ?? state.selectedId;
   state.dirty = false;
   await reloadFilters();
-  toast(t('“{name}” saved', { name: Name }));
+  toast(saved?.warning ?? t('“{name}” saved', { name: Name }), Boolean(saved?.warning));
 }
 
 async function deleteFilter() {

@@ -15,6 +15,7 @@ const SUCCESS_CODES = new Set([1000, 1001]);
 const HUMAN_VERIFICATION_CODE = 9001;
 const TWO_FACTOR_TOTP = 1;
 const MAX_TOTP_TRIES = 3;
+const TOO_MANY_ACTIVE_FILTERS = 50016;
 
 export const LABEL_TYPE = { LABEL: 1, FOLDER: 3 };
 
@@ -264,10 +265,20 @@ export class ProtonClient {
   }
 
   async createFilter({ Name, Sieve, Status = 1 }) {
-    const { Filter } = await this.request('POST', 'mail/v4/filters', {
-      body: { Name, Sieve, Status, Version: FILTER_VERSION },
-    });
-    return Filter;
+    const before = new Set((await this.listFilters()).map((f) => f.ID));
+    try {
+      const { Filter } = await this.request('POST', 'mail/v4/filters', {
+        body: { Name, Sieve, Status, Version: FILTER_VERSION },
+      });
+      return Filter;
+    } catch (error) {
+      // Proton answers 50016 ("too many active filters", free plan) but still creates the filter, disabled.
+      // Report it as created, so callers do not retry and pile up duplicates.
+      if (error.code !== TOO_MANY_ACTIVE_FILTERS) throw error;
+      const added = (await this.listFilters()).find((f) => !before.has(f.ID) && f.Name === Name);
+      if (!added) throw error;
+      return { ...added, Status: 0, warning: t('Created, but disabled: {message}', { message: error.message }) };
+    }
   }
 
   async updateFilter(id, { Name, Sieve, Status }) {

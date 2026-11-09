@@ -233,6 +233,8 @@ function moveLf(text, line, delta, nth) {
   if (j < 0 || j >= units.length) return text;
   const [a, b] = delta < 0 ? [units[j], units[i]] : [units[i], units[j]];
   const between = text.slice(a.end, b.start);
+  // a heading above require stays there: no rule may move before require
+  if (/^[ \t]*require\b/m.test(between)) return text;
   const head = text.slice(0, a.start);
   const [aText, bText] = [text.slice(a.start, a.end), text.slice(b.start, b.end)];
   if (a.type === 'rule' && b.type === 'rule') return head + bText + between + aText + text.slice(b.end);

@@ -60,6 +60,9 @@ export class JmapProvider {
   }
 
   async #connect() {
+    // fetch refuses such URLs with the full URL, password included, in its error message
+    const url = new URL(this.config.url);
+    if (url.username || url.password) throw new JmapError(t('JMAP_URL must not contain a user name or password, use JMAP_USER and JMAP_TOKEN'));
     const res = await this.#fetch(this.config.url);
     const session = await res.json();
     const accountId = session.primaryAccounts?.[SIEVE];

@@ -12,7 +12,6 @@
 import { LABEL_TYPE } from '../proton-api.js';
 import { t } from '../i18n.js';
 
-const TOO_MANY_ACTIVE_FILTERS = 50016;
 
 export const PROTON_CAPABILITIES = {
   dialect: { name: 'proton' },
@@ -44,18 +43,9 @@ export class ProtonProvider {
   }
 
   async createScript({ name, sieve, enabled = true }) {
-    const before = new Set((await this.client.listFilters()).map((f) => f.ID));
-    try {
-      const created = await this.client.createFilter({ Name: name, Sieve: sieve, Status: enabled ? 1 : 0 });
-      return { id: created?.ID ?? null, name, enabled };
-    } catch (error) {
-      // Proton answers 50016 ("too many active filters", free plan) but still creates the filter – disabled.
-      // Report it as created, so callers do not retry and pile up duplicates.
-      if (error.code !== TOO_MANY_ACTIVE_FILTERS) throw error;
-      const added = (await this.client.listFilters()).find((f) => !before.has(f.ID) && f.Name === name);
-      if (!added) throw error;
-      return { id: added.ID, name, enabled: false, warning: t('Created, but disabled: {message}', { message: error.message }) };
-    }
+    const created = await this.client.createFilter({ Name: name, Sieve: sieve, Status: enabled ? 1 : 0 });
+    if (created?.warning) return { id: created.ID, name, enabled: false, warning: created.warning };
+    return { id: created?.ID ?? null, name, enabled };
   }
 
   async updateScript(id, { name, sieve, enabled }) {

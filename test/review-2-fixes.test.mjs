@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { parseHeaderBlock } from '../addon/lib/mail.js';
 import { planRule } from '../addon/lib/rule-planner.js';
 import { makeDialect, newScript } from '../addon/lib/sieve-dialect.js';
+import { fixRequire, lintSieve } from '../addon/lib/sieve-analyzer.js';
 
 const withExt = (rules) => newScript(rules).replace('"spamtest"]', '"spamtest", "fileinto", "imap4flags"]');
 const domainRule = (value, actions) => ({ conditions: [{ kind: 'address', header: 'from', part: 'domain', match: 'is', value }], actions });
@@ -62,4 +63,45 @@ test('rfc: the rule flags its own copy, an earlier :copy does not block it', () 
   assert.deepEqual(notes, []);
   assert.ok(plan.sieve.indexOf('fileinto :copy "Archive"') < plan.sieve.indexOf('fileinto "X"'));
   assert.deepEqual(after.copies.find((c) => c.folder === 'Archive').flags, []);
+});
+
+test('a literal ${…} never pulls in require "variables"', () => {
+  const sieve = 'require ["fileinto"];\n\nif header :contains "subject" "${name}" {\n    discard;\n}\n';
+  assert.equal(fixRequire(sieve), sieve);
+  const issues = lintSieve(sieve, { dialect: RFC });
+  assert.deepEqual(
+    issues.filter((i) => i.severity === 'error'),
+    [],
+  );
+  assert.ok(issues.some((i) => /plain text/.test(i.message)));
+  // with set, the script uses variables on purpose
+  assert.match(fixRequire('set "a" "b";\nif header :is "subject" "${a}" { discard; }\n'), /require \["variables"\]/);
+});
+
+test('tags shared by several extensions do not add a require', () => {
+  const sieve = 'require ["index"];\n\nif header :index 1 :last :is "received" "x" {\n    discard;\n}\n';
+  assert.equal(fixRequire(sieve), sieve);
+});
+
+test('unknown commands block only on Proton, other servers check them themselves', () => {
+  const sieve = 'require ["ereject"];\n\nereject "no";\n';
+  const errors = (dialect) => lintSieve(sieve, { dialect }).filter((i) => i.severity === 'error' && /Unknown command/.test(i.message));
+  assert.equal(errors(makeDialect({ name: 'rfc', extensions: ['ereject'] })).length, 0);
+  assert.equal(errors(undefined).length, 1);
+});
+
+test('a rule never moves above require across a heading', async () => {
+  const { moveRule } = await import('../addon/lib/sieve-sections.js');
+  const sieve = '# ===== Shops =====\nrequire ["fileinto"];\n\nif exists "x-a" {\n    fileinto "A";\n}\n';
+  assert.equal(moveRule(sieve, 4, -1), sieve);
+});
+
+test('rfc: i;ascii-casemap folds only ASCII letters', async () => {
+  const { simulate } = await import('../addon/lib/sieve-sim.js');
+  const run = (test, semantics) =>
+    simulate([{ id: 's', name: 's', sieve: `require ["fileinto"];\nif ${test} {\n    fileinto "Bank";\n}\n` }], { headers: parseHeaderBlock('From: a@b.com\nSubject: Ihre überweisung\n') }, { semantics }).folder;
+  assert.equal(run('header :contains "subject" "ÜBERWEISUNG"', 'rfc'), 'INBOX');
+  assert.equal(run('header :contains "subject" "üBERWEISUNG"', 'rfc'), 'Bank');
+  assert.equal(run('header :matches "subject" "*ÜBERWEISUNG"', 'rfc'), 'INBOX');
+  assert.equal(run('header :matches "subject" "IHRE *"', 'rfc'), 'Bank');
 });

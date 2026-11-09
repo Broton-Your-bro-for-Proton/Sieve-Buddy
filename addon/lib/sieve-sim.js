@@ -337,7 +337,9 @@ export function simulate(scripts, message, options = {}) {
   }
 
   function compare(values, keys, tags, ctx) {
-    const comparator = tags[':comparator'] ?? 'i;ascii-casemap';
+    const named = tags[':comparator'] ?? 'i;ascii-casemap';
+    // RFC 4790: i;ascii-casemap folds only A-Z ("Ü" and "ü" differ); Proton's own folding is not documented
+    const comparator = rfc && named === 'i;ascii-casemap' ? ASCII_ONLY : named;
     if (tags[':count'] !== undefined) {
       return keys.some((k) => relational(String(values.length), k, tags[':count'], 'i;ascii-numeric'));
     }
@@ -413,7 +415,8 @@ function positional(args) {
 
 const strs = (arg) => (arg?.type === 'list' ? arg.items.map((i) => i.value) : arg?.type === 'string' ? [arg.value] : arg ? [String(arg.value)] : []);
 
-const fold = (s, comparator) => (comparator === 'i;octet' ? s : s.toLowerCase());
+const ASCII_ONLY = 'ascii-only';
+const fold = (s, comparator) => (comparator === 'i;octet' ? s : comparator === ASCII_ONLY ? s.replace(/[A-Z]+/g, (m) => m.toLowerCase()) : s.toLowerCase());
 
 function numeric(s) {
   const m = /^\d+/.exec(s);
@@ -440,9 +443,10 @@ function globToRegExp(glob, comparator) {
     if (c === '\\' && i + 1 < glob.length) re += glob[++i].replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
     else if (c === '*') re += '(.*?)';
     else if (c === '?') re += '(.)';
+    else if (comparator === ASCII_ONLY && /[a-z]/i.test(c)) re += `[${c.toLowerCase()}${c.toUpperCase()}]`;
     else re += c.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
   }
-  return new RegExp(`^${re}$`, comparator === 'i;octet' ? 's' : 'is');
+  return new RegExp(`^${re}$`, comparator === 'i;octet' || comparator === ASCII_ONLY ? 's' : 'is');
 }
 
 function parseSize(v) {
