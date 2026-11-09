@@ -200,7 +200,9 @@ export function simulate(scripts, message, options = {}) {
           state.notes.push(t('fileinto “{folder}” is ignored by Proton', { folder: target }));
           return;
         }
-        if (labels.has(target)) state.labels.add(target);
+        // Proton matches folder and label names case-insensitively
+        const label = [...labels].find((l) => l.toLowerCase() === lower);
+        if (label) state.labels.add(label);
         else if (lower === 'starred') state.labels.add('Markiert');
         else state.folder = SYSTEM[lower] ? lower : target;
         state.filedOrKept = true;
