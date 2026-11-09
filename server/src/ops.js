@@ -223,7 +223,7 @@ async function buildTemplateWithBase(account, { templateId, params = {}, target 
   if (template.params.some((p) => p.type === 'folder')) assertFolderExists(data, merged.folder);
 
   // finished snippets are appended to the chosen (or first runnable) script, or become a new one
-  const runnable = planningScripts(data);
+  const runnable = planningScripts(data).filter((s) => s.enabled);
   const script = target === 'new' ? null : data.scripts.find((s) => s.id === target) ?? (target === 'auto' ? runnable[0] : null);
   const before = script?.sieve ?? '';
   const base = script ? before : newScript('', data.dialect);

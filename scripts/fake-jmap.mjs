@@ -32,7 +32,7 @@ export function createFakeJmap({ token = 'jmap-test-token', scripts = {}, active
   state.active = () => [...state.scripts.values()].find((s) => s.isActive)?.name ?? null;
 
   const invalid = (text) => {
-    const errors = lintSieve(text, { dialect }).filter((i) => i.severity === 'error');
+    const errors = lintSieve(text, { dialect }).filter((i) => i.severity === 'error' || i.message.startsWith('Unknown command')); // a real server rejects commands it does not know
     if (!errors.length) return null;
     const line = text.slice(0, errors[0].start).split('\n').length;
     return { type: 'invalidSieve', description: `${errors[0].message} at line ${line}, column 1.` };

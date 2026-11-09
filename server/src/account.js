@@ -111,7 +111,11 @@ export class Account {
   async submitTotp(code) {
     this.#requireProton();
     if (this.pending?.step !== 'totp') throw new Error(t('No login is waiting for a 2FA code'));
-    await this.client.submitTotp(code);
+    try {
+      await this.client.submitTotp(code);
+    } finally {
+      if (!this.client.session) this.pending = null; // too many wrong codes ended the login
+    }
     this.pending = null;
     return { step: 'done' };
   }

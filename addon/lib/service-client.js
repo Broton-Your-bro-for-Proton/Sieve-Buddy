@@ -76,7 +76,7 @@ export class ServiceClient {
 
   async createFilter({ Name, Sieve, Status = 1 }) {
     const created = await this.op('create-filter', { name: Name, sieve: Sieve, enabled: Status === 1 });
-    return { ID: created.id, Name };
+    return { ID: created.id, Name, warning: created.warning };
   }
 
   /** `expected`: the service saves only if the script still has this text (its cache may be older). */

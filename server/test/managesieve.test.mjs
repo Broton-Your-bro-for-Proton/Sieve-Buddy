@@ -1,6 +1,7 @@
 // ManageSieve client and provider against the fake ManageSieve server.
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
+import net from 'node:net';
 
 import { createFakeManageSieve } from '../../scripts/fake-managesieve.mjs';
 import { ManageSieveConnection } from '../src/providers/managesieve.js';
@@ -33,6 +34,20 @@ test('capabilities and authentication', async () => {
 test('STARTTLS is required by default', async () => {
   const p = new ManageSieveProvider({ host: '127.0.0.1', port, user: 'test', password: 'test123' });
   await assert.rejects(p.init(), /does not offer STARTTLS/);
+});
+
+test('plain-text data after the STARTTLS OK is refused, never read as TLS data', async () => {
+  const caps = '"IMPLEMENTATION" "x"\r\n"SASL" "PLAIN"\r\n"STARTTLS"\r\nOK\r\n';
+  const server = net.createServer((socket) => {
+    socket.write(caps);
+    socket.once('data', () => socket.write(`OK "begin TLS"\r\n"main" ACTIVE\r\nOK\r\n`));
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  try {
+    await assert.rejects(ManageSieveConnection.open({ host: '127.0.0.1', port: server.address().port }), /Unexpected data after STARTTLS/);
+  } finally {
+    server.close();
+  }
 });
 
 test('list, read, create, update with literal, rename, activate, delete', async () => {

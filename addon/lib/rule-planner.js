@@ -54,7 +54,7 @@ function planForScript(script, rule, section, hints, separate = false) {
     sieve: merged.sieve,
     steps: merged.steps,
     section: placed ? options.chosen : null,
-    score: merges * 10 + covered * 5 + sameFolder * 2 + (script.enabled === false ? 0 : 1),
+    score: merges * 10 + covered * 5 + sameFolder * 2,
   };
 }
 
@@ -81,8 +81,10 @@ export function planRule({ scripts, rule, target = 'auto', newName, section = 'a
   if (!dialect.proton && (rule.actions?.seen || rule.actions?.flagged) && !dialect.extensions.has('imap4flags')) {
     throw new Error(t('The server does not offer imap4flags – “mark as read” and “star” will not work'));
   }
+  // a disabled filter never runs: the automatic choice must not add the rule there
+  const runnable = scripts.filter((s) => s.enabled !== false);
   let plan;
-  if (target === 'new' || !scripts.length) {
+  if (target === 'new' || (target === 'auto' && !runnable.length)) {
     plan = {
       targetId: null,
       name: newName?.trim() || defaultName(rule),
@@ -95,7 +97,7 @@ export function planRule({ scripts, rule, target = 'auto', newName, section = 'a
     if (!script) throw new Error(t('Filter {id} not found', { id: target }));
     plan = planForScript(script, rule, section, hints);
   } else {
-    plan = scripts.map((s) => planForScript(s, rule, section, hints)).sort((a, b) => b.score - a.score)[0];
+    plan = runnable.map((s) => planForScript(s, rule, section, hints)).sort((a, b) => b.score - a.score)[0];
   }
 
   const notes = [];

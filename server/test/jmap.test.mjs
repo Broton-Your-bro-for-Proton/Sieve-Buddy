@@ -156,3 +156,8 @@ test('service: status, apply_rule into the active script, server check', async (
   assert.equal(bad.isError, true);
   assert.match(bad.content[0].text, /The server rejects the script: Line 1/);
 });
+
+test('credentials in JMAP_URL are refused without echoing them', async () => {
+  const p = new JmapProvider({ url: 'https://alice:s3cretpw@127.0.0.1:1/.well-known/jmap', token: 'x' });
+  await assert.rejects(p.init(), (error) => /must not contain a user name or password/.test(error.message) && !error.message.includes('s3cretpw'));
+});

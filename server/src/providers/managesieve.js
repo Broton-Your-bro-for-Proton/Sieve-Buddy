@@ -197,6 +197,11 @@ export class ManageSieveConnection {
       if (!conn.capabilities.starttls) throw new ManageSieveError(t('Server does not offer STARTTLS (use MANAGESIEVE_TLS=none only in your own network)'));
       await conn.command('STARTTLS');
       conn.reader.detach();
+      // bytes after the STARTTLS OK came unencrypted (possibly injected): never read them as TLS data
+      if (conn.reader.buffer.length) {
+        socket.destroy();
+        throw new ManageSieveError(t('Unexpected data after STARTTLS, connection closed'));
+      }
       const secure = await new Promise((resolve, reject) => {
         const s = tls.connect({ socket, servername: host, rejectUnauthorized }, () => resolve(s));
         s.once('error', reject);

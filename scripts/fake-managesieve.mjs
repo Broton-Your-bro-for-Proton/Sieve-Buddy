@@ -70,7 +70,7 @@ export function createFakeManageSieve({ user = 'test', password = 'test123', scr
         }
         case 'PUTSCRIPT':
         case 'CHECKSCRIPT': {
-          const errors = lintSieve(literal, { dialect }).filter((i) => i.severity === 'error');
+          const errors = lintSieve(literal, { dialect }).filter((i) => i.severity === 'error' || i.message.startsWith('Unknown command')); // a real server rejects commands it does not know
           if (errors.length) {
             const lineNo = literal.slice(0, errors[0].start).split('\n').length;
             return send(`NO ${q(`line ${lineNo}: error: ${errors[0].message}`)}\r\n`);

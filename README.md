@@ -136,7 +136,7 @@ Streamable HTTP at `POST /mcp`, header `Authorization: Bearer <API_TOKEN>`:
 | `list_templates`, `plan_template` / `apply_template` | templates (filtered to fit the server) |
 | `create_filter`, `update_filter`, `set_filter_enabled`, `reorder_filters`, `delete_filter` | direct management |
 
-Saving always happens only after the server's check. Target folders are checked against the real folders, with suggestions for typos ("Einkaufe" → "Einkäufe"). The same operations exist via REST at `POST /api/ops/<name>`, for example `plan-rule`, `apply-rule`, `simulate`, `capabilities`.
+Saving always happens only after the server's check. The target folders of `plan_rule`/`apply_rule` and the templates are checked against the real folders, with suggestions for typos ("Einkaufe" → "Einkäufe"), as long as the server lists its folders. `create_filter` and `update_filter` take the script as written; there the server's check is the only one. The same operations exist via REST at `POST /api/ops/<name>`, for example `plan-rule`, `apply-rule`, `simulate`, `capabilities`.
 
 ## Protection against account locks
 
@@ -144,8 +144,9 @@ Proton temporarily restricted a test account twice ("unusual activity"), each ti
 
 - By default the service does **not** sign in with a password. The session comes from the add-on via handover.
 - A **login guard** (`addon/lib/login-guard.js`) applies to add-on and service:
-  - at most 3 password sign-ins in 15 minutes
-  - growing pauses after errors
+  - at most 3 password sign-ins in 15 minutes; each captcha continuation counts as one, because it sends the password again
+  - growing pauses after errors; a wrong password only uses up one of the 3 sign-ins
+  - three wrong 2FA codes end the pending sign-in
   - **24 hours pause** after an abuse report; blocked attempts do not reach Proton at all
 - Proton's error codes end up in the log (`[proton] … Code …`), never tokens or passwords.
 

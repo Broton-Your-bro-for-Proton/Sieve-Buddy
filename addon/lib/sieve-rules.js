@@ -259,8 +259,10 @@ export function proposeRule(scripts, rule) {
         for (const d of descs) {
           if (d && sameForm(d, single) && keyCovered(d, single.value)) {
             const entry = { scriptId: script.id, scriptName: script.name, line: lineOf(text, d.test.start) };
-            if (actions && sameActions(actions, rule.actions)) covered.push(entry);
-            else conflicts.push({ ...entry, message: t('“{value}” is already handled differently here', { value: single.value }) });
+            const same = actions && sameActions(actions, rule.actions);
+            // nested, as elsif or with :copy the value does not decide on its own: neither covered nor a conflict
+            if (same && mergeable) covered.push(entry);
+            else if (!same) conflicts.push({ ...entry, message: t('“{value}” is already handled differently here', { value: single.value }) });
           }
         }
       }
@@ -390,10 +392,14 @@ export function insertRuleBefore(sieve, line, rule, { stop = false } = {}) {
 /** Whether a simulation result shows the rule's actions took effect. */
 export function ruleReached(result, actions) {
   const a = normaliseActions(actions);
+  // rfc results carry copies: folder names are exact there, on Proton they ignore case
+  const same = result.copies ? (x) => x === a.fileinto : (x) => x?.toLowerCase() === a.fileinto.toLowerCase();
   const folders = result.folders ?? [result.folder];
-  if (a.fileinto && !folders.includes(a.fileinto) && result.folder !== a.fileinto && !result.labels.includes(a.fileinto)) return false;
-  if (a.seen && !result.flags.includes('\\Seen')) return false;
-  if (a.flagged && !result.flags.includes('\\Flagged')) return false;
+  if (a.fileinto && !folders.some(same) && !same(result.folder) && !result.labels.some(same)) return false;
+  // each rfc copy has its own flags: the rule's flags count on the copy it stores
+  const flags = result.copies?.find((c) => c.folder === (a.fileinto ?? 'INBOX'))?.flags ?? result.flags;
+  if (a.seen && !flags.includes('\\Seen')) return false;
+  if (a.flagged && !flags.includes('\\Flagged')) return false;
   if (a.expireDays && result.expireDays !== a.expireDays) return false;
   return true;
 }

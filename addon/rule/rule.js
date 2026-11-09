@@ -235,17 +235,24 @@ function render() {
   $('new-name').hidden = target !== 'new';
   const section = sectionChoice();
   if (section === null) return clearPlan(t('Please enter a name for the new section.'));
-  const { plan, after, notes, conflicts, errors } = planRule({
-    dialect: dialectOf(state.client),
-    // with a single active script (ManageSieve) only that one runs and is worth changing
-    scripts: runnableScripts(),
-    rule,
-    target,
-    newName: $('new-name').value,
-    section,
-    message: state.message,
-    labels: state.labels,
-  });
+  let planned;
+  try {
+    planned = planRule({
+      dialect: dialectOf(state.client),
+      // with a single active script (ManageSieve) only that one runs and is worth changing
+      scripts: runnableScripts(),
+      rule,
+      target,
+      newName: $('new-name').value,
+      section,
+      message: state.message,
+      labels: state.labels,
+    });
+  } catch (error) {
+    // never leave the previous plan applicable when the current input cannot be planned
+    return clearPlan(error.message);
+  }
+  const { plan, after, notes, conflicts, errors } = planned;
   state.plan = plan;
   renderSections(plan);
 
@@ -299,7 +306,13 @@ async function applyPlan() {
     // with a single active script (ManageSieve) a new one must not silently replace the active one
     const caps = capabilitiesOf(state.client);
     const activate = caps.multipleActive || !state.filters.some((f) => f.Status === 1);
-    await state.client.createFilter({ Name: plan.name, Sieve: plan.sieve, Status: activate ? 1 : 0 });
+    const created = await state.client.createFilter({ Name: plan.name, Sieve: plan.sieve, Status: activate ? 1 : 0 });
+    if (created?.warning) {
+      // the filter exists (disabled): another Apply would only create a duplicate
+      clearPlan(created.warning);
+      setTimeout(() => window.close(), 4000);
+      return;
+    }
     if (!activate) toast(t('New script created but not activated: only one script can be active'));
   }
   toast(t('Rule saved ✓'));

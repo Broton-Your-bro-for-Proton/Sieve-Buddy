@@ -14,6 +14,9 @@ export const FILTER_VERSION = 2;
 const SUCCESS_CODES = new Set([1000, 1001]);
 const HUMAN_VERIFICATION_CODE = 9001;
 const TWO_FACTOR_TOTP = 1;
+const MAX_TOTP_TRIES = 3;
+const TOO_MANY_ACTIVE_FILTERS = 50016;
+const WRONG_CREDENTIALS = 8002;
 
 export const LABEL_TYPE = { LABEL: 1, FOLDER: 3 };
 
@@ -117,8 +120,8 @@ export class ProtonClient {
    * Throws ProtonApiError with needsHumanVerification when Proton asks for a captcha.
    */
   async login(username, password, humanVerification) {
-    // the captcha continuation belongs to the same attempt
-    if (!humanVerification) await this.guard.beforeAttempt();
+    // a captcha continuation sends the password to Proton again, so it counts like a new attempt
+    await this.guard.beforeAttempt();
     try {
       const result = await this.#login(username, password, humanVerification);
       await this.guard.onSuccess();
@@ -176,6 +179,7 @@ export class ProtonClient {
       RefreshToken: auth.RefreshToken,
       username,
       pending2FA: Boolean(twoFactor),
+      totpFailures: 0,
     };
 
     if (twoFactor && !(twoFactor & TWO_FACTOR_TOTP)) {
@@ -194,6 +198,11 @@ export class ProtonClient {
       await this.request('POST', 'core/v4/auth/2fa', { body: { TwoFactorCode: code.trim() }, retry: false });
     } catch (error) {
       await this.guard.onError(error);
+      // three wrong codes end the pending login: more tries need a new password login, which the guard limits
+      if (error.code === WRONG_CREDENTIALS && ++this.session.totpFailures >= MAX_TOTP_TRIES) {
+        await this.logout();
+        throw new ProtonApiError(t('Three wrong 2FA codes: please sign in again'), { status: error.status, code: error.code });
+      }
       throw error;
     }
     this.session.pending2FA = false;
@@ -260,10 +269,20 @@ export class ProtonClient {
   }
 
   async createFilter({ Name, Sieve, Status = 1 }) {
-    const { Filter } = await this.request('POST', 'mail/v4/filters', {
-      body: { Name, Sieve, Status, Version: FILTER_VERSION },
-    });
-    return Filter;
+    const before = new Set((await this.listFilters()).map((f) => f.ID));
+    try {
+      const { Filter } = await this.request('POST', 'mail/v4/filters', {
+        body: { Name, Sieve, Status, Version: FILTER_VERSION },
+      });
+      return Filter;
+    } catch (error) {
+      // Proton answers 50016 ("too many active filters", free plan) but still creates the filter, disabled.
+      // Report it as created, so callers do not retry and pile up duplicates.
+      if (error.code !== TOO_MANY_ACTIVE_FILTERS) throw error;
+      const added = (await this.listFilters()).find((f) => !before.has(f.ID) && f.Name === Name);
+      if (!added) throw error;
+      return { ...added, Status: 0, warning: t('Created, but disabled: {message}', { message: error.message }) };
+    }
   }
 
   async updateFilter(id, { Name, Sieve, Status }) {

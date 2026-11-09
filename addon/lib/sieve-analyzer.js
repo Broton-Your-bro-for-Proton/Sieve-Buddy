@@ -134,6 +134,7 @@ function analyze(tokens, dialect = PROTON_DIALECT) {
   const statements = [];
   const blocks = [{ sawFileinto: false }];
   const parens = [];
+  const variableStrings = [];
 
   const need = (ext, token) => {
     if (ext && !used.has(ext)) used.set(ext, token);
@@ -166,7 +167,8 @@ function analyze(tokens, dialect = PROTON_DIALECT) {
 
     if (firstVisit && tk.type === 'string') {
       // ${hex:41} and ${unicode:41} belong to encoded-character, not to variables
-      if (/\$\{(?!hex:|unicode:)/i.test(tk.value)) need('variables', tk);
+      // without require "variables" ${…} is plain text (RFC 5229): adding the require would change its meaning
+      if (/\$\{(?!hex:|unicode:)/i.test(tk.value)) variableStrings.push(tk);
       if (/\$\{(hex|unicode):/i.test(tk.value)) need('encoded-character', tk);
       if (tk.value === 'i;ascii-numeric' && tokens[i - 1]?.value === ':comparator') need('comparator-i;ascii-numeric', tk);
     }
@@ -194,7 +196,8 @@ function analyze(tokens, dialect = PROTON_DIALECT) {
       }
       const cmd = COMMANDS[tk.value];
       if (!cmd) {
-        issue(tk, t('Unknown command “{name}”', { name: tk.value }));
+        // other servers may offer commands this linter does not know; their own check runs before every save
+        issue(tk, t('Unknown command “{name}”', { name: tk.value }), dialect.proton ? 'error' : 'warning');
         expect = 'args';
         current = { command: tk.value, token: tk, tags: [], argsStart: i + 1 };
         continue;
@@ -289,7 +292,7 @@ function analyze(tokens, dialect = PROTON_DIALECT) {
   }
   for (const open of parens) issue(open, t('“{char}” is not closed', { char: open.value }));
 
-  return { issues, used, required, requireStatements, statements };
+  return { issues, used, required, requireStatements, statements, variableStrings };
 }
 
 function statementChecks(tokens, statements, { folders, dialect = PROTON_DIALECT } = {}) {
@@ -397,6 +400,11 @@ export function lintSieve(text, options = {}) {
     }
   }
 
+  if (!result.required.has('variables') && !result.used.has('variables')) {
+    for (const tk of result.variableStrings) {
+      issues.push({ start: tk.start, end: tk.end, message: t('Without require "variables" “${…}” is plain text'), severity: 'warning' });
+    }
+  }
   for (const [ext, token] of result.used) {
     if (!result.required.has(ext)) {
       issues.push({
