@@ -244,12 +244,20 @@ async function saveFilter() {
   const Name = $('filter-name').value.trim();
   if (!Name) throw new Error(t('Please enter a name for the filter'));
   const Sieve = editor.getValue();
-  const Status = $('filter-enabled').checked ? 1 : 0;
+  let Status = $('filter-enabled').checked ? 1 : 0;
 
   const errors = lintSieve(Sieve, { dialect: state.dialect }).filter((i) => i.severity === 'error');
   if (errors.length && !confirm(t('The editor found {count} errors. Send to Proton anyway?', { count: errors.length }))) return;
 
-  const previous = state.filters.find((f) => f.ID === state.selectedId);
+  let previous = state.filters.find((f) => f.ID === state.selectedId);
+  if (previous && !state.offline) {
+    // the rule window or the service may have changed the filter since it was loaded
+    const fresh = (await state.client.getFilter(previous.ID)) ?? previous;
+    if (fresh.Sieve !== previous.Sieve && !confirm(t('“{name}” was changed elsewhere since it was loaded. Saving replaces those changes. Continue?', { name: Name }))) return;
+    // an untouched checkbox keeps the server's current state
+    if ($('filter-enabled').checked === isEnabled(previous)) Status = isEnabled(fresh) ? 1 : 0;
+    previous = fresh;
+  }
   if (previous && previous.Sieve !== Sieve && !(await confirmDiff(previous.Sieve ?? '', Sieve, t('Save “{name}”', { name: Name })))) return;
   if (previous) await pushHistory(previous.ID, previous.Name, previous.Sieve);
 
@@ -270,7 +278,7 @@ async function saveFilter() {
     return;
   }
   const saved = state.selectedId
-    ? await state.client.updateFilter(state.selectedId, { Name, Sieve, Status })
+    ? await state.client.updateFilter(state.selectedId, { Name, Sieve, Status }, previous?.Sieve)
     : await state.client.createFilter({ Name, Sieve, Status });
   state.selectedId = saved?.ID ?? state.selectedId;
   state.dirty = false;
@@ -296,13 +304,11 @@ async function toggleFilter(filter, enabled) {
     } else {
       await state.client.setFilterEnabled(filter.ID, enabled);
       filter.Status = enabled ? 1 : 0;
-      // ManageSieve: activating one script deactivates the others
-      if (!state.caps.multipleActive) {
-        await reloadFilters();
-        return;
-      }
+      // ManageSieve: activating one script deactivates the others (no reload: it would drop unsaved editor text)
+      if (!state.caps.multipleActive && enabled) for (const f of state.filters) if (f.ID !== filter.ID) f.Status = 0;
     }
-    if (filter.ID === state.selectedId) $('filter-enabled').checked = enabled;
+    const selected = state.filters.find((f) => f.ID === state.selectedId);
+    if (selected) $('filter-enabled').checked = isEnabled(selected);
     renderFilters();
   } catch (error) {
     toast(error.message, true);
@@ -343,8 +349,10 @@ $('insert-guard').addEventListener('click', () => {
     toast(t('Spam protection is already present'));
     return;
   }
-  const withGuard = /^\s*require\b[^;]*;/.test(text)
-    ? text.replace(/^(\s*require\b[^;]*;)/, `$1\n\n${SPAM_GUARD}\n`)
+  // the list form, so a ";" inside "comparator-i;ascii-numeric" does not end the match
+  const requireLine = /^(\s*require\s*(?:\[[^\]]*\]|"[^"]*")\s*;)/;
+  const withGuard = requireLine.test(text)
+    ? text.replace(requireLine, `$1\n\n${SPAM_GUARD}\n`)
     : `require ${formatList(SPAM_GUARD_REQUIRE)};\n\n${SPAM_GUARD}\n\n${text}`;
   // the guard's extensions go first in the single require
   editor.setValue(fixRequire(mergeRequire(withGuard, SPAM_GUARD_REQUIRE)));

@@ -620,6 +620,7 @@ export const DE = {
   "The Docker service is connected to Proton or another mail server (ManageSieve, e.g. Dovecot). The add-on then works through it.": "Der Docker-Dienst ist mit Proton oder einem anderen Mailserver (ManageSieve, z. B. Dovecot) verbunden. Das Add-on arbeitet dann über ihn.",
   "The editor found {count} errors. Send to Proton anyway?": "Der Editor findet {count} Fehler. Trotzdem an Proton senden?",
   "The filter was changed in the meantime, please plan again": "Der Filter wurde inzwischen geändert – bitte neu planen",
+  "“{name}” was changed elsewhere since it was loaded. Saving replaces those changes. Continue?": "„{name}“ wurde seit dem Laden an anderer Stelle geändert. Speichern ersetzt diese Änderungen. Fortfahren?",
   "The JMAP server does not offer Sieve (urn:ietf:params:jmap:sieve)": "Der JMAP-Server bietet kein Sieve an (urn:ietf:params:jmap:sieve)",
   "The password is used only for signing in (SRP) and is not stored.": "Das Passwort wird nur für die Anmeldung (SRP) verwendet und nicht gespeichert.",
   "The password never leaves Thunderbird in plain text (SRP). Only a session token is stored.": "Das Passwort verlässt Thunderbird nie im Klartext (SRP). Gespeichert wird nur ein Sitzungs-Token.",
