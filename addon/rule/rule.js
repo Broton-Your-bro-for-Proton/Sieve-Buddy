@@ -25,15 +25,15 @@ import {
 } from '../shared/env.js';
 
 const inAddon = Boolean(globalThis.browser?.messages);
-const SYSTEM_LABELS = { inbox: t('Posteingang'), archive: t('Archiv'), trash: t('Papierkorb'), spam: t('Spam'), starred: t('Markiert (Label)') };
-const MATCH_LABELS = { is: t('ist'), contains: t('enthält'), matches: t('passt auf (*, ?)') };
+const SYSTEM_LABELS = { inbox: t('Inbox'), archive: t('Archive'), trash: t('Trash'), spam: t('Spam'), starred: t('Starred (label)') };
+const MATCH_LABELS = { is: t('is'), contains: t('contains'), matches: t('matches (*, ?)') };
 const KIND_TEXT = {
-  covered: t('ist schon abgedeckt'),
-  'append-key': t('wird zur bestehenden Liste hinzugefügt'),
-  'append-key-anyof': t('wird zur bestehenden Liste hinzugefügt'),
-  'extend-anyof': t('kommt ins bestehende anyof(…)'),
-  'wrap-anyof': t('erweitert die bestehende Regel zu anyof(…)'),
-  'new-block': t('bekommt einen neuen Block'),
+  covered: t('is already covered'),
+  'append-key': t('is added to the existing list'),
+  'append-key-anyof': t('is added to the existing list'),
+  'extend-anyof': t('goes into the existing anyof(…)'),
+  'wrap-anyof': t('extends the existing rule to anyof(…)'),
+  'new-block': t('gets a new block'),
 };
 
 const state = {
@@ -74,7 +74,7 @@ async function loadAccount() {
   if (inAddon) return null;
   // preview outside Thunderbird without a session: the manager's offline filters
   const local = (await storage.get('localFilters')) ?? [];
-  return { filters: local, folders: ['Einkäufe', 'Newsletter', 'Listen', 'Rechnungen'], labels: ['Wichtig'] };
+  return { filters: local, folders: ['Shopping', 'Newsletters', 'Lists', 'Invoices'], labels: ['Important'] };
 }
 
 // ---------- form ----------
@@ -90,7 +90,7 @@ function renderConditions() {
       const what = el('span', { class: 'what' }, labelFor(c));
       const children = [check, what];
       if (c.kind === 'exists') {
-        children.push(el('span', { class: 'muted' }, t('vorhanden')), el('span'));
+        children.push(el('span', { class: 'muted' }, t('exists')), el('span'));
       } else {
         const match = el(
           'select',
@@ -115,16 +115,16 @@ function labelFor(c) {
   if (c.kind === 'exists') return t('Header {header}', { header: c.header });
   if (c.kind === 'address') {
     const sender = c.header === 'from';
-    if (c.part === 'domain') return sender ? t('Absender-Domain') : t('Empfänger-Domain');
-    return sender ? t('Absender-Adresse') : t('Empfänger-Adresse');
+    if (c.part === 'domain') return sender ? t('Sender domain') : t('Recipient domain');
+    return sender ? t('Sender address') : t('Recipient address');
   }
-  return { 'list-id': t('Mailingliste'), subject: t('Betreff') }[c.header] ?? t('Header {header}', { header: c.header });
+  return { 'list-id': t('Mailing list'), subject: t('Subject') }[c.header] ?? t('Header {header}', { header: c.header });
 }
 
 /** Folder, label and system targets; the input filters them while typing (empty = don't move). */
 function folderChoices() {
   return [
-    ...state.folders.filter((f) => f !== 'INBOX').map((f) => [f, t('Ordner')]),
+    ...state.folders.filter((f) => f !== 'INBOX').map((f) => [f, t('Folders')]),
     ...state.labels.map((l) => [l, t('Labels')]),
     ...(dialectOf(state.client).proton ? SYSTEM_FOLDERS : ['INBOX']).map((f) => [f, SYSTEM_LABELS[f] ?? t('System')]),
   ];
@@ -143,9 +143,9 @@ function knownFolder(name) {
 function renderTargets() {
   const target = $('target');
   target.replaceChildren(
-    el('option', { value: 'auto' }, t('Automatisch – beste Stelle finden')),
-    ...runnableScripts().map((s) => el('option', { value: s.id }, t('In Filter „{name}“', { name: s.name }))),
-    el('option', { value: 'new' }, t('Als neuen Filter anlegen')),
+    el('option', { value: 'auto' }, t('Automatic: find the best position')),
+    ...runnableScripts().map((s) => el('option', { value: s.id }, t('In filter “{name}”', { name: s.name }))),
+    el('option', { value: 'new' }, t('Create as a new filter')),
   );
   // one big script: the question is "which section", not "which filter"
   target.hidden = runnableScripts().length === 1;
@@ -163,10 +163,10 @@ function renderSections(plan) {
     state.sectionsKey = key;
     const previous = select.value;
     select.replaceChildren(
-      el('option', { value: 'auto' }, sections.length ? t('Automatisch – passenden Abschnitt finden') : t('Automatisch – beste Stelle')),
-      ...sections.map((x) => el('option', { value: `s:${x.title}` }, t('In Abschnitt „{title}“', { title: x.title }))),
-      el('option', { value: 'end' }, t('Ans Ende der Datei')),
-      el('option', { value: 'new' }, t('Neuer Abschnitt …')),
+      el('option', { value: 'auto' }, sections.length ? t('Automatic: find a matching section') : t('Automatic: best position')),
+      ...sections.map((x) => el('option', { value: `s:${x.title}` }, t('In section “{title}”', { title: x.title }))),
+      el('option', { value: 'end' }, t('At the end of the file')),
+      el('option', { value: 'new' }, t('New section …')),
     );
     select.value = [...select.options].some((o) => o.value === previous) ? previous : 'auto';
   }
@@ -226,15 +226,15 @@ function clearPlan(message) {
 
 function render() {
   const rule = currentRule();
-  if (!rule.conditions.length) return clearPlan(t('Bitte mindestens eine Bedingung auswählen.'));
+  if (!rule.conditions.length) return clearPlan(t('Please select at least one condition.'));
   const a = rule.actions;
-  if (!a.fileinto && !a.seen && !a.flagged && !a.expireDays && !a.stop) return clearPlan(t('Bitte mindestens eine Aktion wählen.'));
-  if (a.fileinto && !knownFolder(a.fileinto)) return clearPlan(t('Ordner/Label „{name}“ gibt es nicht', { name: a.fileinto }));
+  if (!a.fileinto && !a.seen && !a.flagged && !a.expireDays && !a.stop) return clearPlan(t('Please choose at least one action.'));
+  if (a.fileinto && !knownFolder(a.fileinto)) return clearPlan(t('Folder/label “{name}” does not exist', { name: a.fileinto }));
 
   const target = $('target').value;
   $('new-name').hidden = target !== 'new';
   const section = sectionChoice();
-  if (section === null) return clearPlan(t('Bitte einen Namen für den neuen Abschnitt angeben.'));
+  if (section === null) return clearPlan(t('Please enter a name for the new section.'));
   const { plan, after, notes, conflicts, errors } = planRule({
     dialect: dialectOf(state.client),
     // with a single active script (ManageSieve) only that one runs and is worth changing
@@ -250,8 +250,8 @@ function render() {
   renderSections(plan);
 
   const where = [
-    !$('target').hidden || !plan.targetId ? (plan.targetId ? t('Filter „{name}“', { name: plan.name }) : t('Neuer Filter „{name}“', { name: plan.name })) : '',
-    plan.section ? (plan.section.new ? t('neuer Abschnitt „{title}“', { title: plan.section.title }) : t('Abschnitt „{title}“', { title: plan.section.title })) : '',
+    !$('target').hidden || !plan.targetId ? (plan.targetId ? t('Filter “{name}”', { name: plan.name }) : t('New filter “{name}”', { name: plan.name })) : '',
+    plan.section ? (plan.section.new ? t('new section “{title}”', { title: plan.section.title }) : t('Section “{title}”', { title: plan.section.title })) : '',
   ].filter(Boolean);
   $('plan').replaceChildren(
     el('div', {}, el('strong', {}, describeRule(rule))),
@@ -264,11 +264,11 @@ function render() {
       ),
     ),
     ...notes.map((n) => el('div', { class: 'warn' }, `↪ ${n}`)),
-    ...conflicts.map((c) => el('div', { class: 'warn' }, t('⚠ {message} – Filter „{script}“, Zeile {line}', { message: c.message, script: c.scriptName, line: c.line }))),
+    ...conflicts.map((c) => el('div', { class: 'warn' }, t('⚠ {message}: filter “{script}”, line {line}', { message: c.message, script: c.scriptName, line: c.line }))),
     ...errors.map((e) => el('div', { class: 'warn' }, `✖ ${e.message}`)),
   );
   const stats = renderDiff($('diff'), plan.before, plan.sieve);
-  $('after').textContent = after ? t('Danach: {result}', { result: describeSimulation(after) }) : '';
+  $('after').textContent = after ? t('Afterwards: {result}', { result: describeSimulation(after) }) : '';
   $('apply').disabled = errors.length > 0 || (stats.added === 0 && stats.removed === 0);
 }
 
@@ -283,15 +283,15 @@ async function applyPlan() {
       ? local.map((f) => (f.ID === plan.targetId ? { ...f, Sieve: plan.sieve } : f))
       : [...local, { ID: `local-${Date.now()}`, Name: plan.name, Sieve: plan.sieve, Status: 1 }];
     await storage.set('localFilters', next);
-    toast(t('Lokal gespeichert (Vorschau-Modus)'));
+    toast(t('Saved locally (preview mode)'));
     return;
   }
   const issues = await state.client.checkSieve(plan.sieve);
-  if (issues.length) throw new Error(t('Proton lehnt das Skript ab: {issues}', { issues: issues.map((i) => i.message).join('; ') }));
+  if (issues.length) throw new Error(t('Proton rejects the script: {issues}', { issues: issues.map((i) => i.message).join('; ') }));
   if (plan.targetId) {
     // the plan is based on the state when the window opened: never overwrite a change made since then
     const filter = await state.client.getFilter(plan.targetId);
-    if (filter?.Sieve !== plan.before) throw new Error(t('Der Filter wurde inzwischen geändert – bitte neu planen'));
+    if (filter?.Sieve !== plan.before) throw new Error(t('The filter was changed in the meantime, please plan again'));
     await pushHistory(filter.ID, filter.Name, filter.Sieve);
     // through the service its own fresh copy is compared once more (Proton's client ignores the extra argument)
     await state.client.updateFilter(filter.ID, { Name: filter.Name, Sieve: plan.sieve, Status: filter.Status }, plan.before);
@@ -300,9 +300,9 @@ async function applyPlan() {
     const caps = capabilitiesOf(state.client);
     const activate = caps.multipleActive || !state.filters.some((f) => f.Status === 1);
     await state.client.createFilter({ Name: plan.name, Sieve: plan.sieve, Status: activate ? 1 : 0 });
-    if (!activate) toast(t('Neues Skript angelegt, aber nicht aktiviert – es läuft nur ein aktives Skript'));
+    if (!activate) toast(t('New script created but not activated: only one script can be active'));
   }
-  toast(t('Regel gespeichert ✓'));
+  toast(t('Rule saved ✓'));
   setTimeout(() => window.close(), 1200);
 }
 
@@ -339,20 +339,20 @@ async function openInManager(draft) {
     state.labels = account.labels;
     state.message = await loadMessage();
 
-    const subject = decodeEncodedWords(state.message.headers.subject?.[0] ?? t('(kein Betreff)'));
+    const subject = decodeEncodedWords(state.message.headers.subject?.[0] ?? t('(no subject)'));
     $('mail-subject').textContent = subject;
     $('mail-from').textContent = `${senderName(state.message) || ''} ${state.message.headers.from?.[0] ? `<${state.message.headers.from[0].replace(/^.*<|>.*$/g, '')}>` : ''}`.trim();
     const caps = capabilitiesOf(state.client);
     const current = simulate(runnableScripts(), state.message, { labels: state.labels, semantics: caps.semantics ?? 'proton' });
     $('current').replaceChildren(
-      el('span', {}, t('Aktuell: {result}', { result: describeSimulation(current) })),
+      el('span', {}, t('Currently: {result}', { result: describeSimulation(current) })),
       ...current.fired
         .filter((f) => !f.test.includes('vnd.proton.spam-threshold'))
         .map((f) =>
           el(
             'div',
-            { class: 'muted small jump', title: t('Diese Regel im Manager öffnen'), onclick: () => busy(null, () => openInManager({ filterId: f.scriptId, line: f.line })) },
-            t('↳ Filter „{script}“, Zeile {line}: {test}', { script: f.script, line: f.line, test: f.test }),
+            { class: 'muted small jump', title: t('Open this rule in the manager'), onclick: () => busy(null, () => openInManager({ filterId: f.scriptId, line: f.line })) },
+            t('↳ Filter “{script}”, line {line}: {test}', { script: f.script, line: f.line, test: f.test }),
           ),
         ),
     );
@@ -376,7 +376,7 @@ async function openInManager(draft) {
     render();
   } catch (error) {
     console.error(error);
-    $('loading').replaceChildren(el('p', { class: 'warn' }, t('Fehler: {message}', { message: error.message })));
+    $('loading').replaceChildren(el('p', { class: 'warn' }, t('Error: {message}', { message: error.message })));
   }
 })();
 

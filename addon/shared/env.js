@@ -54,7 +54,7 @@ export async function setServiceMode(service) {
 export async function requestOrigin(url) {
   const origin = new URL(url).origin;
   if (!globalThis.browser?.permissions) return origin; // preview outside Thunderbird
-  if (!(await browser.permissions.request({ origins: [`${origin}/*`] }))) throw new Error(t('Zugriff auf den Dienst wurde nicht erlaubt'));
+  if (!(await browser.permissions.request({ origins: [`${origin}/*`] }))) throw new Error(t('Access to the service was not granted'));
   return origin;
 }
 
@@ -153,7 +153,7 @@ export function renderDiff(container, before, after) {
             ),
           ),
         ]).filter(Boolean)
-      : [el('div', { class: 'muted' }, t('Keine Änderungen'))]),
+      : [el('div', { class: 'muted' }, t('No changes'))]),
   );
   return stats;
 }
@@ -203,8 +203,8 @@ export function openModal({ title, body, actions = [], wide = false, key = null 
       el(
         'span',
         { class: 'modal-tools' },
-        el('button', { class: 'ghost small', type: 'button', title: t('Vollbild an/aus'), onclick: toggleMax }, '⛶'),
-        el('button', { class: 'ghost small', type: 'button', title: t('Schließen'), onclick: () => close(null) }, '✕'),
+        el('button', { class: 'ghost small', type: 'button', title: t('Toggle full size'), onclick: toggleMax }, '⛶'),
+        el('button', { class: 'ghost small', type: 'button', title: t('Close'), onclick: () => close(null) }, '✕'),
       ),
     );
     head.addEventListener('pointerdown', (e) => {
@@ -259,11 +259,11 @@ export function openModal({ title, body, actions = [], wide = false, key = null 
 
 /** Describes a simulation result in one line. */
 export function describeSimulation(result) {
-  const parts = [t('landet in „{location}“', { location: result.location })];
+  const parts = [t('ends up in “{location}”', { location: result.location })];
   if (result.labels.length) parts.push(t('Labels: {labels}', { labels: result.labels.join(', ') }));
-  if (result.flags.includes('\\Seen')) parts.push(t('als gelesen'));
-  if (result.flags.includes('\\Flagged')) parts.push(t('mit Stern'));
-  if (result.expireDays) parts.push(t('wird nach {days} Tagen gelöscht', { days: result.expireDays }));
-  if (result.vacation) parts.push(t('Abwesenheitsnotiz wird gesendet'));
+  if (result.flags.includes('\\Seen')) parts.push(t('mark as read'));
+  if (result.flags.includes('\\Flagged')) parts.push(t('with star'));
+  if (result.expireDays) parts.push(t('deleted after {days} days', { days: result.expireDays }));
+  if (result.vacation) parts.push(t('out-of-office reply is sent'));
   return parts.join(' · ');
 }

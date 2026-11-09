@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <title>Sieve Buddy</title>
@@ -22,62 +22,62 @@
   <header class="topbar">
     <h1>Sieve Buddy</h1>
     <span id="account" class="account"></span>
-    <button id="handover" class="ghost" hidden title="Diese Proton-Sitzung an den Docker-Dienst (MCP) übergeben">An Dienst übergeben</button>
-    <button id="logout" class="ghost" hidden>Abmelden</button>
+    <button id="handover" class="ghost" hidden title="Hand this Proton session over to the Docker service (MCP)">Hand over to service</button>
+    <button id="logout" class="ghost" hidden>Sign out</button>
   </header>
 
   <!-- Login -->
   <section id="view-login" class="card narrow" hidden>
-    <h2>Mit Proton verbinden</h2>
-    <p class="muted">Das Passwort verlässt Thunderbird nie im Klartext (SRP). Gespeichert wird nur ein Sitzungs-Token.</p>
+    <h2>Connect to Proton</h2>
+    <p class="muted">The password never leaves Thunderbird in plain text (SRP). Only a session token is stored.</p>
     <form id="login-form">
-      <label>Benutzername / E-Mail<input id="username" autocomplete="username" required></label>
-      <label>Passwort<input id="password" type="password" autocomplete="current-password" required></label>
+      <label>Username / email<input id="username" autocomplete="username" required></label>
+      <label>Password<input id="password" type="password" autocomplete="current-password" required></label>
       <details>
-        <summary>Erweitert</summary>
-        <label>API-Basis<input id="api-base"></label>
-        <label>App-Kennung (x-pm-appversion)<input id="app-version"></label>
+        <summary>Advanced</summary>
+        <label>API base<input id="api-base"></label>
+        <label>App identifier (x-pm-appversion)<input id="app-version"></label>
       </details>
       <div class="row">
-        <button type="submit" id="login-submit">Anmelden</button>
-        <button type="button" id="offline" class="ghost">Ohne Anmeldung (nur Editor)</button>
+        <button type="submit" id="login-submit">Sign in</button>
+        <button type="button" id="offline" class="ghost">Without signing in (editor only)</button>
       </div>
     </form>
 
     <hr class="sep">
-    <h2>Oder über meinen Sieve-Dienst</h2>
-    <p class="muted">Der Docker-Dienst ist mit Proton oder einem anderen Mailserver (ManageSieve, z. B. Dovecot) verbunden. Das Add-on arbeitet dann über ihn.</p>
+    <h2>Or through my Sieve service</h2>
+    <p class="muted">The Docker service is connected to Proton or another mail server (ManageSieve, e.g. Dovecot). The add-on then works through it.</p>
     <form id="service-form">
-      <label>Adresse des Dienstes<input id="service-url" placeholder="http://localhost:8080" required></label>
-      <label>API-Token des Dienstes<input id="service-token" type="password" autocomplete="off" required></label>
-      <div class="row"><button type="submit" id="service-submit" class="ghost">Über Dienst verbinden</button></div>
+      <label>Service address<input id="service-url" placeholder="http://localhost:8080" required></label>
+      <label>Service API token<input id="service-token" type="password" autocomplete="off" required></label>
+      <div class="row"><button type="submit" id="service-submit" class="ghost">Connect through service</button></div>
     </form>
   </section>
 
   <!-- 2FA -->
   <section id="view-2fa" class="card narrow" hidden>
-    <h2>Zwei-Faktor-Code</h2>
+    <h2>Two-factor code</h2>
     <form id="totp-form">
-      <label>Code aus der Authenticator-App<input id="totp" inputmode="numeric" autocomplete="one-time-code" required></label>
+      <label>Code from the authenticator app<input id="totp" inputmode="numeric" autocomplete="one-time-code" required></label>
       <div class="row">
-        <button type="submit">Bestätigen</button>
-        <button type="button" class="ghost" data-back>Abbrechen</button>
+        <button type="submit">Confirm</button>
+        <button type="button" class="ghost" data-back>Cancel</button>
       </div>
     </form>
   </section>
 
   <!-- Human verification -->
   <section id="view-captcha" class="card" hidden>
-    <h2>Proton möchte bestätigen, dass du ein Mensch bist</h2>
+    <h2>Proton wants to confirm that you are human</h2>
     <ol class="muted">
-      <li>In deinem Browser hat sich Protons Verifizierungsseite (verify.proton.me) geöffnet.</li>
-      <li>Löse dort das Captcha, bis Proton die Bestätigung anzeigt.</li>
-      <li>Komm hierher zurück und klicke auf „Weiter“.</li>
+      <li>Proton's verification page (verify.proton.me) has opened in your browser.</li>
+      <li>Solve the captcha there until Proton shows the confirmation.</li>
+      <li>Come back here and click “Continue”.</li>
     </ol>
     <div class="row">
-      <button type="button" id="captcha-continue">Weiter – Anmeldung fortsetzen</button>
-      <button type="button" id="captcha-reopen" class="ghost">Seite erneut öffnen</button>
-      <button type="button" class="ghost" data-back>Abbrechen</button>
+      <button type="button" id="captcha-continue">Continue sign-in</button>
+      <button type="button" id="captcha-reopen" class="ghost">Reopen page</button>
+      <button type="button" class="ghost" data-back>Cancel</button>
     </div>
   </section>
 
@@ -85,37 +85,37 @@
   <main id="view-app" class="app" hidden>
     <aside class="sidebar">
       <div class="sidebar-head">
-        <h2>Filter</h2>
-        <button id="new-filter" title="Neuer Filter">＋ Neu</button>
+        <h2>Filters</h2>
+        <button id="new-filter" title="New filter">＋ New</button>
       </div>
       <ul id="filter-list" class="filter-list"></ul>
-      <p id="offline-note" class="muted small" hidden>Offline-Modus: Skripte werden nicht bei Proton gespeichert.</p>
-      <button id="reload" class="ghost small">Neu laden</button>
-      <h2 class="outline-head">Gliederung</h2>
+      <p id="offline-note" class="muted small" hidden>Offline mode: scripts are not saved at Proton.</p>
+      <button id="reload" class="ghost small">Reload</button>
+      <h2 class="outline-head">Outline</h2>
       <div id="outline" class="outline"></div>
     </aside>
 
     <section class="editor-pane">
       <div class="editor-head">
-        <input id="filter-name" placeholder="Name des Filters">
-        <label class="switch"><input type="checkbox" id="filter-enabled" checked> aktiv</label>
+        <input id="filter-name" placeholder="Filter name">
+        <label class="switch"><input type="checkbox" id="filter-enabled" checked> active</label>
       </div>
       <div class="toolbar">
-        <button id="assistant" title="Regel aus einer Vorlage erstellen und automatisch einreihen">✨ Regel-Assistent</button>
-        <button id="simulate" class="ghost" title="Prüfen, wo eine Mail landen würde">Mail testen</button>
-        <button id="fix-require" class="ghost" title="Fehlende Erweiterungen in ein require übernehmen">require ergänzen</button>
-        <button id="format" class="ghost" title="Einrückung vereinheitlichen">Formatieren</button>
-        <button id="history" class="ghost" title="Frühere Versionen dieses Filters">Verlauf</button>
-        <button id="insert-guard" class="ghost" title="Proton-Spam-Schutz am Anfang einfügen">Spam-Schutz</button>
-        <button id="copy" class="ghost">Kopieren</button>
+        <button id="assistant" title="Create a rule from a template and insert it automatically">✨ Rule assistant</button>
+        <button id="simulate" class="ghost" title="Check where a mail would end up">Test mail</button>
+        <button id="fix-require" class="ghost" title="Add missing extensions to a require">Complete require</button>
+        <button id="format" class="ghost" title="Normalize indentation">Format</button>
+        <button id="history" class="ghost" title="Earlier versions of this filter">History</button>
+        <button id="insert-guard" class="ghost" title="Insert Proton spam protection at the top">Spam protection</button>
+        <button id="copy" class="ghost">Copy</button>
         <span class="spacer"></span>
-        <button id="check" class="ghost">Bei Proton prüfen</button>
-        <button id="delete" class="danger">Löschen</button>
-        <button id="save">Speichern</button>
+        <button id="check" class="ghost">Check with Proton</button>
+        <button id="delete" class="danger">Delete</button>
+        <button id="save">Save</button>
       </div>
       <div id="editor" class="editor"></div>
       <div id="problems" class="problems"></div>
-      <p class="muted small">Strg+Leertaste: Vorschläge · Strg+S: speichern · Strg+/: Kommentar</p>
+      <p class="muted small">Ctrl+Space: suggestions · Ctrl+S: save · Ctrl+/: comment</p>
     </section>
   </main>
 

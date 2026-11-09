@@ -8,7 +8,7 @@ import { t } from './i18n.js';
 import { lineOf, parseSieve } from './sieve-ast.js';
 import { addressPart, decodeEncodedWords, parseAddresses } from './mail.js';
 
-const SYSTEM = { inbox: t('Posteingang'), archive: t('Archiv'), trash: t('Papierkorb'), spam: t('Spam'), starred: t('Markiert') };
+const SYSTEM = { inbox: t('Inbox'), archive: t('Archive'), trash: t('Trash'), spam: t('Spam'), starred: t('Starred') };
 
 // tagged arguments that are followed by their own value
 const VALUE_TAGS = new Set([':comparator', ':value', ':count', ':zone', ':days', ':subject', ':handle', ':flags', ':from', ':addresses', ':seconds', ':importance', ':options', ':message', ':header', ':uniqueid', ':index', ':specialuse']);
@@ -55,7 +55,7 @@ export function simulate(scripts, message, options = {}) {
     try {
       ast = parseSieve(script.sieve);
     } catch (error) {
-      state.notes.push(t('Filter „{name}“ konnte nicht gelesen werden: {message}', { name: script.name, message: error.message }));
+      state.notes.push(t('Filter “{name}” could not be read: {message}', { name: script.name, message: error.message }));
       continue;
     }
     const ctx = { script, text: script.sieve, vars: new Map(), match: [], discard: false, keep: false };
@@ -65,7 +65,7 @@ export function simulate(scripts, message, options = {}) {
     } catch (e) {
       if (e instanceof Stop) stopped = true;
       // one broken script must not take the whole simulation down
-      else if (!(e instanceof Return)) state.notes.push(t('Filter „{name}“ konnte nicht simuliert werden: {message}', { name: script.name, message: e.message }));
+      else if (!(e instanceof Return)) state.notes.push(t('Filter “{name}” could not be simulated: {message}', { name: script.name, message: e.message }));
     }
     if (rfc) {
       if (state.rejected || stopped) {
@@ -89,12 +89,12 @@ export function simulate(scripts, message, options = {}) {
     if (state.implicitKeep && !state.rejected) storeCopy('INBOX', state.flags);
     const folders = state.copies.map((c) => c.folder);
     const location = state.rejected
-      ? t('abgewiesen')
+      ? t('rejected')
       : folders.length
         ? folders.join(' + ')
         : state.redirects.length
-          ? t('weitergeleitet an {to}', { to: state.redirects.join(', ') })
-          : t('gelöscht');
+          ? t('forwarded to {to}', { to: state.redirects.join(', ') })
+          : t('deleted');
     return {
       location,
       folder: folders.find((f) => f !== 'INBOX') ?? folders[0] ?? null,
@@ -113,7 +113,7 @@ export function simulate(scripts, message, options = {}) {
     };
   }
 
-  const location = state.rejected ? t('abgewiesen') : state.discarded ? t('gelöscht') : SYSTEM[state.folder ?? 'inbox'] ?? state.folder;
+  const location = state.rejected ? t('rejected') : state.discarded ? t('deleted') : SYSTEM[state.folder ?? 'inbox'] ?? state.folder;
   return {
     folders: state.discarded || state.rejected ? [] : [state.folder ?? 'inbox'],
     location,
@@ -197,7 +197,7 @@ export function simulate(scripts, message, options = {}) {
         }
         const lower = target.toLowerCase();
         if (lower === 'drafts' || lower === 'sent') {
-          state.notes.push(t('fileinto „{folder}“ wird von Proton ignoriert', { folder: target }));
+          state.notes.push(t('fileinto “{folder}” is ignored by Proton', { folder: target }));
           return;
         }
         if (labels.has(target)) state.labels.add(target);
@@ -217,7 +217,7 @@ export function simulate(scripts, message, options = {}) {
         state.flags = new Set(strs(pos[pos.length - 1]).map((s) => expand(s, ctx)));
         return;
       case 'reject':
-        state.rejected = str(0) || t('abgewiesen');
+        state.rejected = str(0) || t('rejected');
         throw new Stop();
       case 'vacation':
         state.vacation = { reason: expand(strs(pos[pos.length - 1])[0] ?? '', ctx), days: tags[':days'] ?? null, subject: tags[':subject'] ?? null };
@@ -245,7 +245,7 @@ export function simulate(scripts, message, options = {}) {
         return;
       }
       default:
-        state.notes.push(t('Befehl „{name}“ wird im Simulator nicht ausgeführt', { name: c.name }));
+        state.notes.push(t('Command “{name}” is not executed in the simulator', { name: c.name }));
     }
   }
 
@@ -314,14 +314,14 @@ export function simulate(scripts, message, options = {}) {
         return compare([datePart(date, expand(strs(pos[1])[0] ?? '', ctx), tags[':zone'])], keys(), tags, ctx);
       }
       default:
-        state.notes.push(t('Test „{name}“ wird im Simulator nicht ausgewertet (als falsch angenommen)', { name: test.name }));
+        state.notes.push(t('Test “{name}” is not evaluated in the simulator (assumed false)', { name: test.name }));
         return false;
     }
   }
 
   function listTest(addresses, specs) {
     if (!options.isInList) {
-      state.notes.push(t('Kontaktlisten ({lists}) sind dem Simulator nicht bekannt – als „nicht enthalten“ angenommen', { lists: specs.join(', ') }));
+      state.notes.push(t('Contact lists ({lists}) are unknown to the simulator – assumed “not included”', { lists: specs.join(', ') }));
       return false;
     }
     return addresses.some((a) => specs.some((s) => options.isInList(s, a)));
@@ -357,7 +357,7 @@ export function simulate(scripts, message, options = {}) {
               return true;
             }
           } catch {
-            state.notes.push(t('Regex „{regex}“ ist ungültig', { regex: k }));
+            state.notes.push(t('Regex “{regex}” is invalid', { regex: k }));
           }
         } else if (tags[':contains'] !== undefined) {
           if (fold(v, comparator).includes(fold(k, comparator))) return true;

@@ -1,10 +1,10 @@
-// Finds German UI text without an English translation: t('…') keys missing from the catalog, German string
-// literals outside t(), and German text in the HTML pages. `node scripts/i18n-check.mjs` lists them,
-// `--keys` prints the missing keys as JSON (to fill addon/lib/locales/en.js).
+// Finds UI text without a German translation: t('…') keys and page texts missing from the catalog, and
+// German string literals in the source (the source language is English). `node scripts/i18n-check.mjs`
+// lists them, `--keys` prints the missing keys as JSON (to fill addon/lib/locales/de.js).
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { EN } from '../addon/lib/locales/en.js';
+import { DE } from '../addon/lib/locales/de.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 
@@ -43,10 +43,10 @@ export const SOURCES = [
 export const PAGES = ['addon/manager/manager.html', 'addon/rule/rule.html', 'server/src/ui.html'];
 
 const GERMAN =
-  /[äöüÄÖÜß„“]|\b(nicht|und|oder|der|die|das|den|dem|des|ein|eine|einen|einem|einer|mit|für|bei|nach|ist|sind|wird|werden|kein|keine|bitte|Bitte|Zeile|Regel|Regeln|Abschnitt|Ordner|Mail|Mails|Neu|neue|neuen|schon|noch|auf|aus|vor|zum|zur|wurde|kann|gibt|Skript|Anmeldung|Fehler|Dienst|Vorlage|Absender|Betreff|erwartet|fehlt|gefunden|Erweiterung|Befehl|Tags?|Wert|Werte|Liste|Verschieben|Abbrechen|Schließen|Speichern|Laden|Anmelden|Abmelden|Prüfen|aktiv|Aktiv|aber|vorhanden|Mailingliste|deaktiviert|Angelegt)\b/;
+  /[äöüÄÖÜß„“]|\b(nicht|und|oder|der|das|den|dem|des|ein|eine|einen|einem|einer|mit|für|bei|nach|ist|sind|wird|werden|kein|keine|bitte|Bitte|Zeile|Regel|Regeln|Abschnitt|Ordner|Neu|neue|neuen|schon|noch|auf|aus|vor|zum|zur|wurde|kann|gibt|Skript|Anmeldung|Fehler|Dienst|Vorlage|Absender|Betreff|erwartet|fehlt|gefunden|Erweiterung|Befehl|Wert|Werte|Liste|Verschieben|Abbrechen|Schließen|Speichern|Laden|Anmelden|Abmelden|Prüfen|aktiv|Aktiv|aber|vorhanden|Mailingliste|deaktiviert|Angelegt)\b/;
 
-// strings that are data, not UI text (folder names in demo data, Sieve identifiers, ...)
-const IGNORE = [/^if [\s\S]*\}$/, /^From: /, /^Einkäufe$/, /^Newsletter$/, /^Listen$/, /^Rechnungen$/, /^Wichtig$/, /^Domains\/$/];
+// strings that are data or names, not UI text to translate
+const IGNORE = [/^if [\s\S]*\}$/, /^From: /, /^Sieve Buddy$/, /^API_TOKEN$/, /^http:\/\/localhost:8080$/];
 
 /** String literals of a JS source: {value, template, line, inT}. Comments and regex literals are skipped. */
 export function literals(src) {
@@ -152,15 +152,15 @@ export function check() {
       const value = unescape(lit.value);
       if (lit.inT) {
         if (lit.template) problems.push({ file, line: lit.line, kind: 'template-in-t', text: value });
-        else if (!(value in EN)) problems.push({ file, line: lit.line, kind: 'missing', text: value });
+        else if (!Object.hasOwn(DE, value)) problems.push({ file, line: lit.line, kind: 'missing', text: value });
       } else if (GERMAN.test(value) && !IGNORE.some((r) => r.test(value))) {
-        problems.push({ file, line: lit.line, kind: lit.template ? 'template' : 'unwrapped', text: value });
+        problems.push({ file, line: lit.line, kind: 'german', text: value });
       }
     }
   }
   for (const file of PAGES) {
     for (const text of pageTexts(readFileSync(root + file, 'utf8'))) {
-      if (GERMAN.test(text) && !(text in EN)) problems.push({ file, line: 0, kind: 'page', text });
+      if (/\p{L}/u.test(text) && !Object.hasOwn(DE, text) && !IGNORE.some((r) => r.test(text))) problems.push({ file, line: 0, kind: 'page', text });
     }
   }
   return problems;

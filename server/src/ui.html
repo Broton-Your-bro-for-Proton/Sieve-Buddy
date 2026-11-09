@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sieve-Dienst</title>
+  <title>Sieve service</title>
   <style>
     :root { --bg:#0f1217; --panel:#191e25; --text:#f2f5f9; --muted:#b2bfce; --border:#303842; --accent:#b49a64; --accent-bg:#2b2419; --accent-line:#78643e; --accent-hover:#dfd0a3; --ok:#91d7c8; --bad:#f1afba; color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -31,68 +31,68 @@
 </head>
 <body>
 <main>
-  <h1>Sieve-Dienst</h1>
+  <h1>Sieve service</h1>
 
   <section class="card" id="token-card">
-    <h2>Zugang</h2>
-    <p class="muted">API-Token aus der Konfiguration (<code>API_TOKEN</code>). Wird nur in diesem Browser gespeichert.</p>
+    <h2>Access</h2>
+    <p class="muted">API token from the configuration (<code>API_TOKEN</code>). Stored in this browser only.</p>
     <form id="token-form" class="row">
-      <input id="token" type="password" autocomplete="off" placeholder="API-Token" style="flex:1">
-      <button>Verbinden</button>
+      <input id="token" type="password" autocomplete="off" placeholder="API token" style="flex:1">
+      <button>Connect</button>
     </form>
   </section>
 
   <section class="card" id="status-card" hidden>
     <div class="row" style="justify-content:space-between">
       <h2 id="status-text">…</h2>
-      <button class="ghost" id="logout" hidden>Proton abmelden</button>
+      <button class="ghost" id="logout" hidden>Sign out of Proton</button>
     </div>
     <div id="msg" class="muted"></div>
     <div id="guard-box" hidden>
       <p class="bad" id="guard-text"></p>
-      <p class="muted">Bitte zuerst im offiziellen Proton-Login prüfen, ob das Konto normal erreichbar ist. Erst danach die Pause aufheben.</p>
-      <button class="ghost" id="guard-reset">Pause aufheben</button>
+      <p class="muted">Please first check on the official Proton login that the account is reachable as usual. Only then lift the pause.</p>
+      <button class="ghost" id="guard-reset">Lift pause</button>
     </div>
 
     <div id="handover-box" hidden>
-      <p>So verbindest du den Dienst mit Proton, <strong>ohne</strong> dass er sich selbst mit Passwort anmeldet:</p>
+      <p>To connect the service to Proton, <strong>without</strong> it signing in with a password itself:</p>
       <ol>
-        <li>In Thunderbird <strong>Sieve Buddy</strong> öffnen und dort anmelden (falls noch nicht).</li>
-        <li>Oben rechts auf <strong>„An Dienst übergeben“</strong> klicken.</li>
-        <li>Dort die Adresse <code id="handover-url"></code> und das API-Token eintragen.</li>
+        <li>In Thunderbird, open <strong>Sieve Buddy</strong> and sign in there (if you have not yet).</li>
+        <li>In the top right corner, click <strong>“Hand over to service”</strong> to start the hand-over.</li>
+        <li>Enter the address <code id="handover-url"></code> and the API token.</li>
       </ol>
-      <p class="muted">Der Passwort-Login direkt im Dienst ist abgeschaltet, weil Proton neue Anmeldungen unbekannter Programme sperren kann (ALLOW_PASSWORD_LOGIN=true schaltet ihn wieder ein).</p>
+      <p class="muted">Password login directly in the service is disabled because Proton may block new sign-ins from unknown programs (ALLOW_PASSWORD_LOGIN=true turns it back on).</p>
     </div>
 
     <form id="login-form" hidden>
-      <label>Proton-Benutzername / E-Mail<input id="username" autocomplete="username" required></label>
-      <label>Passwort<input id="password" type="password" autocomplete="current-password" required></label>
-      <p class="muted">Das Passwort wird nur für die Anmeldung (SRP) verwendet und nicht gespeichert.</p>
-      <button>Anmelden</button>
+      <label>Proton username / email<input id="username" autocomplete="username" required></label>
+      <label>Password<input id="password" type="password" autocomplete="current-password" required></label>
+      <p class="muted">The password is used only for signing in (SRP) and is not stored.</p>
+      <button>Sign in</button>
     </form>
 
     <form id="totp-form" hidden>
-      <label>2FA-Code<input id="totp" inputmode="numeric" autocomplete="one-time-code" required></label>
-      <button>Bestätigen</button>
+      <label>2FA code<input id="totp" inputmode="numeric" autocomplete="one-time-code" required></label>
+      <button>Confirm</button>
     </form>
 
     <div id="captcha-box" hidden>
       <ol>
-        <li><a id="captcha-link" target="_blank" rel="noopener noreferrer">Proton-Verifizierung öffnen</a> und das Captcha lösen.</li>
-        <li>Danach hier weiter.</li>
+        <li><a id="captcha-link" target="_blank" rel="noopener noreferrer">Open Proton verification</a> and solve the captcha.</li>
+        <li>Then continue here.</li>
       </ol>
-      <button id="captcha-continue">Weiter</button>
+      <button id="captcha-continue">Continue</button>
     </div>
 
     <div id="filters-box" hidden>
-      <h2 style="margin-top:14px">Filter</h2>
+      <h2 style="margin-top:14px">Filters</h2>
       <ul class="filters" id="filters"></ul>
     </div>
   </section>
 
   <section class="card" id="mcp-card" hidden>
-    <h2>MCP-Anbindung</h2>
-    <p class="muted">Streamable-HTTP-Endpunkt für Inbox Zero, Claude und andere MCP-Clients:</p>
+    <h2>MCP connection</h2>
+    <p class="muted">Streamable HTTP endpoint for Inbox Zero, Claude and other MCP clients:</p>
     <pre id="mcp-config"></pre>
   </section>
 </main>
@@ -125,7 +125,7 @@
     } catch (e) {
       $('token-card').hidden = false;
       $('status-card').hidden = $('mcp-card').hidden = true;
-      if (e.status === 401 && token) msg(t('Token ungültig'), 'bad');
+      if (e.status === 401 && token) msg(t('Invalid token'), 'bad');
       return;
     }
     $('token-card').hidden = true;
@@ -147,10 +147,10 @@
     $('captcha-box').hidden = status.pending !== 'captcha';
     if (status.captchaUrl) $('captcha-link').href = status.captchaUrl;
     $('filters-box').hidden = !status.loggedIn;
-    if (!status.allowWrite) msg(t('Schreibzugriffe sind deaktiviert (ALLOW_WRITE=false).'));
+    if (!status.allowWrite) msg(t('Write access is disabled (ALLOW_WRITE=false).'));
     const g = status.loginGuard || {};
     $('guard-box').hidden = !g.blockedUntil || status.loggedIn;
-    if (g.blockedUntil) $('guard-text').textContent = t('Anmeldung pausiert bis {until}: {reason}', { until: new Date(g.blockedUntil).toLocaleString(dateLocale()), reason: g.reason });
+    if (g.blockedUntil) $('guard-text').textContent = t('Sign-in paused until {until}: {reason}', { until: new Date(g.blockedUntil).toLocaleString(dateLocale()), reason: g.reason });
     if (g.blockedUntil && !status.loggedIn) $('login-form').hidden = true;
     $('mcp-config').textContent = JSON.stringify({
       mcpServers: { sieve: { type: 'http', url: `${location.origin}/mcp`, headers: { Authorization: 'Bearer <API_TOKEN>' } } },
@@ -162,7 +162,7 @@
         li.textContent = f.name;
         const s = document.createElement('span');
         s.className = f.enabled ? 'ok' : 'muted';
-        s.textContent = f.enabled ? t('aktiv') : t('aus');
+        s.textContent = f.enabled ? t('active') : t('off');
         li.append(s);
         return li;
       }));
@@ -172,9 +172,9 @@
   async function step(promise) {
     try {
       const r = await promise;
-      if (r.step === 'captcha') { msg(t('Proton verlangt ein Captcha.')); window.open(r.webUrl, '_blank', 'noopener'); }
-      else if (r.step === 'totp') msg(t('Bitte 2FA-Code eingeben.'));
-      else msg(t('Angemeldet ✓'), 'ok');
+      if (r.step === 'captcha') { msg(t('Proton requires a captcha.')); window.open(r.webUrl, '_blank', 'noopener'); }
+      else if (r.step === 'totp') msg(t('Please enter the 2FA code.'));
+      else msg(t('Signed in ✓'), 'ok');
     } catch (e) { msg(e.message, 'bad'); }
     await refresh();
   }
@@ -189,17 +189,17 @@
     e.preventDefault();
     const body = { username: $('username').value.trim(), password: $('password').value };
     $('password').value = '';
-    msg(t('Anmeldung läuft …'));
+    msg(t('Signing in …'));
     step(api('/api/login', body));
   });
   $('totp-form').addEventListener('submit', (e) => { e.preventDefault(); step(api('/api/login/totp', { code: $('totp').value })); });
   $('captcha-continue').addEventListener('click', () => step(api('/api/login/continue', {})));
   $('guard-reset').addEventListener('click', async () => {
-    if (!confirm(t('Pause wirklich aufheben? Weitere Anmeldungen kurz nach einer Proton-Sperre können das Konto länger sperren.'))) return;
+    if (!confirm(t('Really lift the pause? Further sign-ins shortly after a Proton block can lock the account for longer.'))) return;
     await api('/api/login/reset-guard', {});
     refresh();
   });
-  $('logout').addEventListener('click', async () => { await api('/api/logout', {}); msg(t('Abgemeldet')); refresh(); });
+  $('logout').addEventListener('click', async () => { await api('/api/logout', {}); msg(t('Signed out')); refresh(); });
   refresh();
 </script>
 </body>

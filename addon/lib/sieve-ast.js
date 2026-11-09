@@ -37,7 +37,7 @@ export function parseSieve(text) {
   };
   const expectPunct = (value) => {
     const tok = next();
-    if (!tok || tok.type !== 'punct' || tok.value !== value) fail(t('„{value}“ erwartet', { value }), tok);
+    if (!tok || tok.type !== 'punct' || tok.value !== value) fail(t('“{value}” expected', { value }), tok);
     return tok;
   };
 
@@ -46,11 +46,11 @@ export function parseSieve(text) {
     const items = [];
     for (;;) {
       const tok = next();
-      if (!tok || tok.type !== 'string') fail(t('Zeichenkette in der Liste erwartet'), tok);
+      if (!tok || tok.type !== 'string') fail(t('String in the list expected'), tok);
       items.push({ type: 'string', value: tok.value, start: tok.start, end: tok.end });
       const sep = next();
       if (sep?.value === ']') return { type: 'list', items, start: open.start, end: sep.end };
-      if (sep?.value !== ',') fail(t('„,“ oder „]“ erwartet'), sep);
+      if (sep?.value !== ',') fail(t('“,” or “]” expected'), sep);
     }
   }
 
@@ -72,7 +72,7 @@ export function parseSieve(text) {
 
   function parseTest() {
     const tok = next();
-    if (!tok || tok.type !== 'identifier') fail(t('Test erwartet'), tok);
+    if (!tok || tok.type !== 'identifier') fail(t('Test expected'), tok);
     const test = { type: 'test', name: tok.value, args: parseArguments(), tests: [], start: tok.start, end: tok.end };
     const after = peek();
     if (after?.value === '(') {
@@ -85,7 +85,7 @@ export function parseSieve(text) {
           test.listEnd = sep.end;
           break;
         }
-        if (sep?.value !== ',') fail(t('„,“ oder „)“ erwartet'), sep);
+        if (sep?.value !== ',') fail(t('“,” or “)” expected'), sep);
       }
     } else if (after?.type === 'identifier') {
       test.tests.push(parseTest()); // `not <test>`
@@ -100,7 +100,7 @@ export function parseSieve(text) {
     while (pos < tokens.length) {
       const tok = peek();
       if (closing && tok.value === '}') return commands;
-      if (tok.type !== 'identifier') fail(t('Befehl erwartet'), tok);
+      if (tok.type !== 'identifier') fail(t('Command expected'), tok);
       next();
       const command = { type: 'command', name: tok.value, args: parseArguments(), test: null, block: null, start: tok.start, end: tok.end };
       if (peek()?.type === 'identifier') command.test = parseTest();
@@ -114,14 +114,14 @@ export function parseSieve(text) {
         command.block = block;
         command.end = close.end;
       } else {
-        fail(t('„;“ oder „{“ erwartet'), end);
+        fail(t('“;” or “{” expected'), end);
       }
       // the simulator and the merge logic rely on this shape
-      if ((command.name === 'if' || command.name === 'elsif') && !command.test) fail(t('„{name}“ braucht eine Bedingung', { name: command.name }), tok);
-      if (['if', 'elsif', 'else'].includes(command.name) && !command.block) fail(t('„{name}“ braucht einen Block', { name: command.name }), tok);
+      if ((command.name === 'if' || command.name === 'elsif') && !command.test) fail(t('“{name}” needs a condition', { name: command.name }), tok);
+      if (['if', 'elsif', 'else'].includes(command.name) && !command.block) fail(t('“{name}” needs a block', { name: command.name }), tok);
       commands.push(command);
     }
-    if (closing) fail(t('„}“ fehlt'));
+    if (closing) fail(t('“}” is missing'));
     return commands;
   }
 

@@ -92,14 +92,14 @@ function randomBytes(length) {
 export function readClearSignedModulus(signed) {
   const normalized = signed.replace(/\r\n/g, '\n');
   const match = normalized.match(/-----BEGIN PGP SIGNED MESSAGE-----\n(?:[^\n]+\n)*\n([\s\S]*?)\n-----BEGIN PGP SIGNATURE-----/);
-  if (!match) throw new Error(t('SRP: Modulus hat kein gültiges Clear-Sign-Format'));
+  if (!match) throw new Error(t('SRP: Modulus is not in a valid clear-sign format'));
   return match[1].trim();
 }
 
 /** bcrypt(password, salt + "proton") expanded with the modulus — Proton's password hash for auth versions 3/4. */
 export async function hashPassword({ version, password, salt, modulusBytes, bcrypt }) {
   if (version !== 3 && version !== 4) {
-    throw new Error(t('SRP: Auth-Version {version} wird nicht unterstützt (nur 3 und 4)', { version }));
+    throw new Error(t('SRP: Auth version {version} is not supported (only 3 and 4)', { version }));
   }
   const encodedSalt = encodeDotSlash(concat(base64ToBytes(salt), ascii('proton')));
   const crypted = bcrypt.hashSync(password, '$2y$10$' + encodedSalt);
@@ -107,9 +107,9 @@ export async function hashPassword({ version, password, salt, modulusBytes, bcry
 }
 
 function checkParams(N, B) {
-  if (bitLength(N) !== BIT_LENGTH) throw new Error(t('SRP: Modulus hat falsche Länge'));
-  if (N % 8n !== 3n) throw new Error(t('SRP: Modulus ist nicht 3 mod 8'));
-  if (B <= 1n || B >= N - 1n) throw new Error(t('SRP: Server-Ephemeral außerhalb des gültigen Bereichs'));
+  if (bitLength(N) !== BIT_LENGTH) throw new Error(t('SRP: Modulus has the wrong length'));
+  if (N % 8n !== 3n) throw new Error(t('SRP: Modulus is not 3 mod 8'));
+  if (B <= 1n || B >= N - 1n) throw new Error(t('SRP: Server ephemeral is out of range'));
 }
 
 /**
@@ -135,7 +135,7 @@ export async function getSrpProofs({ version, password, salt, signedModulus, ser
   const g = 2n;
 
   const k = mod(toInt(await expandHash(concat(fromInt(g), fromInt(N)))), N);
-  if (k <= 1n || k >= N - 1n) throw new Error(t('SRP: Multiplikator außerhalb des gültigen Bereichs'));
+  if (k <= 1n || k >= N - 1n) throw new Error(t('SRP: Multiplier is out of range'));
 
   let a, A, u;
   for (;;) {
@@ -144,7 +144,7 @@ export async function getSrpProofs({ version, password, salt, signedModulus, ser
     A = fromInt(modPow(g, a, N));
     u = toInt(await expandHash(concat(A, serverEphemeralBytes)));
     if (u !== 0n) break;
-    if (clientSecret) throw new Error(t('SRP: Scrambling-Parameter ist 0'));
+    if (clientSecret) throw new Error(t('SRP: Scrambling parameter is 0'));
   }
 
   const base = mod(B - mod(k * modPow(g, x, N), N), N);

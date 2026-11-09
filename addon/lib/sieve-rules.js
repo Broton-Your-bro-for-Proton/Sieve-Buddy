@@ -119,8 +119,8 @@ const PARTS = ['all', 'domain', 'localpart'];
 
 export function conditionToSieve(c) {
   // these go into the code unquoted: only known words, never free text
-  if (!MATCHES.includes(c.match ?? 'is')) throw new Error(t('Unbekannter Vergleich „{value}“', { value: c.match }));
-  if (!PARTS.includes(c.part ?? 'all')) throw new Error(t('Unbekannter Adressteil „{value}“', { value: c.part }));
+  if (!MATCHES.includes(c.match ?? 'is')) throw new Error(t('Unknown match type “{value}”', { value: c.match }));
+  if (!PARTS.includes(c.part ?? 'all')) throw new Error(t('Unknown address part “{value}”', { value: c.part }));
   const match = `:${c.match ?? 'is'}`;
   switch (c.kind) {
     case 'address':
@@ -130,7 +130,7 @@ export function conditionToSieve(c) {
     case 'exists':
       return `exists ${quoteSieve(c.header)}`;
     default:
-      throw new Error(t('Unbekannte Bedingung „{value}“', { value: c.kind }));
+      throw new Error(t('Unknown condition “{value}”', { value: c.kind }));
   }
 }
 
@@ -140,7 +140,7 @@ export function actionsToSieve(actions, indent = '    ') {
   // Proton applies flags when fileinto runs, so they go first
   if (a.seen) lines.push('addflag "\\\\Seen";');
   if (a.flagged) lines.push('addflag "\\\\Flagged";');
-  if (a.expireDays !== null && !(Number.isInteger(a.expireDays) && a.expireDays > 0)) throw new Error(t('Ungültige Anzahl Tage „{value}“', { value: actions.expireDays }));
+  if (a.expireDays !== null && !(Number.isInteger(a.expireDays) && a.expireDays > 0)) throw new Error(t('Invalid number of days “{value}”', { value: actions.expireDays }));
   if (a.expireDays) lines.push(`expire "day" "${a.expireDays}";`);
   if (a.fileinto) lines.push(`fileinto ${quoteSieve(a.fileinto)};`);
   if (a.stop) lines.push('stop;');
@@ -163,7 +163,7 @@ function groupConditions(conditions) {
 }
 
 export function ruleToSieve({ conditions, combine = 'anyof', actions }) {
-  if (combine !== 'anyof' && combine !== 'allof') throw new Error(t('Unbekannte Verknüpfung „{value}“', { value: combine }));
+  if (combine !== 'anyof' && combine !== 'allof') throw new Error(t('Unknown combination “{value}”', { value: combine }));
   const tests = combine === 'allof' ? conditions.map(conditionToSieve) : groupConditions(conditions);
   const test = tests.length === 1 ? tests[0] : `${combine}(\n    ${tests.join(',\n    ')}\n)`;
   return `if ${test} {\n${actionsToSieve(actions)}\n}`;
@@ -172,18 +172,18 @@ export function ruleToSieve({ conditions, combine = 'anyof', actions }) {
 export function describeRule({ conditions, actions }) {
   const what = conditions
     .map((c) => {
-      if (c.kind === 'exists') return t('Header „{header}“ vorhanden', { header: c.header });
-      const part = c.kind === 'address' ? { domain: t('Domain'), localpart: t('Name vor @'), all: t('Adresse') }[c.part ?? 'all'] : t('Header');
-      return t('{part} {header} {match} „{value}“', { part, header: c.header, match: { is: t('ist'), contains: t('enthält'), matches: t('passt auf') }[c.match ?? 'is'], value: c.value });
+      if (c.kind === 'exists') return t('Header “{header}” present', { header: c.header });
+      const part = c.kind === 'address' ? { domain: t('Domain'), localpart: t('Name before @'), all: t('Address') }[c.part ?? 'all'] : t('Header');
+      return t('{part} {header} {match} “{value}”', { part, header: c.header, match: { is: t('is'), contains: t('contains'), matches: t('matches') }[c.match ?? 'is'], value: c.value });
     })
-    .join(t(' oder '));
+    .join(t(' or '));
   const a = normaliseActions(actions);
   const todo = [
-    a.fileinto && t('nach „{folder}“', { folder: a.fileinto }),
-    a.seen && t('als gelesen'),
-    a.flagged && t('mit Stern'),
-    a.expireDays && t('nach {days} Tagen löschen', { days: a.expireDays }),
-    a.stop && t('danach stoppen'),
+    a.fileinto && t('to “{folder}”', { folder: a.fileinto }),
+    a.seen && t('mark as read'),
+    a.flagged && t('with star'),
+    a.expireDays && t('delete after {days} days', { days: a.expireDays }),
+    a.stop && t('then stop'),
   ].filter(Boolean);
   return `${what} → ${todo.join(', ') || t('keine Aktion')}`;
 }
@@ -260,7 +260,7 @@ export function proposeRule(scripts, rule) {
           if (d && sameForm(d, single) && keyCovered(d, single.value)) {
             const entry = { scriptId: script.id, scriptName: script.name, line: lineOf(text, d.test.start) };
             if (actions && sameActions(actions, rule.actions)) covered.push(entry);
-            else conflicts.push({ ...entry, message: t('„{value}“ wird hier bereits anders behandelt', { value: single.value }) });
+            else conflicts.push({ ...entry, message: t('“{value}” is already handled differently here', { value: single.value }) });
           }
         }
       }
@@ -275,13 +275,13 @@ export function proposeRule(scripts, rule) {
           command.test.name === 'anyof' ? 90 : 100,
           appendKeyPatch(text, target.keysArg, single.value),
           target.test,
-          t('„{value}“ zur bestehenden Liste hinzufügen', { value: single.value }),
+          t('Add “{value}” to the existing list', { value: single.value }),
         );
       } else if (command.test.name === 'anyof') {
         const lastTest = command.test.tests[command.test.tests.length - 1];
         const multiline = text.slice(command.test.start, command.test.end).includes('\n');
         const sep = multiline ? `,\n${indentOf(text, lastTest.start)}` : ', ';
-        push('extend-anyof', 70, { start: lastTest.end, end: lastTest.end, text: sep + conditionToSieve(single) }, command.test, t('Bedingung zum bestehenden anyof(…) hinzufügen'));
+        push('extend-anyof', 70, { start: lastTest.end, end: lastTest.end, text: sep + conditionToSieve(single) }, command.test, t('Add condition to the existing anyof(…)'));
       } else if (descs[0]) {
         const inner = `${indentOf(text, command.start)}    `;
         const original = text.slice(command.test.start, command.test.end);
@@ -290,7 +290,7 @@ export function proposeRule(scripts, rule) {
           60,
           { start: command.test.start, end: command.test.end, text: `anyof(\n${inner}${original},\n${inner}${conditionToSieve(single)}\n${indentOf(text, command.start)})` },
           command.test,
-          t('Bestehende Regel mit gleicher Aktion zu anyof(…) erweitern'),
+          t('Extend the existing rule with the same action to anyof(…)'),
         );
       }
     }
@@ -302,7 +302,7 @@ export function proposeRule(scripts, rule) {
       10,
       { start: trimmedEnd, end: text.length, text: `\n\n${ruleToSieve(rule)}\n` },
       { start: trimmedEnd },
-      t('Als neuen Block am Ende anhängen'),
+      t('Append as a new block at the end'),
     );
   }
 
@@ -380,7 +380,7 @@ export function mergeRuleIntoScript(script, rule, options = {}) {
 export function insertRuleBefore(sieve, line, rule, { stop = false } = {}) {
   const ast = parseSieve(sieve);
   const command = ast.commands.find((c) => lineOf(sieve, c.start) === line);
-  if (!command) throw new Error(t('Kein Block beginnt in Zeile {line}', { line }));
+  if (!command) throw new Error(t('No block starts at line {line}', { line }));
   const indent = indentOf(sieve, command.start);
   const placed = stop ? { ...rule, actions: { ...rule.actions, stop: true } } : rule;
   const block = ruleToSieve(placed).replace(/\n/g, `\n${indent}`);

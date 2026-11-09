@@ -21,7 +21,7 @@ browser.messageDisplayAction.onClicked.addListener(async (tab) => {
 import('./lib/i18n.js').then(({ t }) =>
   browser.menus.create({
     id: 'sieve-rule-from-mail',
-    title: t('Sieve-Regel aus dieser Mail …'),
+    title: t('Sieve rule from this mail …'),
     contexts: ['message_list'],
   }),
 );

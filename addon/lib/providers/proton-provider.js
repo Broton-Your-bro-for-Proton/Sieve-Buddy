@@ -54,13 +54,13 @@ export class ProtonProvider {
       if (error.code !== TOO_MANY_ACTIVE_FILTERS) throw error;
       const added = (await this.client.listFilters()).find((f) => !before.has(f.ID) && f.Name === name);
       if (!added) throw error;
-      return { id: added.ID, name, enabled: false, warning: t('Angelegt, aber deaktiviert: {message}', { message: error.message }) };
+      return { id: added.ID, name, enabled: false, warning: t('Created, but disabled: {message}', { message: error.message }) };
     }
   }
 
   async updateScript(id, { name, sieve, enabled }) {
     const current = await this.client.getFilter(id);
-    if (!current) throw new Error(t('Filter {id} nicht gefunden', { id }));
+    if (!current) throw new Error(t('Filter {id} not found', { id }));
     await this.client.updateFilter(id, {
       Name: name ?? current.Name,
       Sieve: sieve ?? current.Sieve,

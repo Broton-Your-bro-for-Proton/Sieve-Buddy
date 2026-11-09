@@ -64,11 +64,11 @@ export class JmapProvider {
     const session = await res.json();
     const accountId = session.primaryAccounts?.[SIEVE];
     const caps = session.accounts?.[accountId]?.accountCapabilities?.[SIEVE];
-    if (!caps) throw new JmapError(t('Der JMAP-Server bietet kein Sieve an (urn:ietf:params:jmap:sieve)'));
+    if (!caps) throw new JmapError(t('The JMAP server does not offer Sieve (urn:ietf:params:jmap:sieve)'));
     // the token goes along to every URL of the session: never in plain text when the session came over https
     if (new URL(res.url).protocol === 'https:') {
       for (const key of ['apiUrl', 'uploadUrl', 'downloadUrl']) {
-        if (session[key] && new URL(session[key].replace(/[{}]/g, ''), res.url).protocol !== 'https:') throw new JmapError(t('JMAP: {key} zeigt auf eine unverschlüsselte Adresse (hinter einem TLS-Proxy die öffentliche https-URL im Server eintragen)', { key }));
+        if (session[key] && new URL(session[key].replace(/[{}]/g, ''), res.url).protocol !== 'https:') throw new JmapError(t('JMAP: {key} points to an unencrypted address (behind a TLS proxy, set the public https URL in the server)', { key }));
       }
     }
     this.session = { ...session, base: res.url, accountId, mailAccountId: session.primaryAccounts[MAIL] ?? null };
@@ -125,7 +125,7 @@ export class JmapProvider {
 
   async #find(id) {
     const current = (await this.#list()).find((s) => s.id === id);
-    if (!current) throw new JmapError(t('Skript „{id}“ nicht gefunden', { id }), { type: 'notFound' });
+    if (!current) throw new JmapError(t('Script “{id}” not found', { id }), { type: 'notFound' });
     return current;
   }
 
@@ -147,7 +147,7 @@ export class JmapProvider {
   }
 
   async createScript({ name, sieve, enabled = false }) {
-    if ((await this.#list()).some((s) => s.name === name)) throw new JmapError(t('Ein Skript „{name}“ gibt es schon', { name }), { type: 'alreadyExists' });
+    if ((await this.#list()).some((s) => s.name === name)) throw new JmapError(t('A script “{name}” already exists', { name }), { type: 'alreadyExists' });
     const blobId = await this.#upload(sieve);
     const r = await this.#set({ create: { new: { name, blobId } }, ...(enabled && { onSuccessActivateScript: '#new' }) });
     return { id: r.created.new.id, name };
@@ -185,7 +185,7 @@ export class JmapProvider {
   }
 
   async reorder() {
-    throw new Error(t('JMAP Sieve kennt keine Reihenfolge – es läuft genau ein aktives Skript'));
+    throw new Error(t('JMAP Sieve has no ordering: exactly one script is active'));
   }
 
   async check(sieve) {

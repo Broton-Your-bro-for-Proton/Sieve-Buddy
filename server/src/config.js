@@ -11,10 +11,10 @@ function value(name) {
   return env[name];
 }
 
-function required(name, hint = t('siehe .env.example')) {
+function required(name, hint = t('see .env.example')) {
   const v = value(name);
   if (!v) {
-    console.error(t('Umgebungsvariable {name} fehlt – {hint}', { name, hint }));
+    console.error(t('Environment variable {name} is missing: {hint}', { name, hint }));
     process.exit(1);
   }
   return v;
@@ -24,7 +24,7 @@ const bool = (name, fallback) => (env[name] === undefined ? fallback : env[name]
 const tlsMode = (name, fallback) => {
   const mode = (env[name] ?? fallback).toLowerCase();
   if (!['starttls', 'tls', 'none'].includes(mode)) {
-    console.error(t('{name} muss starttls, tls oder none sein', { name }));
+    console.error(t('{name} must be starttls, tls or none', { name }));
     process.exit(1);
   }
   return mode;
@@ -33,12 +33,12 @@ const tlsMode = (name, fallback) => {
 export function loadConfig() {
   const apiToken = required('API_TOKEN');
   if (apiToken.length < 24) {
-    console.error(t('API_TOKEN muss mindestens 24 Zeichen lang sein (z. B. `openssl rand -hex 32`)'));
+    console.error(t('API_TOKEN must be at least 24 characters long (e.g. `openssl rand -hex 32`)'));
     process.exit(1);
   }
   const provider = (env.PROVIDER ?? 'proton').toLowerCase();
   if (!['proton', 'managesieve', 'jmap'].includes(provider)) {
-    console.error(t('PROVIDER muss proton, managesieve oder jmap sein'));
+    console.error(t('PROVIDER must be proton, managesieve or jmap'));
     process.exit(1);
   }
 
@@ -63,7 +63,7 @@ export function loadConfig() {
   };
 
   if (provider === 'managesieve') {
-    const host = required('MANAGESIEVE_HOST', t('Hostname des ManageSieve-Servers'));
+    const host = required('MANAGESIEVE_HOST', t('Hostname of the ManageSieve server'));
     config.managesieve = {
       host,
       port: Number(env.MANAGESIEVE_PORT ?? 4190),
@@ -85,7 +85,7 @@ export function loadConfig() {
   }
   if (provider === 'jmap') {
     config.jmap = {
-      url: required('JMAP_URL', t('URL der JMAP-Session, z. B. https://mail.example.com/.well-known/jmap')),
+      url: required('JMAP_URL', t('URL of the JMAP session, e.g. https://mail.example.com/.well-known/jmap')),
       token: required('JMAP_TOKEN'),
       // with a user, the token is sent as password (Basic auth, e.g. a Stalwart app password); otherwise as Bearer token
       user: value('JMAP_USER') || undefined,

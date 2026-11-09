@@ -3,34 +3,34 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { getLocale, setLocale, t } from '../addon/lib/i18n.js';
-import { EN } from '../addon/lib/locales/en.js';
+import { DE } from '../addon/lib/locales/de.js';
 import { parseSieve } from '../addon/lib/sieve-ast.js';
 import { check } from '../scripts/i18n-check.mjs';
 
-test('every German UI text has an English translation and goes through t()', () => {
+test('every UI text has a German translation and the source holds no German text', () => {
   const problems = check().map((p) => `${p.file}:${p.line} [${p.kind}] ${p.text}`);
   assert.deepEqual(problems, []);
 });
 
 test('translations keep every placeholder and use no em dash', () => {
-  for (const [key, value] of Object.entries(EN)) {
+  for (const [key, value] of Object.entries(DE)) {
     const placeholders = (s) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
     assert.deepEqual(placeholders(value), placeholders(key), key);
-    assert.ok(!value.includes('—'), `em dash in: ${value}`);
+    assert.ok(!key.includes('—') && !value.includes('—'), `em dash in: ${key}`);
   }
 });
 
-test('t() fills placeholders, falls back to German and follows the locale', () => {
-  assert.equal(getLocale(), 'de');
-  assert.equal(t('Kein Block beginnt in Zeile {line}', { line: 3 }), 'Kein Block beginnt in Zeile 3');
-  assert.equal(t('Text ohne Übersetzung'), 'Text ohne Übersetzung');
-  setLocale('en-US');
+test('t() fills placeholders, falls back to English and follows the locale', () => {
+  assert.equal(getLocale(), 'en');
+  assert.equal(t('No block starts at line {line}', { line: 3 }), 'No block starts at line 3');
+  setLocale('de-DE');
   try {
-    assert.equal(t('Kein Block beginnt in Zeile {line}', { line: 3 }), EN['Kein Block beginnt in Zeile {line}'].replace('{line}', '3'));
+    assert.equal(t('No block starts at line {line}', { line: 3 }), 'Kein Block beginnt in Zeile 3');
+    assert.equal(t('Text without a translation'), 'Text without a translation');
     // messages built at call time switch with the locale
-    assert.throws(() => parseSieve('fileinto "a"'), (e) => !/erwartet/.test(e.message));
+    assert.throws(() => parseSieve('fileinto "a"'), /erwartet/);
   } finally {
-    setLocale('de');
+    setLocale('en');
   }
 });
 
@@ -41,14 +41,14 @@ test('manifest strings exist in both languages', () => {
   for (const [, key] of manifest.matchAll(/__MSG_(\w+)__/g)) assert.ok(key in read('en'), key);
 });
 
-test('in English the template category still finds German section titles', async () => {
+test('the template category finds section titles in the other language', async () => {
   const { chooseSection, findSections } = await import('../addon/lib/sieve-sections.js');
-  const text = 'require ["fileinto"];\n\n### Rechnungen ###\nif header :contains "subject" "Beleg" {\n    fileinto "Belege";\n}\n';
-  setLocale('en');
+  const section = (title) => findSections(`require ["fileinto"];\n\n### ${title} ###\nif header :contains "subject" "Beleg" {\n    fileinto "Belege";\n}\n`);
+  assert.equal(chooseSection(section('Rechnungen'), { actions: { flagged: true } }, { category: t('Shops & invoices') })?.title, 'Rechnungen');
+  setLocale('de');
   try {
-    const section = chooseSection(findSections(text), { actions: { flagged: true } }, { category: t('Shops & Rechnungen') });
-    assert.equal(section?.title, 'Rechnungen');
+    assert.equal(chooseSection(section('Invoices'), { actions: { flagged: true } }, { category: t('Shops & invoices') })?.title, 'Invoices');
   } finally {
-    setLocale('de');
+    setLocale('en');
   }
 });

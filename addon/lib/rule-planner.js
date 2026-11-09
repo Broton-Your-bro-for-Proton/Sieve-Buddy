@@ -58,7 +58,7 @@ function planForScript(script, rule, section, hints, separate = false) {
   };
 }
 
-const defaultName = (rule) => (rule.actions.fileinto ? `→ ${rule.actions.fileinto}` : t('Neue Regel'));
+const defaultName = (rule) => (rule.actions.fileinto ? `→ ${rule.actions.fileinto}` : t('New rule'));
 
 /**
  * @param {object} p
@@ -76,10 +76,10 @@ const defaultName = (rule) => (rule.actions.fileinto ? `→ ${rule.actions.filei
  */
 export function planRule({ scripts, rule, target = 'auto', newName, section = 'auto', category, message, labels = [], dialect = PROTON_DIALECT }) {
   const hints = { category };
-  if (!rule.conditions?.length) throw new Error(t('Mindestens eine Bedingung angeben'));
-  if (!dialect.proton && rule.actions?.expireDays) throw new Error(t('Automatisches Löschen (expire) gibt es nur bei Proton'));
+  if (!rule.conditions?.length) throw new Error(t('Specify at least one condition'));
+  if (!dialect.proton && rule.actions?.expireDays) throw new Error(t('Automatic deletion (expire) is only available on Proton'));
   if (!dialect.proton && (rule.actions?.seen || rule.actions?.flagged) && !dialect.extensions.has('imap4flags')) {
-    throw new Error(t('Der Server bietet imap4flags nicht an – „als gelesen“ und „Stern“ gehen nicht'));
+    throw new Error(t('The server does not offer imap4flags – “mark as read” and “star” will not work'));
   }
   let plan;
   if (target === 'new' || !scripts.length) {
@@ -92,7 +92,7 @@ export function planRule({ scripts, rule, target = 'auto', newName, section = 'a
     };
   } else if (target !== 'auto') {
     const script = scripts.find((s) => s.id === target);
-    if (!script) throw new Error(t('Filter {id} nicht gefunden', { id: target }));
+    if (!script) throw new Error(t('Filter {id} not found', { id: target }));
     plan = planForScript(script, rule, section, hints);
   } else {
     plan = scripts.map((s) => planForScript(s, rule, section, hints)).sort((a, b) => b.score - a.score)[0];
@@ -119,8 +119,8 @@ export function planRule({ scripts, rule, target = 'auto', newName, section = 'a
         const blocker = after.fired.find((f) => !f.test.includes(GUARD) && (f.scriptId !== (plan.targetId ?? 'new') || lineInBase(plan.sieve, base, f.line)));
         notes.push(
           blocker
-            ? t('Die Regel greift bei dieser Mail nicht: Filter „{name}“ (Zeile {line}) fängt sie vorher ab. Dort eintragen oder die Filterreihenfolge ändern.', { name: blocker.script, line: blocker.line })
-            : t('Die Regel greift bei dieser Mail nicht – Bedingungen prüfen.'),
+            ? t('The rule does not apply to this message: filter “{name}” (line {line}) catches it first. Add it there or change the filter order.', { name: blocker.script, line: blocker.line })
+            : t('The rule does not apply to this message – check the conditions.'),
         );
       }
     }
@@ -157,7 +157,7 @@ function stopInPlace(plan, rule, after, run, replan) {
     const separate = replan(rule);
     const result = run(separate);
     if (ruleReached(result, rule.actions)) {
-      return { plan: separate, after: result, note: t('Als eigener Block eingefügt – in der bestehenden Liste würde ein späterer Block die Mail woandershin verschieben.') };
+      return { plan: separate, after: result, note: t('Added as a separate block: in the existing list, a later block would move the mail elsewhere.') };
     }
   }
   const candidate = replan({ ...rule, actions: { ...rule.actions, stop: true } });
@@ -167,8 +167,8 @@ function stopInPlace(plan, rule, after, run, replan) {
   const ownLine = candidate.steps.find((s) => s.kind === 'new-block')?.line ?? 0;
   const later = after.fired.find((f) => f.scriptId === plan.targetId && !f.test.includes(GUARD) && lineInBase(plan.sieve, base, f.line) && lineInBase(plan.sieve, candidate.sieve, f.line) > ownLine);
   const note = later
-    ? t('Mit „stop“ beendet – sonst würde der Block „{test}“ weiter unten die Mail danach woandershin verschieben.', { test: later.test })
-    : t('Mit „stop“ beendet – sonst würde ein späterer Block die Mail danach woandershin verschieben.');
+    ? t('Ended with “stop” – otherwise the block “{test}” further down would move the message elsewhere afterward.', { test: later.test })
+    : t('Ended with “stop” – otherwise a later block would move the message elsewhere afterward.');
   return { plan: candidate, after: result, note };
 }
 
@@ -192,8 +192,8 @@ function placeBeforeBlocker(plan, rule, after, run) {
         const result = run(candidate);
         if (ruleReached(result, rule.actions)) {
           const note = stop
-            ? t('Als neuer Block vor Zeile {line} eingefügt und mit „stop“ beendet – sonst würde der Block dort die Mail woandershin verschieben.', { line: blocker.line })
-            : t('Als neuer Block vor Zeile {line} eingefügt – der Block dort hätte die Mail sonst vorher abgefangen.', { line: blocker.line });
+            ? t('Inserted as a new block before line {line} and ended with “stop” – otherwise the block there would move the message elsewhere.', { line: blocker.line })
+            : t('Inserted as a new block before line {line} – otherwise the block there would have caught the message first.', { line: blocker.line });
           return { plan: candidate, after: result, note };
         }
       } catch {

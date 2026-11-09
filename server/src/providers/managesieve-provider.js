@@ -83,7 +83,7 @@ export class ManageSieveProvider {
   createScript({ name, sieve, enabled = false }) {
     return this.#with(async (conn) => {
       const existing = await conn.listScripts();
-      if (existing.some((s) => s.name === name)) throw new ManageSieveError(t('Ein Skript „{name}“ gibt es schon', { name }), { code: 'ALREADYEXISTS' });
+      if (existing.some((s) => s.name === name)) throw new ManageSieveError(t('A script “{name}” already exists', { name }), { code: 'ALREADYEXISTS' });
       await conn.putScript(name, sieve);
       if (enabled) await conn.setActive(name);
       return { id: name, name };
@@ -94,7 +94,7 @@ export class ManageSieveProvider {
     return this.#with(async (conn) => {
       const list = await conn.listScripts();
       const current = list.find((s) => s.name === id);
-      if (!current) throw new ManageSieveError(t('Skript „{id}“ nicht gefunden', { id }), { code: 'NONEXISTENT' });
+      if (!current) throw new ManageSieveError(t('Script “{id}” not found', { id }), { code: 'NONEXISTENT' });
       if (sieve !== undefined) await conn.putScript(id, sieve);
       let finalName = id;
       if (name && name !== id) {
@@ -132,7 +132,7 @@ export class ManageSieveProvider {
   }
 
   async reorder() {
-    throw new Error(t('ManageSieve kennt keine Reihenfolge – es läuft genau ein aktives Skript'));
+    throw new Error(t('ManageSieve has no ordering: exactly one script is active'));
   }
 
   check(sieve) {
