@@ -96,7 +96,7 @@ export function readClearSignedModulus(signed) {
   return match[1].trim();
 }
 
-/** bcrypt(password, salt + "proton") expanded with the modulus — Proton's password hash for auth versions 3/4. */
+/** bcrypt(password, salt + "proton") expanded with the modulus: Proton's password hash for auth versions 3/4. */
 export async function hashPassword({ version, password, salt, modulusBytes, bcrypt }) {
   if (version !== 3 && version !== 4) {
     throw new Error(t('SRP: Auth version {version} is not supported (only 3 and 4)', { version }));

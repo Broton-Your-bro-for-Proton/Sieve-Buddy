@@ -58,7 +58,7 @@ export class Account {
         this.initError = null;
       } catch (error) {
         this.initError = error.message;
-        console.warn(`[${this.kind}] Verbindung fehlgeschlagen: ${error.message}`);
+        console.warn(`[${this.kind}] connection failed: ${error.message}`);
       }
     } else {
       await this.client.restore();
