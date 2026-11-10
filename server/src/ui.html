@@ -71,6 +71,13 @@
       <button>Sign in</button>
     </form>
 
+    <form id="credentials-form" hidden>
+      <label>User name<input id="cred-user" autocomplete="username"></label>
+      <label>Password or token<input id="cred-secret" type="password" autocomplete="current-password" required></label>
+      <p class="muted">Stored encrypted in the service's data volume (key: SESSION_SECRET). The service signs in once to test them before saving.</p>
+      <button>Save and test</button>
+    </form>
+
     <form id="totp-form" hidden>
       <label>2FA code<input id="totp" inputmode="numeric" autocomplete="one-time-code" required></label>
       <button>Confirm</button>
@@ -131,15 +138,18 @@
     $('token-card').hidden = true;
     $('status-card').hidden = $('mcp-card').hidden = false;
     const esc = (v) => String(v ?? '').replace(/[<>&]/g, '');
-    const managesieve = status.provider !== 'proton'; // managesieve or jmap: credentials come from the config
+    const managesieve = status.provider !== 'proton'; // managesieve or jmap: credentials from the config or the form below
     const kind = status.provider === 'jmap' ? 'JMAP' : 'ManageSieve';
     $('status-text').innerHTML = status.loggedIn
       ? `<span class="ok">●</span> ${managesieve ? `${kind} ${esc(status.server)}` : 'Proton'} – ${esc(status.username)}`
       : managesieve
         ? `<span class="bad">●</span> ${status.provider === 'jmap' ? t('JMAP {server} unreachable', { server: esc(status.server) }) : t('ManageSieve {server} unreachable', { server: esc(status.server) })}`
         : `<span class="bad">●</span> ${t('Not signed in to Proton')}`;
-    if (managesieve && status.error) msg(status.error, 'bad');
-    $('logout').hidden = managesieve || !status.loggedIn;
+    if (managesieve && status.error) msg(status.error, status.credentials === null ? 'muted' : 'bad');
+    // ManageSieve/JMAP: credentials from the web UI can be entered, replaced after a failure, or removed
+    $('logout').hidden = managesieve ? status.credentials !== 'stored' : !status.loggedIn;
+    $('logout').textContent = managesieve ? t('Remove credentials') : t('Sign out of Proton');
+    $('credentials-form').hidden = !managesieve || status.credentials === 'config' || status.loggedIn;
     $('handover-box').hidden = managesieve || status.loggedIn || status.allowPasswordLogin;
     $('handover-url').textContent = location.origin;
     $('login-form').hidden = managesieve || !status.allowPasswordLogin || status.loggedIn || status.pending === 'totp' || status.pending === 'captcha';
@@ -191,6 +201,17 @@
     $('password').value = '';
     msg(t('Signing in …'));
     step(api('/api/login', body));
+  });
+  $('credentials-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = { user: $('cred-user').value.trim(), secret: $('cred-secret').value };
+    $('cred-secret').value = '';
+    msg(t('Signing in …'));
+    try {
+      await api('/api/credentials', body);
+      msg(t('Signed in ✓'), 'ok');
+    } catch (err) { msg(err.message, 'bad'); }
+    await refresh();
   });
   $('totp-form').addEventListener('submit', (e) => { e.preventDefault(); step(api('/api/login/totp', { code: $('totp').value })); });
   $('captcha-continue').addEventListener('click', () => step(api('/api/login/continue', {})));

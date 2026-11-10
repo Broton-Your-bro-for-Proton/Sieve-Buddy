@@ -33,10 +33,13 @@ export class Account {
     this.pending = null; // proton password login in progress: {username, password, step, hv?, expires}
     this.initError = null;
 
-    if (this.kind === 'managesieve') {
-      this.provider = new ManageSieveProvider(config.managesieve);
-    } else if (this.kind === 'jmap') {
-      this.provider = new JmapProvider(config.jmap);
+    if (this.kind === 'managesieve' || this.kind === 'jmap') {
+      this.provider = this.#newProvider(this.#settings());
+      // credentials from the configuration win; otherwise they are entered in the web UI and stored encrypted
+      this.secretField = this.kind === 'jmap' ? 'token' : 'password';
+      this.credentialsFromConfig = Boolean(this.#settings()[this.secretField]);
+      this.credentials = this.credentialsFromConfig ? null : encryptedFileStore(join(config.dataDir, 'credentials.json'), config.secret);
+      this.storedCredentials = false;
     } else {
       this.store = encryptedFileStore(join(config.dataDir, 'session.json'), config.secret);
       this.guard = new LoginGuard(jsonFileStore(join(config.dataDir, 'login-guard.json')));
@@ -51,8 +54,25 @@ export class Account {
     }
   }
 
+  #settings() {
+    return this.kind === 'jmap' ? this.config.jmap : this.config.managesieve;
+  }
+
+  #newProvider(settings) {
+    return this.kind === 'jmap' ? new JmapProvider(settings) : new ManageSieveProvider(settings);
+  }
+
   async init() {
     if (this.kind !== 'proton') {
+      if (!this.credentialsFromConfig) {
+        const stored = await this.credentials.load();
+        this.storedCredentials = Boolean(stored);
+        if (!stored) {
+          this.initError = t('No credentials yet: enter them in the web UI or set them in the configuration');
+          return;
+        }
+        this.provider = this.#newProvider({ ...this.#settings(), ...stored });
+      }
       try {
         await this.provider.init();
         this.initError = null;
@@ -76,12 +96,16 @@ export class Account {
       allowWrite: this.config.allowWrite,
       capabilities: this.provider.capabilities,
     };
+    if (this.kind !== 'proton') {
+      // where the credentials come from: 'config', 'stored' (web UI) or null (none yet)
+      base.credentials = this.credentialsFromConfig ? 'config' : this.storedCredentials ? 'stored' : null;
+    }
     if (this.kind === 'managesieve') {
-      const { host, port, user } = this.config.managesieve;
-      return { ...base, username: user, server: `${host}:${port ?? 4190}`, error: this.initError };
+      const { host, port } = this.config.managesieve;
+      return { ...base, username: this.provider.config.user ?? null, server: `${host}:${port ?? 4190}`, error: this.initError };
     }
     if (this.kind === 'jmap') {
-      return { ...base, username: this.provider.session?.username ?? this.config.jmap.user ?? null, server: jmapServer(this.config.jmap.url), error: this.initError };
+      return { ...base, username: this.provider.session?.username ?? this.provider.config.user ?? null, server: jmapServer(this.config.jmap.url), error: this.initError };
     }
     return {
       ...base,
@@ -154,8 +178,33 @@ export class Account {
     }
   }
 
+  /** ManageSieve/JMAP: tests the sign-in with these credentials and only then stores them encrypted. */
+  async saveCredentials({ user, secret }) {
+    if (this.kind === 'proton') throw new Error(t('Only with PROVIDER=managesieve or jmap'));
+    if (this.credentialsFromConfig) throw new Error(t('The credentials come from the configuration and cannot be changed here'));
+    if (!secret || (this.kind === 'managesieve' && !user)) throw new Error(t('Please enter the user name and the password'));
+    const credentials = { user: user || undefined, [this.secretField]: secret };
+    const candidate = this.#newProvider({ ...this.#settings(), ...credentials });
+    await candidate.init();
+    await this.credentials.save(credentials);
+    this.provider = candidate;
+    this.storedCredentials = true;
+    this.initError = null;
+    this.cache = null;
+    return this.status();
+  }
+
   async logout() {
-    this.#requireProton();
+    if (this.kind !== 'proton') {
+      // forget the stored credentials; the configuration's own ones cannot be removed here
+      if (this.credentialsFromConfig) throw new Error(t('The credentials come from the configuration and cannot be changed here'));
+      await this.credentials.save(null);
+      this.provider = this.#newProvider(this.#settings());
+      this.storedCredentials = false;
+      this.initError = t('No credentials yet: enter them in the web UI or set them in the configuration');
+      this.cache = null;
+      return;
+    }
     this.pending = null;
     this.cache = null;
     await this.client.logout();

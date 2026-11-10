@@ -68,8 +68,9 @@ export function loadConfig() {
       host,
       port: Number(env.MANAGESIEVE_PORT ?? 4190),
       tls: tlsMode('MANAGESIEVE_TLS', 'starttls'),
-      user: required('MANAGESIEVE_USER'),
-      password: required('MANAGESIEVE_PASSWORD'),
+      // user and password may also be entered in the web UI (stored encrypted, see Account)
+      user: value('MANAGESIEVE_USER') || undefined,
+      password: value('MANAGESIEVE_PASSWORD') || undefined,
       // auto: SCRAM when offered, else PLAIN; plain: for servers that offer SCRAM but store other password hashes
       sasl: (env.MANAGESIEVE_SASL ?? 'auto').toLowerCase() === 'plain' ? 'plain' : 'auto',
       rejectUnauthorized: !bool('MANAGESIEVE_INSECURE', false),
@@ -88,7 +89,7 @@ export function loadConfig() {
   if (provider === 'jmap') {
     config.jmap = {
       url: required('JMAP_URL', t('URL of the JMAP session, e.g. https://mail.example.com/.well-known/jmap')),
-      token: required('JMAP_TOKEN'),
+      token: value('JMAP_TOKEN') || undefined,
       // with a user, the token is sent as password (Basic auth, e.g. a Stalwart app password); otherwise as Bearer token
       user: value('JMAP_USER') || undefined,
     };
