@@ -130,3 +130,10 @@ test('ereject, convert, metadata and the Dovecot program extensions are known', 
   const missing = lintSieve('ereject "no";\n', { dialect }).filter((i) => i.severity === 'error');
   assert.ok(missing.some((i) => /require "ereject"/.test(i.message)));
 });
+
+test('control commands are never accepted as a test', () => {
+  for (const word of ['require', 'if', 'else']) {
+    const issues = lintSieve(`if ${word} "x" {\n    stop;\n}\n`).filter((i) => i.severity === 'error');
+    assert.ok(issues.some((i) => /is not a test/.test(i.message)), word);
+  }
+});

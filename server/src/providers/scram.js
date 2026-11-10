@@ -18,8 +18,8 @@ export const scramAttributes = (message) => Object.fromEntries(message.split(','
 /** Client and server keys of a password, plus the HMAC and hash of the mechanism. */
 export async function scramKeys(hash, password, salt, iterations) {
   const length = createHash(hash).digest().length;
-  // SASLprep is approximated by NFKC, which covers the passwords seen in practice
-  const salted = await promisify(pbkdf2)(password.normalize('NFKC'), salt, iterations, length, hash);
+  // no SASLprep: Dovecot hashes the raw bytes too, and PLAIN sends them unchanged
+  const salted = await promisify(pbkdf2)(password, salt, iterations, length, hash);
   const hmac = (key, data) => createHmac(hash, key).update(data).digest();
   return { clientKey: hmac(salted, 'Client Key'), serverKey: hmac(salted, 'Server Key'), hmac, digest: (data) => createHash(hash).update(data).digest() };
 }
@@ -35,9 +35,10 @@ export function scramClient(mechanism, user, password, nonce = randomBytes(18).t
   return {
     first: GS2_HEADER + firstBare,
     async final(serverFirst) {
-      const { r, s, i } = scramAttributes(serverFirst);
+      const { m, r, s, i } = scramAttributes(serverFirst ?? '');
       const iterations = Number(i);
-      if (!r?.startsWith(nonce) || r === nonce || !s || !Number.isInteger(iterations) || iterations < 1 || iterations > MAX_ITERATIONS) {
+      // m= announces a mandatory extension this client does not know (RFC 5802: fail)
+      if (m !== undefined || !r?.startsWith(nonce) || r === nonce || !s || !Number.isInteger(iterations) || iterations < 1 || iterations > MAX_ITERATIONS) {
         throw new Error(t('Invalid SCRAM challenge from the server'));
       }
       const { clientKey, serverKey, hmac, digest } = await scramKeys(hash, password, Buffer.from(s, 'base64'), iterations);

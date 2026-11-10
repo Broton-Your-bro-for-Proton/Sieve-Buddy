@@ -43,7 +43,7 @@ export class ManageSieveProvider {
     const { host, port, tls, user, password, rejectUnauthorized } = this.config;
     const conn = await ManageSieveConnection.open({ host, port, tls, rejectUnauthorized });
     try {
-      await conn.authenticate(user, password);
+      await conn.authenticate(user, password, { sasl: this.config.sasl });
       this.#learn(conn.capabilities);
       return await fn(conn);
     } finally {

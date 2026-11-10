@@ -4,7 +4,7 @@
 import net from 'node:net';
 import tls from 'node:tls';
 import { t } from '../../../addon/lib/i18n.js';
-import { SCRAM_MECHANISMS, scramClient } from './scram.js';
+import { SCRAM_MECHANISMS, scramAttributes, scramClient } from './scram.js';
 
 const CRLF = '\r\n';
 
@@ -226,10 +226,11 @@ export class ManageSieveConnection {
     return readResponse(this.reader);
   }
 
-  async authenticate(user, password) {
+  /** `sasl`: 'auto' prefers SCRAM, 'plain' for servers that offer SCRAM but cannot check it (MANAGESIEVE_SASL). */
+  async authenticate(user, password, { sasl = 'auto' } = {}) {
     const offered = this.capabilities.sasl.map((m) => m.toUpperCase());
     // SCRAM first: the password stays here and the server has to prove that it knows it
-    const scram = Object.keys(SCRAM_MECHANISMS).find((m) => offered.includes(m));
+    const scram = sasl === 'plain' ? null : Object.keys(SCRAM_MECHANISMS).find((m) => offered.includes(m));
     if (scram) return this.#authenticateScram(scram, user, password);
     if (!offered.includes('PLAIN')) {
       throw new ManageSieveError(t('Server does not offer SASL PLAIN (offered: {offered})', { offered: this.capabilities.sasl.join(', ') || t('none') }));
@@ -257,9 +258,14 @@ export class ManageSieveConnection {
         result = await this.#saslRead();
       }
       if (!result.done || !scram.verify(serverFinal)) {
-        throw new ManageSieveError(t('The server could not prove that it knows the password (SCRAM), connection closed'));
+        const failure = scramAttributes(serverFinal ?? '').e;
+        throw new ManageSieveError(failure ? t('SCRAM failed on the server: {error}', { error: failure }) : t('The server could not prove that it knows the password (SCRAM), connection closed'));
       }
     } catch (error) {
+      // a server that offers SCRAM may still store passwords it can only check with PLAIN
+      if (error instanceof ManageSieveError && error.status === 'NO') {
+        error.message += ` ${t('(signed in with {mechanism}; if the password is right, set MANAGESIEVE_SASL=plain)', { mechanism })}`;
+      }
       // a half-finished SASL exchange cannot carry further commands
       this.socket.destroy();
       throw error instanceof ManageSieveError ? error : new ManageSieveError(error.message);

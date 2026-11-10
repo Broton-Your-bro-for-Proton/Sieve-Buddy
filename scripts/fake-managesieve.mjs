@@ -16,7 +16,7 @@ const q = (s) => `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 
 // scramFinal: how the server sends its signature: 'ok' (in OK (SASL …)), 'challenge' (one more round) or 'forged'
 export function createFakeManageSieve({ user = 'test', password = 'test123', scripts = {}, active = null, checkscript = true, sasl = ['PLAIN'], scramFinal = 'ok' } = {}) {
-  const state = { scripts: new Map(Object.entries(scripts)), active, commands: [] };
+  const state = { scripts: new Map(Object.entries(scripts)), active, commands: [], mechanisms: [] };
   const dialect = makeDialect({ name: 'rfc', extensions: FAKE_SIEVE_EXTENSIONS });
 
   const server = net.createServer((socket) => {
@@ -79,6 +79,7 @@ export function createFakeManageSieve({ user = 'test', password = 'test123', scr
       state.commands.push(cmd.toUpperCase());
       switch (cmd.toUpperCase()) {
         case 'AUTHENTICATE': {
+          state.mechanisms.push(a[0]);
           if (a[0] === 'SCRAM-SHA-256' && sasl.includes(a[0])) {
             const first = Buffer.from(a[1] ?? '', 'base64').toString('utf8');
             const firstBare = first.slice(3);

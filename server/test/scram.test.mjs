@@ -66,3 +66,24 @@ test('a wrong password fails with the server message', () =>
     const conn = await open();
     await assert.rejects(conn.authenticate('test', 'wrong'), /Authentication failed/);
   }));
+
+test('a mandatory extension or an empty challenge is refused', async () => {
+  const c = scramClient('SCRAM-SHA-256', 'user', 'pencil', 'abc');
+  await assert.rejects(c.final('m=ext,r=abcdef,s=QSXCR+Q6sek8bf92,i=4096'), /Invalid SCRAM challenge/);
+  await assert.rejects(c.final(null), /Invalid SCRAM challenge/);
+});
+
+test('MANAGESIEVE_SASL=plain signs in with PLAIN although SCRAM is offered', () =>
+  withFake({}, async (fake, open) => {
+    const conn = await open();
+    await conn.authenticate('test', 'test123', { sasl: 'plain' });
+    await conn.logout();
+    assert.deepEqual(fake.state.mechanisms, ['PLAIN']);
+  }));
+
+test('a failed SCRAM sign-in names the switch to PLAIN', () =>
+  withFake({}, async (fake, open) => {
+    const conn = await open();
+    await assert.rejects(conn.authenticate('test', 'wrong'), /MANAGESIEVE_SASL=plain/);
+    assert.deepEqual(fake.state.mechanisms, ['SCRAM-SHA-256']);
+  }));

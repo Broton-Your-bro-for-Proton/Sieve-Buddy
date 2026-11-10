@@ -559,6 +559,8 @@ export const DE = {
   "JMAP_URL must not contain a user name or password, use JMAP_USER and JMAP_TOKEN": "JMAP_URL darf weder Benutzername noch Passwort enthalten, dafür gibt es JMAP_USER und JMAP_TOKEN",
   "Unexpected data after STARTTLS, connection closed": "Unerwartete Daten nach STARTTLS, Verbindung geschlossen",
   "Invalid SCRAM challenge from the server": "Ungültige SCRAM-Aufforderung vom Server",
+  "SCRAM failed on the server: {error}": "SCRAM ist auf dem Server fehlgeschlagen: {error}",
+  "(signed in with {mechanism}; if the password is right, set MANAGESIEVE_SASL=plain)": "(Anmeldung mit {mechanism}; wenn das Passwort stimmt, MANAGESIEVE_SASL=plain setzen)",
   "The server could not prove that it knows the password (SCRAM), connection closed": "Der Server konnte nicht beweisen, dass er das Passwort kennt (SCRAM), Verbindung geschlossen",
   "Server extension": "Erweiterung des Servers",
   "Service": "Dienst",
