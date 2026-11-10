@@ -91,3 +91,58 @@ test('credentials from the configuration cannot be replaced', async () => {
   const r = await post('/api/credentials', { user: 'test', secret: 'other' });
   assert.match(r.body.error, /come from the configuration/);
 });
+
+test('JMAP: an empty user field keeps JMAP_USER for the test and after a restart', async () => {
+  const { createFakeJmap } = await import('../../scripts/fake-jmap.mjs');
+  const { Account } = await import('../src/account.js');
+  const jmap = createFakeJmap({});
+  const jmapPort = await jmap.listen();
+  const dir = await mkdtemp(join(tmpdir(), 'pss-cred-jmap-'));
+  const config = () => ({ provider: 'jmap', dataDir: dir, secret: 's', jmap: { url: `http://127.0.0.1:${jmapPort}/.well-known/jmap`, user: 'test' } });
+  try {
+    const account = new Account(config());
+    await account.init();
+    await account.saveCredentials({ user: '', secret: jmap.token });
+    assert.equal(account.provider.config.user, 'test');
+    const again = new Account(config());
+    await again.init();
+    assert.equal(again.provider.config.user, 'test');
+    assert.equal(again.provider.isReady, true);
+  } finally {
+    await jmap.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('removing credentials while an init is loading them does not bring them back', async () => {
+  const { Account } = await import('../src/account.js');
+  const dir = await mkdtemp(join(tmpdir(), 'pss-cred-race-'));
+  try {
+    const account = new Account({ provider: 'managesieve', dataDir: dir, secret: 's', managesieve: { host: '127.0.0.1', port, tls: 'none', imap: null } });
+    await account.saveCredentials({ user: 'test', secret: 'test123' });
+    const load = account.credentials.load;
+    let release;
+    account.credentials.load = async () => {
+      const value = await load();
+      await new Promise((r) => (release = r));
+      return value;
+    };
+    account.provider.isReady = false;
+    const pending = account.init();
+    while (!release) await new Promise((r) => setTimeout(r, 5));
+    await account.logout();
+    release();
+    await pending;
+    assert.equal(account.provider.isReady, false);
+    assert.equal((await account.status()).credentials, null);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('operations without credentials say so plainly', async () => {
+  await start();
+  const r = await post('/api/ops/list-filters');
+  assert.equal(r.status, 400);
+  assert.match(r.body.error, /^No credentials yet/);
+});

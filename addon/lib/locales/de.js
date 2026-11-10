@@ -564,6 +564,7 @@ export const DE = {
   "The credentials come from the configuration and cannot be changed here": "Die Zugangsdaten stammen aus der Konfiguration und lassen sich hier nicht ändern",
   "Please enter the user name and the password": "Bitte Benutzername und Passwort eingeben",
   "Remove credentials": "Zugangsdaten entfernen",
+  "{kind} {server}: no credentials yet": "{kind} {server}: noch keine Zugangsdaten",
   "User name": "Benutzername",
   "Password or token": "Passwort oder Token",
   "Stored encrypted in the service's data volume (key: SESSION_SECRET). The service signs in once to test them before saving.": "Wird verschlüsselt im Daten-Volume des Service gespeichert (Schlüssel: SESSION_SECRET). Vor dem Speichern meldet sich der Service einmal zum Test an.",

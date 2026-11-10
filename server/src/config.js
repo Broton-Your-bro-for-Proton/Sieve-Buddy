@@ -66,10 +66,11 @@ export function loadConfig() {
     const host = required('MANAGESIEVE_HOST', t('Hostname of the ManageSieve server'));
     config.managesieve = {
       host,
+      // a configured password needs its user; without both they are entered in the web UI
+      user: value('MANAGESIEVE_PASSWORD') ? required('MANAGESIEVE_USER') : value('MANAGESIEVE_USER') || undefined,
       port: Number(env.MANAGESIEVE_PORT ?? 4190),
       tls: tlsMode('MANAGESIEVE_TLS', 'starttls'),
       // user and password may also be entered in the web UI (stored encrypted, see Account)
-      user: value('MANAGESIEVE_USER') || undefined,
       password: value('MANAGESIEVE_PASSWORD') || undefined,
       // auto: SCRAM when offered, else PLAIN; plain: for servers that offer SCRAM but store other password hashes
       sasl: (env.MANAGESIEVE_SASL ?? 'auto').toLowerCase() === 'plain' ? 'plain' : 'auto',

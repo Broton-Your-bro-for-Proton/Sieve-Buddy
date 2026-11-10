@@ -40,6 +40,7 @@ export class Account {
       this.credentialsFromConfig = Boolean(this.#settings()[this.secretField]);
       this.credentials = this.credentialsFromConfig ? null : encryptedFileStore(join(config.dataDir, 'credentials.json'), config.secret);
       this.storedCredentials = false;
+      this.credentialsVersion = 0; // bumped on save and removal, so a slower init() cannot bring old ones back
     } else {
       this.store = encryptedFileStore(join(config.dataDir, 'session.json'), config.secret);
       this.guard = new LoginGuard(jsonFileStore(join(config.dataDir, 'login-guard.json')));
@@ -65,7 +66,9 @@ export class Account {
   async init() {
     if (this.kind !== 'proton') {
       if (!this.credentialsFromConfig) {
+        const version = this.credentialsVersion;
         const stored = await this.credentials.load();
+        if (version !== this.credentialsVersion) return;
         this.storedCredentials = Boolean(stored);
         if (!stored) {
           this.initError = t('No credentials yet: enter them in the web UI or set them in the configuration');
@@ -183,9 +186,11 @@ export class Account {
     if (this.kind === 'proton') throw new Error(t('Only with PROVIDER=managesieve or jmap'));
     if (this.credentialsFromConfig) throw new Error(t('The credentials come from the configuration and cannot be changed here'));
     if (!secret || (this.kind === 'managesieve' && !user)) throw new Error(t('Please enter the user name and the password'));
-    const credentials = { user: user || undefined, [this.secretField]: secret };
+    // an empty user field keeps the configured user (JMAP_USER), so the test and later sign-ins match
+    const credentials = { ...(user ? { user } : {}), [this.secretField]: secret };
     const candidate = this.#newProvider({ ...this.#settings(), ...credentials });
     await candidate.init();
+    this.credentialsVersion++;
     await this.credentials.save(credentials);
     this.provider = candidate;
     this.storedCredentials = true;
@@ -198,6 +203,7 @@ export class Account {
     if (this.kind !== 'proton') {
       // forget the stored credentials; the configuration's own ones cannot be removed here
       if (this.credentialsFromConfig) throw new Error(t('The credentials come from the configuration and cannot be changed here'));
+      this.credentialsVersion++;
       await this.credentials.save(null);
       this.provider = this.#newProvider(this.#settings());
       this.storedCredentials = false;
@@ -240,6 +246,7 @@ export class Account {
 
   requireReady() {
     if (this.provider.isReady) return;
+    if (this.credentials && !this.storedCredentials) throw new Error(t('No credentials yet: enter them in the web UI or set them in the configuration'));
     if (this.kind === 'managesieve') throw new Error(
         this.initError
           ? t('ManageSieve server unreachable or sign-in failed: {error}', { error: this.initError })

@@ -142,6 +142,8 @@
     const kind = status.provider === 'jmap' ? 'JMAP' : 'ManageSieve';
     $('status-text').innerHTML = status.loggedIn
       ? `<span class="ok">●</span> ${managesieve ? `${kind} ${esc(status.server)}` : 'Proton'} – ${esc(status.username)}`
+      : managesieve && status.credentials === null
+        ? `<span class="bad">●</span> ${t('{kind} {server}: no credentials yet', { kind, server: esc(status.server) })}`
       : managesieve
         ? `<span class="bad">●</span> ${status.provider === 'jmap' ? t('JMAP {server} unreachable', { server: esc(status.server) }) : t('ManageSieve {server} unreachable', { server: esc(status.server) })}`
         : `<span class="bad">●</span> ${t('Not signed in to Proton')}`;
@@ -209,9 +211,13 @@
     msg(t('Signing in …'));
     try {
       await api('/api/credentials', body);
+      await refresh();
       msg(t('Signed in ✓'), 'ok');
-    } catch (err) { msg(err.message, 'bad'); }
-    await refresh();
+    } catch (err) {
+      // the status refresh would otherwise replace the reason for the failure
+      await refresh();
+      msg(err.message, 'bad');
+    }
   });
   $('totp-form').addEventListener('submit', (e) => { e.preventDefault(); step(api('/api/login/totp', { code: $('totp').value })); });
   $('captcha-continue').addEventListener('click', () => step(api('/api/login/continue', {})));
