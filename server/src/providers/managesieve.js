@@ -1,9 +1,10 @@
-// ManageSieve client (RFC 5804): capabilities, STARTTLS / implicit TLS, SASL PLAIN, and the script commands.
+// ManageSieve client (RFC 5804): capabilities, STARTTLS / implicit TLS, SASL SCRAM and PLAIN, and the script commands.
 // One connection per operation keeps it simple and robust against server-side timeouts.
 
 import net from 'node:net';
 import tls from 'node:tls';
 import { t } from '../../../addon/lib/i18n.js';
+import { SCRAM_MECHANISMS, scramAttributes, scramClient } from './scram.js';
 
 const CRLF = '\r\n';
 
@@ -225,8 +226,13 @@ export class ManageSieveConnection {
     return readResponse(this.reader);
   }
 
-  async authenticate(user, password) {
-    if (!this.capabilities.sasl.map((m) => m.toUpperCase()).includes('PLAIN')) {
+  /** `sasl`: 'auto' prefers SCRAM, 'plain' for servers that offer SCRAM but cannot check it (MANAGESIEVE_SASL). */
+  async authenticate(user, password, { sasl = 'auto' } = {}) {
+    const offered = this.capabilities.sasl.map((m) => m.toUpperCase());
+    // SCRAM first: the password stays here and the server has to prove that it knows it
+    const scram = sasl === 'plain' ? null : Object.keys(SCRAM_MECHANISMS).find((m) => offered.includes(m));
+    if (scram) return this.#authenticateScram(scram, user, password);
+    if (!offered.includes('PLAIN')) {
       throw new ManageSieveError(t('Server does not offer SASL PLAIN (offered: {offered})', { offered: this.capabilities.sasl.join(', ') || t('none') }));
     }
     const token = Buffer.from(`\0${user}\0${password}`, 'utf8').toString('base64');
@@ -234,6 +240,46 @@ export class ManageSieveConnection {
     // some servers send updated capabilities after authentication
     if (result.lines.length) this.capabilities = parseCapabilities(result.lines);
     return result;
+  }
+
+  async #authenticateScram(mechanism, user, password) {
+    const base64 = (s) => Buffer.from(s, 'utf8').toString('base64');
+    const scram = scramClient(mechanism, user, password);
+    try {
+      this.socket.write(`AUTHENTICATE ${quote(mechanism)} ${quote(base64(scram.first))}${CRLF}`);
+      const challenge = await this.#saslRead();
+      if (challenge.done) throw new ManageSieveError(t('Invalid SCRAM challenge from the server'));
+      this.socket.write(`${quote(base64(await scram.final(challenge.data)))}${CRLF}`);
+      let result = await this.#saslRead();
+      const serverFinal = result.data;
+      if (!result.done) {
+        // RFC 5804 allows the last message as a challenge that the client answers with an empty string
+        this.socket.write(`""${CRLF}`);
+        result = await this.#saslRead();
+      }
+      if (!result.done || !scram.verify(serverFinal)) {
+        const failure = scramAttributes(serverFinal ?? '').e;
+        throw new ManageSieveError(failure ? t('SCRAM failed on the server: {error}', { error: failure }) : t('The server could not prove that it knows the password (SCRAM), connection closed'));
+      }
+    } catch (error) {
+      // a server that offers SCRAM may still store passwords it can only check with PLAIN
+      if (error instanceof ManageSieveError && error.status === 'NO') {
+        error.message += ` ${t('(signed in with {mechanism}; if the password is right, set MANAGESIEVE_SASL=plain)', { mechanism })}`;
+      }
+      // a half-finished SASL exchange cannot carry further commands
+      this.socket.destroy();
+      throw error instanceof ManageSieveError ? error : new ManageSieveError(error.message);
+    }
+  }
+
+  /** One SASL round: a challenge string, or the final OK with the data of its (SASL "…") response code. */
+  async #saslRead() {
+    const items = await readItems(this.reader);
+    const head = items[0]?.atom?.toUpperCase();
+    const decode = (item) => (item === undefined ? null : Buffer.from(text(item), 'base64').toString('utf8'));
+    if (head === 'NO' || head === 'BYE') throw new ManageSieveError(text(items[Array.isArray(items[1]) ? 2 : 1]) || head, { status: head });
+    if (head === 'OK') return { done: true, data: Array.isArray(items[1]) && text(items[1][0]).toUpperCase() === 'SASL' ? decode(items[1][1]) : null };
+    return { done: false, data: decode(items[0]) };
   }
 
   async listScripts() {

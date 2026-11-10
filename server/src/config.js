@@ -70,6 +70,8 @@ export function loadConfig() {
       tls: tlsMode('MANAGESIEVE_TLS', 'starttls'),
       user: required('MANAGESIEVE_USER'),
       password: required('MANAGESIEVE_PASSWORD'),
+      // auto: SCRAM when offered, else PLAIN; plain: for servers that offer SCRAM but store other password hashes
+      sasl: (env.MANAGESIEVE_SASL ?? 'auto').toLowerCase() === 'plain' ? 'plain' : 'auto',
       rejectUnauthorized: !bool('MANAGESIEVE_INSECURE', false),
       imap:
         env.IMAP_HOST === ''
