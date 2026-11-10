@@ -113,7 +113,7 @@ summary { cursor: pointer; color: var(--muted); margin-bottom: 8px; }
 .sidebar-head { display: flex; align-items: center; justify-content: space-between; }
 .sidebar-head h2 { margin: 0; }
 
-.filter-list { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 1; }
+.filter-list { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 0 1 auto; max-height: 40%; }
 .filter-list li {
   display: flex;
   align-items: center;
@@ -196,7 +196,7 @@ li.CodeMirror-hint-active { background: var(--accent); color: var(--accent-text)
 
 /* ---------- outline ---------- */
 .outline-head { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
-.outline { overflow: auto; max-height: 38vh; }
+.outline { overflow: auto; flex: 1; min-height: 0; }
 .outline ul { list-style: none; margin: 0; padding: 0; }
 .outline li { padding: 4px 6px; border-radius: 6px; cursor: pointer; display: flex; flex-direction: column; font-size: 12px; }
 .outline li:hover { background: var(--selected); }
