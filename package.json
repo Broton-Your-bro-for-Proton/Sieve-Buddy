@@ -1,6 +1,6 @@
 {
   "name": "proton-sieve-thunderbird",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "description": "Sieve filter manager: Thunderbird add-on and Docker/MCP service for Proton and ManageSieve servers",
   "type": "module",
