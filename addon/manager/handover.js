@@ -22,6 +22,8 @@ export function installHandover({ getClient, onHandedOver }) {
     await openModal({
       title: t('Hand over session to the Docker service'),
       body: [
+        el('p', { class: 'small' }, t('The Docker service is an optional companion you run yourself. It offers your filters to AI assistants and tools over MCP and a REST API, for example to let Claude or Inbox Zero sort mail with Sieve rules.')),
+        el('p', { class: 'small' }, el('a', { href: 'https://github.com/Broton-Your-bro-for-Proton/Sieve-Buddy#docker-service-with-mcp', target: '_blank', rel: 'noopener noreferrer' }, t('Set up the service (README)'))),
         el('p', { class: 'muted small' }, t('The service takes over this Proton session and does not need to sign in with a password itself. Afterwards the add-on keeps working through the service, because two programs cannot use one Proton session at the same time.')),
         el('label', {}, t('Service address'), urlInput),
         el('label', {}, t('Service API token'), tokenInput),
