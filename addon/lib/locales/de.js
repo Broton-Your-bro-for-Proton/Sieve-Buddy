@@ -538,6 +538,8 @@ export const DE = {
   "Server does not offer STARTTLS (use MANAGESIEVE_TLS=none only in your own network)": "Server bietet kein STARTTLS an (MANAGESIEVE_TLS=none nur im eigenen Netz verwenden)",
   "JMAP_URL must not contain a user name or password, use JMAP_USER and JMAP_TOKEN": "JMAP_URL darf weder Benutzername noch Passwort enthalten, dafür gibt es JMAP_USER und JMAP_TOKEN",
   "Unexpected data after STARTTLS, connection closed": "Unerwartete Daten nach STARTTLS, Verbindung geschlossen",
+  "Invalid SCRAM challenge from the server": "Ungültige SCRAM-Aufforderung vom Server",
+  "The server could not prove that it knows the password (SCRAM), connection closed": "Der Server konnte nicht beweisen, dass er das Passwort kennt (SCRAM), Verbindung geschlossen",
   "Server extension": "Erweiterung des Servers",
   "Service": "Dienst",
   "Service address": "Adresse des Dienstes",

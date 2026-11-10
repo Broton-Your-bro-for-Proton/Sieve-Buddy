@@ -1,18 +1,21 @@
-// A small ManageSieve server (RFC 5804) for tests: SASL PLAIN, LISTSCRIPTS, GETSCRIPT, PUTSCRIPT (literals),
+// A small ManageSieve server (RFC 5804) for tests: SASL PLAIN and SCRAM-SHA-256, LISTSCRIPTS, GETSCRIPT, PUTSCRIPT (literals),
 // CHECKSCRIPT (validated with the RFC dialect of our linter), SETACTIVE, DELETESCRIPT, RENAMESCRIPT, LOGOUT.
 // No TLS – for real TLS/STARTTLS the Dovecot test container is used.
 
+import { randomBytes } from 'node:crypto';
 import net from 'node:net';
 import { fileURLToPath } from 'node:url';
 
 import { lintSieve } from '../addon/lib/sieve-analyzer.js';
 import { makeDialect } from '../addon/lib/sieve-dialect.js';
+import { scramAttributes, scramKeys } from '../server/src/providers/scram.js';
 
 export const FAKE_SIEVE_EXTENSIONS = ['fileinto', 'reject', 'envelope', 'vacation', 'imap4flags', 'copy', 'include', 'variables', 'body', 'relational', 'comparator-i;ascii-numeric', 'regex', 'mailbox', 'date', 'subaddress'];
 
 const q = (s) => `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 
-export function createFakeManageSieve({ user = 'test', password = 'test123', scripts = {}, active = null, checkscript = true } = {}) {
+// scramFinal: how the server sends its signature: 'ok' (in OK (SASL …)), 'challenge' (one more round) or 'forged'
+export function createFakeManageSieve({ user = 'test', password = 'test123', scripts = {}, active = null, checkscript = true, sasl = ['PLAIN'], scramFinal = 'ok' } = {}) {
   const state = { scripts: new Map(Object.entries(scripts)), active, commands: [] };
   const dialect = makeDialect({ name: 'rfc', extensions: FAKE_SIEVE_EXTENSIONS });
 
@@ -20,12 +23,13 @@ export function createFakeManageSieve({ user = 'test', password = 'test123', scr
     let buffer = Buffer.alloc(0);
     let authed = false;
     let pendingLiteral = null; // {n, head}
+    let scram = null; // a SCRAM exchange in progress
     const send = (s) => socket.write(s);
     const caps = () =>
       [
         `"IMPLEMENTATION" "Fake ManageSieve"`,
         `"SIEVE" ${q(FAKE_SIEVE_EXTENSIONS.join(' '))}`,
-        `"SASL" "PLAIN"`,
+        `"SASL" ${q(sasl.join(' '))}`,
         ...(checkscript ? [`"VERSION" "1.0"`] : []),
         `OK "ready"`,
       ].join('\r\n') + '\r\n';
@@ -39,13 +43,52 @@ export function createFakeManageSieve({ user = 'test', password = 'test123', scr
       return out;
     };
 
+    const base64 = (text) => Buffer.from(text, 'utf8').toString('base64');
+    const scramStep = async (line) => {
+      const data = Buffer.from(args(line)[0] ?? '', 'base64').toString('utf8');
+      if (scram.step === 'ack') {
+        scram = null;
+        authed = true;
+        return send('OK "Logged in."\r\n');
+      }
+      const { r, p } = scramAttributes(data);
+      const authMessage = `${scram.firstBare},${scram.serverFirst},${data.slice(0, data.lastIndexOf(',p='))}`;
+      const { clientKey, serverKey, hmac, digest } = await scramKeys('sha256', password, scram.salt, 4096);
+      const signature = hmac(digest(clientKey), authMessage);
+      const proof = Buffer.from(clientKey.map((byte, k) => byte ^ signature[k])).toString('base64');
+      if (r !== scram.nonce || p !== proof) {
+        scram = null;
+        return send('NO "Authentication failed."\r\n');
+      }
+      const v = scramFinal === 'forged' ? randomBytes(32) : hmac(serverKey, authMessage);
+      const final = q(base64(`v=${v.toString('base64')}`));
+      if (scramFinal === 'challenge') {
+        scram.step = 'ack';
+        return send(`${final}\r\n`);
+      }
+      scram = null;
+      authed = true;
+      return send(`OK (SASL ${final}) "Logged in."\r\n`);
+    };
+
     const handle = (line, literal) => {
+      if (scram) return void scramStep(line);
       const [cmd] = line.split(' ', 1);
       const rest = line.slice(cmd.length);
       const a = args(rest);
       state.commands.push(cmd.toUpperCase());
       switch (cmd.toUpperCase()) {
         case 'AUTHENTICATE': {
+          if (a[0] === 'SCRAM-SHA-256' && sasl.includes(a[0])) {
+            const first = Buffer.from(a[1] ?? '', 'base64').toString('utf8');
+            const firstBare = first.slice(3);
+            const { n, r } = scramAttributes(firstBare);
+            if (!first.startsWith('n,,') || n !== user) return send('NO "Authentication failed."\r\n');
+            scram = { firstBare, nonce: r + randomBytes(9).toString('base64'), salt: randomBytes(16), step: 'final' };
+            scram.serverFirst = `r=${scram.nonce},s=${scram.salt.toString('base64')},i=4096`;
+            return send(`${q(base64(scram.serverFirst))}\r\n`);
+          }
+          if (!sasl.includes('PLAIN')) return send('NO "Unsupported mechanism."\r\n');
           const [, u, p] = Buffer.from(a[1] ?? '', 'base64').toString('utf8').split('\0');
           if (u === user && p === password) {
             authed = true;

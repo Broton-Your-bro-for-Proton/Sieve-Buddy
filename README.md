@@ -185,6 +185,6 @@ cd server && STALWART_TEST=127.0.0.1:18480 npm test
 - **Proton:** tested against a real (free) account (2026-11-04): session handover to the add-on/the service, reading, Proton's check, merging, renaming, rejecting broken scripts, deleting. Free accounts allow only **one active filter**; above the limit Proton creates new filters disabled (code 50016), and the service reports that as "Created, but disabled".
 - The PGP signature of the SRP modulus is not verified yet (go-srp verifies it).
 - Proton 2FA only via TOTP; human verification only via captcha.
-- ManageSieve sign-in only via SASL PLAIN, over TLS. No OAUTHBEARER or SCRAM.
+- ManageSieve sign-in via SCRAM-SHA-512, -256 or -1 when the server offers it (the password never leaves the service, and the server has to prove it knows it), otherwise SASL PLAIN over TLS. No OAUTHBEARER.
 - The simulator does not know Proton's contact lists (`header :list`) or `body`, `include` and `duplicate` and notes that.
 - In the add-on, the Proton session and the service token are stored unencrypted in the Thunderbird profile; in the service the Proton session is encrypted.
