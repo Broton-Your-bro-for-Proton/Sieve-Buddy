@@ -54,6 +54,13 @@ export const STANDARD_EXTENSIONS = {
   'comparator-i;unicode-casemap': t('Unicode comparison, case-insensitive'),
   'vnd.dovecot.debug': 'debug_log (Dovecot)',
   'vnd.dovecot.duplicate': t('Older Dovecot variant of duplicate'),
+  ereject: t('ereject – reject during the SMTP dialog'),
+  convert: t('convert – change attachments to another format'),
+  mboxmetadata: t('Tests metadata and metadataexists (folder annotations)'),
+  servermetadata: t('Tests servermetadata and servermetadataexists'),
+  'vnd.dovecot.pipe': t('pipe – hand the message to a program (Dovecot)'),
+  'vnd.dovecot.filter': t('filter – let a program rewrite the message (Dovecot)'),
+  'vnd.dovecot.execute': t('execute – run a program (Dovecot)'),
 };
 
 /** Documentation for every known extension (for hints and hover help). */
@@ -125,6 +132,16 @@ export const COMMANDS = {
   ihave: { ext: 'ihave', kind: 'test', doc: t('Extension available?') },
   virustest: { ext: 'virustest', kind: 'test', doc: t('Virus score') },
   valid_notify_method: { ext: 'enotify', kind: 'test', doc: t('Notification method valid?') },
+  ereject: { ext: 'ereject', kind: 'action', doc: t('Reject during the SMTP dialog') },
+  metadata: { ext: 'mboxmetadata', kind: 'test', doc: t('Test a folder annotation') },
+  metadataexists: { ext: 'mboxmetadata', kind: 'test', doc: t('Folder annotation present?') },
+  servermetadata: { ext: 'servermetadata', kind: 'test', doc: t('Test a server annotation') },
+  servermetadataexists: { ext: 'servermetadata', kind: 'test', doc: t('Server annotation present?') },
+  pipe: { ext: 'vnd.dovecot.pipe', kind: 'action', doc: t('Hand the message to a program (Dovecot)') },
+  // these run as an action or, in a condition, report whether they succeeded
+  convert: { ext: 'convert', kind: 'both', doc: t('Convert attachments') },
+  filter: { ext: 'vnd.dovecot.filter', kind: 'both', doc: t('Rewrite the message with a program (Dovecot)') },
+  execute: { ext: 'vnd.dovecot.execute', kind: 'both', doc: t('Run a program (Dovecot)') },
 };
 
 /** Commands that only exist (or behave as documented here) on Proton. */
@@ -179,6 +196,10 @@ export const TAGS = {
   ':index': { ext: 'index', doc: t('Select the nth header') },
   ':percent': { ext: 'spamtestplus', doc: t('Spam score in percent') },
   ':flags': { ext: 'imap4flags', doc: t('Set flags directly with fileinto/keep') },
+  ':try': { ext: null, doc: t('Continue when the program fails (Dovecot pipe)') },
+  ':input': { ext: 'vnd.dovecot.execute', doc: t('Pass a string to the program') },
+  ':pipe': { ext: 'vnd.dovecot.execute', doc: t('Pass the message to the program') },
+  ':output': { ext: 'vnd.dovecot.execute', doc: t('Store the program output in a variable') },
 };
 
 export const HEADERS = [

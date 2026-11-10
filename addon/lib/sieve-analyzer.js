@@ -232,7 +232,7 @@ function analyze(tokens, dialect = PROTON_DIALECT) {
       if (tk.type === 'identifier') {
         const cmd = COMMANDS[tk.value];
         if (!cmd) issue(tk, t('Unknown test “{name}”', { name: tk.value }));
-        else if (cmd.kind !== 'test') issue(tk, t('“{name}” is not a test – is the { missing after the condition?', { name: tk.value }));
+        else if (cmd.kind === 'action') issue(tk, t('“{name}” is not a test – is the { missing after the condition?', { name: tk.value }));
         else {
           need(cmd.ext, tk);
           if (tk.value === 'header' || tk.value === 'address') current.lastTest = tk.value;
@@ -507,7 +507,7 @@ export function getCompletions(text, cursor, context = {}) {
 
   const inTest = isInTest(prevTokens);
   const candidates = Object.entries(COMMANDS)
-    .filter(([, info]) => (inTest ? info.kind === 'test' : info.kind !== 'test'))
+    .filter(([, info]) => (inTest ? info.kind !== 'action' : info.kind !== 'test'))
     .map(([name, info]) => item(name, `${name}: ${info.doc}`, `cm-hint-${info.kind}`));
   if (!inTest) {
     for (const tpl of TEMPLATES) candidates.push(item(tpl.body, t('Template: {name}', { name: tpl.name }), 'cm-hint-template'));

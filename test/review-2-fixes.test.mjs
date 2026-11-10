@@ -84,9 +84,9 @@ test('tags shared by several extensions do not add a require', () => {
 });
 
 test('unknown commands block only on Proton, other servers check them themselves', () => {
-  const sieve = 'require ["ereject"];\n\nereject "no";\n';
+  const sieve = 'require ["vnd.example.ring"];\n\nring "bell";\n';
   const errors = (dialect) => lintSieve(sieve, { dialect }).filter((i) => i.severity === 'error' && /Unknown command/.test(i.message));
-  assert.equal(errors(makeDialect({ name: 'rfc', extensions: ['ereject'] })).length, 0);
+  assert.equal(errors(makeDialect({ name: 'rfc', extensions: ['vnd.example.ring'] })).length, 0);
   assert.equal(errors(undefined).length, 1);
 });
 
@@ -110,4 +110,23 @@ test('rfc: an escaped letter in :matches still ignores ASCII case', async () => 
   const { simulate } = await import('../addon/lib/sieve-sim.js');
   const r = simulate([{ id: 's', name: 's', sieve: 'require ["fileinto"];\nif header :matches "subject" "\\Invoice*" {\n    fileinto "Bank";\n}\n' }], { headers: parseHeaderBlock('From: a@b.com\nSubject: invoice 42\n') }, { semantics: 'rfc' });
   assert.equal(r.folder, 'Bank');
+});
+
+test('ereject, convert, metadata and the Dovecot program extensions are known', () => {
+  const dialect = makeDialect({ name: 'rfc', extensions: ['ereject', 'convert', 'mboxmetadata', 'servermetadata', 'vnd.dovecot.pipe', 'vnd.dovecot.filter', 'vnd.dovecot.execute', 'variables'] });
+  const sieve = [
+    'require ["ereject", "convert", "mboxmetadata", "servermetadata", "vnd.dovecot.pipe", "vnd.dovecot.filter", "vnd.dovecot.execute", "variables"];',
+    'if metadataexists "INBOX" "/private/comment" { ereject "no"; }',
+    'if servermetadata :is "/shared/admin" "x" { pipe :try "notify" ["a"]; }',
+    'if execute :pipe :output "out" "check" { stop; }',
+    'filter "rewrite";',
+    'convert "image/tiff" "image/jpeg" ["pix-x=320"];',
+    '',
+  ].join('\n');
+  const issues = lintSieve(sieve, { dialect }).filter((i) => i.severity !== 'info');
+  assert.deepEqual(issues.map((i) => i.message), []);
+  assert.equal(fixRequire(sieve), sieve);
+  // without the require, each one is reported
+  const missing = lintSieve('ereject "no";\n', { dialect }).filter((i) => i.severity === 'error');
+  assert.ok(missing.some((i) => /require "ereject"/.test(i.message)));
 });
