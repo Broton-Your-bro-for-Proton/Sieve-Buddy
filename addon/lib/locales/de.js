@@ -505,6 +505,7 @@ export const DE = {
   "Reject with a reason": "Mit Begründung abweisen",
   "rejected": "abgewiesen",
   "Reload": "Neu laden",
+  "Hide disabled filters": "Deaktivierte Filter ausblenden",
   "Remove expiration": "Ablauf entfernen",
   "Remove flag": "Flag entfernen",
   "Remove header": "Header entfernen",

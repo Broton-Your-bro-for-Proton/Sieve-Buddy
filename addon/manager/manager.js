@@ -157,6 +157,7 @@ const isEnabled = (f) => f.Status === 1;
 
 function renderFilters() {
   const list = $('filter-list');
+  list.classList.toggle('hide-disabled', $('hide-disabled').checked);
   list.replaceChildren(
     ...state.filters.map((f, index) => {
       const li = document.createElement('li');
@@ -381,6 +382,11 @@ $('new-filter').addEventListener('click', () => {
   $('filter-name').focus();
 });
 $('filter-name').addEventListener('input', () => (state.dirty = true));
+try { $('hide-disabled').checked = localStorage.getItem('hide-disabled') === '1'; } catch {}
+$('hide-disabled').addEventListener('change', () => {
+  try { localStorage.setItem('hide-disabled', $('hide-disabled').checked ? '1' : '0'); } catch {}
+  renderFilters();
+});
 $('filter-enabled').addEventListener('change', () => (state.dirty = true));
 
 window.addEventListener('beforeunload', (e) => {
