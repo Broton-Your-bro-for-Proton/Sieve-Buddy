@@ -124,6 +124,7 @@ summary { cursor: pointer; color: var(--muted); margin-bottom: 8px; }
 }
 .filter-list li:hover { background: var(--selected); }
 .filter-list li.selected { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+.filter-list.hide-disabled li.disabled:not(.selected) { display: none; }
 .filter-list li.disabled .name { color: var(--muted); text-decoration: line-through; }
 .filter-list .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .filter-list .order { display: none; gap: 2px; }
@@ -200,7 +201,7 @@ li.CodeMirror-hint-active { background: var(--accent); color: var(--accent-text)
 .outline ul { list-style: none; margin: 0; padding: 0; }
 .outline li { padding: 4px 6px; border-radius: 6px; cursor: pointer; display: flex; flex-direction: column; font-size: 12px; }
 .outline li:hover { background: var(--selected); }
-.outline-test { font-family: ui-monospace, Consolas, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.outline-test { font-family: ui-monospace, Consolas, monospace; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; }
 .outline-actions { color: var(--muted); }
 .outline li { position: relative; }
 .outline li.outline-section { flex-direction: row; justify-content: space-between; margin-top: 8px; font-weight: 600; border-bottom: 1px solid var(--border); border-radius: 0; }
