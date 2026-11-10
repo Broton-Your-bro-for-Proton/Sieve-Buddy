@@ -387,6 +387,12 @@ $('new-filter').addEventListener('click', () => {
   loadIntoEditor(null);
   $('filter-name').focus();
 });
+$('discard').addEventListener('click', async () => {
+  if (!state.dirty || !confirm(t('Discard unsaved changes?'))) return;
+  let filter = state.filters.find((f) => f.ID === state.selectedId);
+  if (!state.offline && filter && filter.Sieve === undefined) filter = await state.client.getFilter(filter.ID);
+  loadIntoEditor(filter);
+});
 $('filter-name').addEventListener('input', () => (state.dirty = true));
 try { $('hide-disabled').checked = localStorage.getItem('hide-disabled') === '1'; } catch {}
 $('hide-disabled').addEventListener('change', () => {
