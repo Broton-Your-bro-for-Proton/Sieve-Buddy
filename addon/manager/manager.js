@@ -46,6 +46,9 @@ function show(view) {
 
 // ---------- Editor ----------
 
+function comment(cm) {
+  cm.toggleComment({ lineComment: '#' });
+}
 const editor = CodeMirror($('editor'), {
   mode: 'sieve',
   lineNumbers: true,
@@ -59,11 +62,14 @@ const editor = CodeMirror($('editor'), {
     'Ctrl-Space': 'autocomplete',
     'Ctrl-S': () => $('save').click(),
     'Cmd-S': () => $('save').click(),
-    'Ctrl-/': 'toggleComment',
+    // comment.js reads lineComment from its options or the mode, not from the editor option;
+    // on a German layout / is Shift+7, which CodeMirror reports as Shift-Ctrl-7
+    'Ctrl-/': comment,
+    'Cmd-/': comment,
+    'Shift-Ctrl-7': comment,
     Tab: (cm) => (cm.somethingSelected() ? cm.indentSelection('add') : cm.replaceSelection('    ')),
   },
 });
-editor.setOption('lineComment', '#');
 
 const tools = installTools(editor, state);
 
