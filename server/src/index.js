@@ -112,6 +112,8 @@ export async function startServer(config = loadConfig()) {
         return send(res, 200, await account.submitTotp(String(body.code ?? '')));
       case '/api/login/continue':
         return send(res, 200, await account.continueAfterCaptcha());
+      case '/api/credentials':
+        return send(res, 200, await account.saveCredentials({ user: String(body.user ?? '').trim(), secret: String(body.secret ?? '') }));
       case '/api/session/import':
         return send(res, 200, await account.importSession(body));
       case '/api/login/reset-guard':

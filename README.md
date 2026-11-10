@@ -70,8 +70,8 @@ Then open `http://localhost:8080` and enter the API token. The web UI shows the 
 ```env
 PROVIDER=managesieve
 MANAGESIEVE_HOST=mail.example.com
-MANAGESIEVE_USER=me@example.com
-MANAGESIEVE_PASSWORD=…          # or MANAGESIEVE_PASSWORD_FILE=/run/secrets/sieve
+# MANAGESIEVE_USER=me@example.com   # optional: without user and password, enter them in the web UI
+# MANAGESIEVE_PASSWORD=…            # or MANAGESIEVE_PASSWORD_FILE=/run/secrets/sieve
 # MANAGESIEVE_TLS=starttls      # default; tls or none (none only in your own network)
 # MANAGESIEVE_SASL=auto         # default: SCRAM when the server offers it, else PLAIN; plain if SCRAM fails with the right password
 # IMAP_HOST=…                   # folder list via IMAP (default: same host, 993/TLS); empty IMAP_HOST= turns it off
@@ -87,9 +87,11 @@ The service adopts the server's capabilities, that is the extensions it reports 
 ```env
 PROVIDER=jmap
 JMAP_URL=https://mail.example.com/.well-known/jmap
-JMAP_TOKEN=…                    # or JMAP_TOKEN_FILE=/run/secrets/jmap
+# JMAP_TOKEN=…                  # or JMAP_TOKEN_FILE=/run/secrets/jmap; optional, see below
 # JMAP_USER=me@example.com      # set: user + token as password (Basic, e.g. app password); empty: bearer token
 ```
+
+**Credentials without a configuration file:** leave out the user and the password (or token), open the web UI and enter them there. The service signs in once to test them, then stores them AES-256-GCM encrypted in its data volume, with `SESSION_SECRET` as the key. "Remove credentials" deletes them. Credentials set in the configuration always win and cannot be changed in the web UI.
 
 The server must offer `urn:ietf:params:jmap:sieve` (RFC 9661). As of November 2026 **Stalwart** does so by default, also for regular users. Cyrus IMAP ships it, provided the operator has enabled JMAP. Fastmail does not open it to API tokens, Apache James uses its own filter extension instead of RFC 9661. Scripts are managed via `SieveScript/get`/`set` and blob upload/download and checked with `SieveScript/validate` before saving. The folder list comes from `Mailbox/get`, IMAP is not needed. As with ManageSieve, **exactly one script is active**.
 
