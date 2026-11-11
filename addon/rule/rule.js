@@ -132,7 +132,8 @@ function folderChoices() {
 }
 
 function renderFolderSelect() {
-  $('folder-list').replaceChildren(...folderChoices().map(([value, label]) => el('option', { value, label })));
+  // Thunderbird's datalist popup shows only the label, so the label carries the name too
+  $('folder-list').replaceChildren(...folderChoices().map(([value, label]) => el('option', { value, label: value === label ? value : `${value} · ${label}` })));
 }
 
 /** The folder as the account spells it; Proton matches case-insensitively, so "invoices" finds "Invoices". */
