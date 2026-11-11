@@ -508,7 +508,7 @@ export const DE = {
   "The Docker service is an optional companion you run yourself. It offers your filters to AI assistants and tools over MCP and a REST API, for example to let Claude or Inbox Zero sort mail with Sieve rules.": "Der Docker-Dienst ist ein optionaler Begleiter, den du selbst betreibst. Er stellt deine Filter über MCP und eine REST-API für KI-Assistenten und Werkzeuge bereit, zum Beispiel damit Claude oder Inbox Zero Mails mit Sieve-Regeln sortieren.",
   "Set up the service (README)": "Dienst einrichten (README)",
   "Discard changes": "Änderungen verwerfen",
-  "Hide disabled filters": "Deaktivierte Filter ausblenden",
+  "Hide inactive": "Inaktive ausblenden",
   "Remove expiration": "Ablauf entfernen",
   "Remove flag": "Flag entfernen",
   "Remove header": "Header entfernen",

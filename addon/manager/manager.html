@@ -88,7 +88,7 @@
         <h2>Filters</h2>
         <button id="new-filter" title="New filter">＋ New</button>
       </div>
-      <label class="muted small"><input type="checkbox" id="hide-disabled"> Hide disabled filters</label>
+      <label class="inline muted small hide-toggle"><input type="checkbox" id="hide-disabled"> Hide inactive</label>
       <ul id="filter-list" class="filter-list"></ul>
       <p id="offline-note" class="muted small" hidden>Offline mode: scripts are not saved at Proton.</p>
       <button id="reload" class="ghost small">Reload</button>
@@ -99,6 +99,7 @@
     <section class="editor-pane">
       <div class="editor-head">
         <input id="filter-name" placeholder="Filter name">
+        <button id="delete" class="danger">Delete</button>
         <label class="switch"><input type="checkbox" id="filter-enabled" checked> active</label>
       </div>
       <div class="toolbar">
@@ -111,7 +112,6 @@
         <button id="copy" class="ghost">Copy</button>
         <span class="spacer"></span>
         <button id="check" class="ghost">Check with Proton</button>
-        <button id="delete" class="danger">Delete</button>
         <button id="discard" class="ghost">Discard changes</button>
         <button id="save">Save</button>
       </div>
