@@ -14,6 +14,10 @@
   "permissions": [
     "storage",
     "messagesRead",
+    "messagesMove",
+    "messagesDelete",
+    "messagesUpdate",
+    "accountsRead",
     "menus",
     "https://mail.proton.me/*",
     "https://mail-api.proton.me/*"

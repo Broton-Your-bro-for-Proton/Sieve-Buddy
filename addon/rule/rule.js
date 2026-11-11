@@ -7,6 +7,7 @@ import { planRule } from '../lib/rule-planner.js';
 import { describeRule } from '../lib/sieve-rules.js';
 import { findSections } from '../lib/sieve-sections.js';
 import { simulate } from '../lib/sieve-sim.js';
+import { findFolder, mailActions } from '../lib/mail-actions.js';
 import { SYSTEM_FOLDERS } from '../lib/sieve-dialect.js';
 import {
   $,
@@ -220,7 +221,7 @@ function clearPlan(message) {
   $('plan').replaceChildren(el('div', { class: 'warn' }, message));
   $('diff').replaceChildren();
   $('after').textContent = '';
-  $('apply').disabled = true;
+  $('apply').disabled = $('apply-run').disabled = true;
   state.plan = null;
 }
 
@@ -276,14 +277,15 @@ function render() {
   );
   const stats = renderDiff($('diff'), plan.before, plan.sieve);
   $('after').textContent = after ? t('Afterwards: {result}', { result: describeSimulation(after) }) : '';
-  $('apply').disabled = errors.length > 0 || (stats.added === 0 && stats.removed === 0);
+  $('apply').disabled = $('apply-run').disabled = errors.length > 0 || (stats.added === 0 && stats.removed === 0);
 }
 
 // ---------- save ----------
 
-async function applyPlan() {
+async function applyPlan(run = false) {
   const plan = state.plan;
   if (!plan) return;
+  const after = () => (run ? runOnMessage(plan) : null);
   if (!state.client) {
     const local = (await storage.get('localFilters')) ?? [];
     const next = plan.targetId
@@ -291,6 +293,7 @@ async function applyPlan() {
       : [...local, { ID: `local-${Date.now()}`, Name: plan.name, Sieve: plan.sieve, Status: 1 }];
     await storage.set('localFilters', next);
     toast(t('Saved locally (preview mode)'));
+    await after();
     return;
   }
   const issues = await state.client.checkSieve(plan.sieve);
@@ -316,7 +319,42 @@ async function applyPlan() {
     if (!activate) toast(t('New script created but not activated: only one script can be active'));
   }
   toast(t('Rule saved ✓'));
-  setTimeout(() => window.close(), 1200);
+  await after();
+  setTimeout(() => window.close(), run ? 4000 : 1200);
+}
+
+/** Does to the open message what the saved filters would do to it on arrival. */
+async function runOnMessage(plan) {
+  const scripts = runnableScripts().map((s) => (s.id === plan.targetId ? { ...s, sieve: plan.sieve } : s));
+  if (!plan.targetId) scripts.push({ id: 'new', name: plan.name, sieve: plan.sieve, enabled: true });
+  const result = simulate(scripts, state.message, { labels: state.labels, semantics: capabilitiesOf(state.client).semantics ?? 'proton' });
+  const actions = mailActions(result);
+  if (!inAddon) {
+    toast(t('Preview mode: would run {actions}', { actions: JSON.stringify(actions) }));
+    return;
+  }
+  const id = Number(new URLSearchParams(location.search).get('message'));
+  const { folder: current } = await browser.messages.get(id);
+  const account = await browser.accounts.get(current.accountId, true);
+  const all = [];
+  const walk = (list) => list?.forEach((f) => (all.push(f), walk(f.subFolders)));
+  walk(account.folders);
+  const missing = [];
+  const target = (name) => findFolder(all, name) ?? (missing.push(name), null);
+  if (actions.read || actions.flagged) await browser.messages.update(id, { ...(actions.read && { read: true }), ...(actions.flagged && { flagged: true }) });
+  for (const name of actions.copies) {
+    const folder = target(name);
+    if (folder) await browser.messages.copy([id], folder);
+  }
+  if (actions.trash) await browser.messages.delete([id], false);
+  else if (actions.move) {
+    const folder = target(actions.move);
+    if (folder && folder.path !== current.path) await browser.messages.move([id], folder);
+  }
+  const notes = [];
+  if (missing.length) notes.push(t('Folder not found in Thunderbird: {names}', { names: missing.join(', ') }));
+  if (actions.skipped.length) notes.push(t('Not run here: {actions}', { actions: actions.skipped.join(', ') }));
+  toast(notes.length ? notes.join(' · ') : t('Applied to this message ✓'), notes.length > 0);
 }
 
 async function editInManager() {
@@ -380,7 +418,8 @@ async function openInManager(draft) {
       $(id).addEventListener('input', update);
       $(id).addEventListener('change', update);
     }
-    $('apply').addEventListener('click', (e) => busy(e.currentTarget, applyPlan));
+    $('apply').addEventListener('click', (e) => busy(e.currentTarget, () => applyPlan()));
+    $('apply-run').addEventListener('click', (e) => busy(e.currentTarget, () => applyPlan(true)));
     $('edit').addEventListener('click', (e) => busy(e.currentTarget, editInManager));
     $('cancel').addEventListener('click', () => window.close());
 
