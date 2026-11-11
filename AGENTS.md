@@ -27,3 +27,15 @@ A change counts as checked only when:
 5. A change to the service was looked at in the running container: `docker compose up -d --build`, then the web UI at `http://localhost:8080`, with `LOCALE=en` and `LOCALE=de` if texts changed.
 
 Proton has no test environment. Behavior of the real Proton API remains a manual check with a real account and is named as such in the report.
+
+## README style
+
+- Centered icon on top, title, bold tagline, one badge row (at most six).
+- Every `##` heading starts with an emoji. Fixed ones: ✨ Features,
+  📦 Installation, 🚀 Usage, ⚙️ Configuration, 🖼️ Screenshots,
+  🩺 Troubleshooting, 💬 Support, 🙏 Credits, 📄 License. Other sections get
+  a fitting emoji of their own, never one twice per file.
+- Install path first, features as bullets, configuration as a table, one
+  screenshot when there is a UI, GitHub alerts for warnings.
+- The repository is private, so badges are static shields.io badges; keep
+  their values (Thunderbird version, status) in sync with the manifest.

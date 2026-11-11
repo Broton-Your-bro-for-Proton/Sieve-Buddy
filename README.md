@@ -1,4 +1,15 @@
+<p align="center"><img src="addon/icons/icon.svg" alt="icon" width="128"></p>
+
 # Sieve Buddy: Sieve filters for Proton and every ManageSieve server
+
+**Sieve filters for Proton and every ManageSieve or JMAP server, from Thunderbird or over MCP.**
+
+![Thunderbird](https://img.shields.io/badge/Thunderbird-115%2B-0A84FF)
+![Proton](https://img.shields.io/badge/Proton-supported-6D4AFF)
+![ManageSieve](https://img.shields.io/badge/ManageSieve-RFC%205804-2EA44F)
+![JMAP](https://img.shields.io/badge/JMAP-RFC%209661-2EA44F)
+![MCP](https://img.shields.io/badge/MCP-server-555555)
+![Status](https://img.shields.io/badge/Status-test%20version-orange)
 
 Manage Sieve filters comfortably, without signing in to webmail every time. Supported are **Proton Mail**, **every mail server with ManageSieve** (RFC 5804), such as Dovecot/Pigeonhole, Stalwart, Cyrus, Mailcow, Mailu, mailbox.org or Uberspace, and **JMAP for Sieve** (RFC 9661, for example Stalwart).
 
@@ -17,9 +28,10 @@ Inbox Zero / Claude ── MCP ──────────────┤
                                   Docker service ──▶ Proton, ManageSieve server (+ IMAP for folders) or JMAP server
 ```
 
-> **Proton:** There is no official API for filters. Access uses the same web API as Proton's own web client, and Proton can change it at any time or block unknown programs (see [Protection against account locks](#protection-against-account-locks)). **ManageSieve**, in contrast, is an official standard, so this risk does not exist there.
+> [!WARNING]
+> **Proton:** There is no official API for filters. Access uses the same web API as Proton's own web client, and Proton can change it at any time or block unknown programs (see [Protection against account locks](#-protection-against-account-locks)). **ManageSieve**, in contrast, is an official standard, so this risk does not exist there.
 
-## Thunderbird add-on
+## 🧩 Thunderbird add-on
 
 ### Features
 
@@ -56,7 +68,7 @@ npm run build    # dist/*.zip (installable as .xpi)
 
 In Thunderbird: menu ☰ → **Add-ons and Themes** → gear ⚙ → **Debug Add-ons** → "Load Temporary Add-on" → `addon/manifest.json`. For an update click **"Reload"** there instead of removing it, otherwise the sign-in is gone.
 
-## Docker service with MCP
+## 🐳 Docker service with MCP
 
 ```bash
 cp .env.example .env          # set API_TOKEN (e.g. openssl rand -hex 32), choose PROVIDER
@@ -141,7 +153,7 @@ Streamable HTTP at `POST /mcp`, header `Authorization: Bearer <API_TOKEN>`:
 
 Saving always happens only after the server's check. The target folders of `plan_rule`/`apply_rule` and the templates are checked against the real folders, with suggestions for typos ("Einkaufe" → "Einkäufe"), as long as the server lists its folders. `create_filter` and `update_filter` take the script as written; there the server's check is the only one. The same operations exist via REST at `POST /api/ops/<name>`, for example `plan-rule`, `apply-rule`, `simulate`, `capabilities`.
 
-## Protection against account locks
+## 🔒 Protection against account locks
 
 Proton temporarily restricted a test account twice ("unusual activity"), each time after a **password login from the Docker service**. The existing session in the add-on kept working. This leads to:
 
@@ -155,7 +167,7 @@ Proton temporarily restricted a test account twice ("unusual activity"), each ti
 
 Proton's "Sign in with another device" (session fork) would be more elegant, but requires the client ID of an official Proton app and is therefore deliberately not used.
 
-## Developing and testing
+## 🛠️ Developing and testing
 
 | | |
 |---|---|
@@ -183,7 +195,7 @@ npm run stalwart:up
 cd server && STALWART_TEST=127.0.0.1:18480 npm test
 ```
 
-## Known limitations
+## 🚧 Known limitations
 
 - **Proton:** tested against a real (free) account (2026-11-04): session handover to the add-on/the service, reading, Proton's check, merging, renaming, rejecting broken scripts, deleting. Free accounts allow only **one active filter**; above the limit Proton creates new filters disabled (code 50016), and the service reports that as "Created, but disabled".
 - The PGP signature of the SRP modulus is not verified yet (go-srp verifies it).
