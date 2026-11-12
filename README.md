@@ -13,7 +13,7 @@
 
 Manage Sieve filters comfortably, without signing in to webmail every time. Supported are **Proton Mail**, **every mail server with ManageSieve** (RFC 5804), such as Dovecot/Pigeonhole, Stalwart, Cyrus, Mailcow, Mailu, mailbox.org or Uberspace, and **JMAP for Sieve** (RFC 9661, for example Stalwart).
 
-- **Thunderbird add-on:** Sieve editor that knows the server's dialect, "rule from mail" in two clicks, simulator, rule assistant, history
+- **Thunderbird add-on:** Sieve editor that knows the server's dialect, "rule from mail" in two clicks, "Test mail" simulator, rule assistant, history
 - **Docker service:** REST API and **MCP server**, for example for Inbox Zero or Claude
 
 Both share the same core (`addon/lib/`).
@@ -47,7 +47,7 @@ Inbox Zero / Claude ── MCP ──────────────┤
   - The **outline** shows the rules per section. ↑/↓ moves a rule, across a heading into the neighboring section, ✕ deletes it. A comment directly above the rule moves along.
   - **Suggest sections** inserts one heading per group of rules with the same target folder into a file without headings, without reordering rules.
 - **✨ Rule assistant:** 16 templates, including domains, mailing lists, invoices, shops, GitHub, monitoring, out of office and contact protection. New values are **merged into matching blocks**, new blocks land in the matching section (the template's category helps with the choice). Templates that only exist on Proton are hidden for other servers.
-- **Test mail:** The simulator shows where a mail ends up, with Proton's behavior or according to **RFC 5228** (implicit `keep`, `fileinto` as a copy, `:copy`, `redirect`). The RFC mode is **verified against real Dovecot delivery**.
+- **Test mail (simulator):** The "Test mail" button above the editor shows where a mail ends up, with Proton's behavior or according to **RFC 5228** (implicit `keep`, `fileinto` as a copy, `:copy`, `redirect`). The RFC mode is **verified against real Dovecot delivery**.
 - **Sieve rule from mail:** button in the message view or right-click in the message list.
   - Conditions are suggested: list, sender, domain, alias, subject without numbers.
   - The rule lands in the **best place**. Extending an existing block is preferred: join the list, extend `anyof` or convert to `anyof`. Otherwise a new block is created.
