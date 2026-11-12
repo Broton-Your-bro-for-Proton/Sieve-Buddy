@@ -2,6 +2,7 @@
   "name": "proton-sieve-server",
   "version": "0.5.8",
   "private": true,
+  "license": "AGPL-3.0-only",
   "description": "Sieve service: REST API and MCP server for Proton and ManageSieve servers, sharing the core with the Thunderbird add-on",
   "type": "module",
   "main": "src/index.js",
