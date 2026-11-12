@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { findFolder, mailActions } from '../addon/lib/mail-actions.js';
+import { changedActions, findFolder, mailActions } from '../addon/lib/mail-actions.js';
 import { simulate } from '../addon/lib/sieve-sim.js';
 
 const message = { headers: { from: ['shop@example.com'], subject: ['Order'] }, size: 1000 };
@@ -42,4 +42,13 @@ test('findFolder maps system names, separators and Bridge prefixes', () => {
   assert.equal(findFolder(folders, 'Einkäufe').path, '/Folders/Einkäufe');
   assert.equal(findFolder(folders, 'INBOX.Lists').path, '/INBOX/Lists');
   assert.equal(findFolder(folders, 'Nope'), null);
+});
+
+test('changedActions: only messages the change treats differently', () => {
+  const sim = (sieve) => simulate([{ id: '1', name: 'f', sieve, enabled: true }], message, { semantics: 'proton' });
+  const before = sim('require "fileinto"; if header :contains "subject" "Invoice" { fileinto "Bills"; }');
+  const hit = sim('require "fileinto"; if header :contains "subject" ["Invoice", "Order"] { fileinto "Bills"; }');
+  const miss = sim('require "fileinto"; if header :contains "subject" ["Invoice", "Refund"] { fileinto "Bills"; }');
+  assert.equal(changedActions(before, hit).move, 'Bills');
+  assert.equal(changedActions(before, miss), null);
 });

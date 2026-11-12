@@ -7,7 +7,7 @@ import { planRule } from '../lib/rule-planner.js';
 import { describeRule } from '../lib/sieve-rules.js';
 import { findSections } from '../lib/sieve-sections.js';
 import { simulate } from '../lib/sieve-sim.js';
-import { findFolder, mailActions } from '../lib/mail-actions.js';
+import { changedActions, findFolder, mailActions } from '../lib/mail-actions.js';
 import { SYSTEM_FOLDERS } from '../lib/sieve-dialect.js';
 import {
   $,
@@ -321,7 +321,16 @@ function render() {
 async function applyPlan(run = false) {
   const plan = state.plan;
   if (!plan) return;
-  const after = () => (run ? runOnMessage(plan) : null);
+  // the inbox is checked against the plan before saving, so a cancel still leaves everything as it was
+  let inbox = [];
+  if ($('inbox-run').checked) {
+    inbox = await scanInbox(plan);
+    if (inbox.length && !confirm(t('{count} messages in the inbox will be processed: {actions}. Continue?', { count: inbox.length, actions: summarize(inbox) }))) return;
+  }
+  const after = async () => {
+    if (run) await runOnMessage(plan);
+    if (inbox.length) await runOnInbox(inbox);
+  };
   if (!state.client) {
     const local = (await storage.get('localFilters')) ?? [];
     const next = plan.targetId
@@ -356,27 +365,43 @@ async function applyPlan(run = false) {
   }
   toast(t('Rule saved ✓'));
   await after();
-  setTimeout(() => window.close(), run ? 4000 : 1200);
+  setTimeout(() => window.close(), run || inbox.length ? 4000 : 1200);
 }
 
-/** Does to the open message what the saved filters would do to it on arrival. */
-async function runOnMessage(plan) {
+/** "move to Bills (12), mark as read (3)" */
+function summarize(hits) {
+  const counts = new Map();
+  const add = (text) => counts.set(text, (counts.get(text) ?? 0) + 1);
+  for (const { actions: a } of hits) {
+    if (a.trash) add(t('move to the trash'));
+    else if (a.move) add(t('move to {folder}', { folder: a.move }));
+    a.copies.forEach((c) => add(t('copy to {folder}', { folder: c })));
+    if (a.read) add(t('mark as read'));
+    if (a.flagged) add(t('with star'));
+  }
+  return [...counts].map(([text, n]) => `${text} (${n})`).join(', ');
+}
+
+const plannedScripts = (plan) => {
   const scripts = runnableScripts().map((s) => (s.id === plan.targetId ? { ...s, sieve: plan.sieve } : s));
   if (!plan.targetId) scripts.push({ id: 'new', name: plan.name, sieve: plan.sieve, enabled: true });
-  const result = simulate(scripts, state.message, { labels: state.labels, semantics: capabilitiesOf(state.client).semantics ?? 'proton' });
-  const actions = mailActions(result);
-  if (!inAddon) {
-    toast(t('Preview mode: would run {actions}', { actions: JSON.stringify(actions) }));
-    return;
-  }
-  const id = Number(new URLSearchParams(location.search).get('message'));
-  const { folder: current } = await browser.messages.get(id);
-  const account = await browser.accounts.get(current.accountId, true);
+  return scripts;
+};
+const simulateWith = (scripts, message) => simulate(scripts, message, { labels: state.labels, semantics: capabilitiesOf(state.client).semantics ?? 'proton' });
+const openMessageId = () => Number(new URLSearchParams(location.search).get('message'));
+
+/** All folders of an account, flat, for findFolder. */
+async function accountFolders(accountId) {
+  const account = await browser.accounts.get(accountId, true);
   const all = [];
   const walk = (list) => list?.forEach((f) => (all.push(f), walk(f.subFolders)));
   walk(account.folders);
-  const missing = [];
-  const target = (name) => findFolder(all, name) ?? (missing.push(name), null);
+  return all;
+}
+
+/** Runs mailActions on one message; folder names Thunderbird does not know go into `missing`. */
+async function perform(id, current, actions, folders, missing) {
+  const target = (name) => findFolder(folders, name) ?? (missing.add(name), null);
   if (actions.read || actions.flagged) await browser.messages.update(id, { ...(actions.read && { read: true }), ...(actions.flagged && { flagged: true }) });
   for (const name of actions.copies) {
     const folder = target(name);
@@ -387,10 +412,64 @@ async function runOnMessage(plan) {
     const folder = target(actions.move);
     if (folder && folder.path !== current.path) await browser.messages.move([id], folder);
   }
+}
+
+function report(done, missing, skipped) {
   const notes = [];
-  if (missing.length) notes.push(t('Folder not found in Thunderbird: {names}', { names: missing.join(', ') }));
-  if (actions.skipped.length) notes.push(t('Not run here: {actions}', { actions: actions.skipped.join(', ') }));
-  toast(notes.length ? notes.join(' · ') : t('Applied to this message ✓'), notes.length > 0);
+  if (missing.size) notes.push(t('Folder not found in Thunderbird: {names}', { names: [...missing].join(', ') }));
+  if (skipped.size) notes.push(t('Not run here: {actions}', { actions: [...skipped].join(', ') }));
+  toast(notes.length ? notes.join(' · ') : done, notes.length > 0);
+}
+
+/** Does to the open message what the saved filters would do to it on arrival. */
+async function runOnMessage(plan) {
+  const actions = mailActions(simulateWith(plannedScripts(plan), state.message));
+  if (!inAddon) {
+    toast(t('Preview mode: would run {actions}', { actions: JSON.stringify(actions) }));
+    return;
+  }
+  const id = openMessageId();
+  const { folder: current } = await browser.messages.get(id);
+  const missing = new Set();
+  await perform(id, current, actions, await accountFolders(current.accountId), missing);
+  report(t('Applied to this message ✓'), missing, new Set(actions.skipped));
+}
+
+/** Messages in the inbox of the open message's account that the change treats differently, with their new actions. */
+async function scanInbox(plan) {
+  if (!inAddon) return [];
+  const { folder: current } = await browser.messages.get(openMessageId());
+  const folders = await accountFolders(current.accountId);
+  const inbox = folders.find((f) => f.specialUse?.includes('inbox'));
+  if (!inbox) return [];
+  const before = runnableScripts();
+  const after = plannedScripts(plan);
+  const hits = [];
+  let checked = 0;
+  let page = await browser.messages.list(inbox);
+  for (;;) {
+    for (const header of page.messages) {
+      if (header.id === openMessageId()) continue;
+      $('inbox-progress').textContent = t('Checking the inbox: {count}', { count: ++checked });
+      const message = messageFromThunderbird(await browser.messages.getFull(header.id), { size: header.size });
+      const actions = changedActions(simulateWith(before, message), simulateWith(after, message));
+      if (actions && (actions.move || actions.trash || actions.copies.length || actions.read || actions.flagged)) hits.push({ id: header.id, actions });
+    }
+    if (!page.id) break;
+    page = await browser.messages.continueList(page.id);
+  }
+  $('inbox-progress').textContent = '';
+  return hits.map((h) => ({ ...h, inbox, folders }));
+}
+
+async function runOnInbox(hits) {
+  const missing = new Set();
+  const skipped = new Set();
+  for (const { id, actions, inbox, folders } of hits) {
+    actions.skipped.forEach((x) => skipped.add(x));
+    await perform(id, inbox, actions, folders, missing);
+  }
+  report(t('Applied to {count} messages in the inbox ✓', { count: hits.length }), missing, skipped);
 }
 
 async function editInManager() {

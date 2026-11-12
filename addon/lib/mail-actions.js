@@ -32,6 +32,16 @@ export function mailActions(result) {
 }
 
 /**
+ * What changes for a message that already arrived when the filters change: the new actions, or null when
+ * the old and the new filters treat it alike. Messages other rules already sorted the same way stay untouched.
+ */
+export function changedActions(before, after) {
+  const now = mailActions(after);
+  const same = JSON.stringify({ ...mailActions(before), skipped: [] }) === JSON.stringify({ ...now, skipped: [] });
+  return same ? null : now;
+}
+
+/**
  * @param {Array<{path: string, name: string, specialUse?: string[]}>} folders all folders of the message's account
  * @param {string} name folder name as written in the Sieve script
  */
