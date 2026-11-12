@@ -28,6 +28,8 @@ input.days { width: 70px; }
 .after { font-size: 13px; font-weight: 600; margin-top: 6px; }
 footer.row { position: sticky; bottom: 0; background: var(--bg); padding: 8px 0; }
 footer .spacer { flex: 1; }
+footer.row { flex-wrap: wrap; }
+footer .break { flex-basis: 100%; height: 0; }
 
 /* wide window: the code sits on the right at full height instead of below the plan */
 .rule-code .diff { position: relative; }
