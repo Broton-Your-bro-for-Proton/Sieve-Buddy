@@ -1,0 +1,12 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Manage Sieve filters for Proton Mail and every ManageSieve or JMAP server right in Thunderbird: an editor that knows your server, a simulator that shows where a mail ends up, and rules from a mail in two clicks.",
+  "description": "Edit your mail filters without signing in to webmail every time. Sieve Buddy works with <b>Proton Mail</b> and, through its optional Docker service, with <b>every ManageSieve server</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org and more) and <b>JMAP for Sieve</b>.\n\n<b>Features</b>\n<ul>\n<li><b>Editor that knows the server's dialect:</b> syntax highlighting, suggestions for commands, headers and your own folders, a live check for missing require, brackets and unknown folders, hover help, outline and formatter.</li>\n<li><b>Sieve rule from mail:</b> right-click a message or use the button in the message view. Sieve Buddy suggests conditions, finds the best place in your script and extends an existing block where it can.</li>\n<li><b>Test mail:</b> a simulator shows where a mail ends up before you save.</li>\n<li><b>Rule assistant:</b> 16 templates for domains, mailing lists, invoices, shops, out of office and more.</li>\n<li><b>Sections:</b> structure one large script with headings, move and delete rules per section.</li>\n<li><b>Safe saving:</b> a diff before every save and a history of earlier versions.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton has no official API for filters. Sieve Buddy uses the same web API as Proton's own web client, and Proton can change it at any time. Your password never leaves Thunderbird in plain text (SRP), only a session token is stored.\n\nThe interface is available in English and German.\n\nNot affiliated with Proton AG.",
+  "releaseNotes": "First version on addons.thunderbird.net.",
+  "screenshots": [
+    { "file": "01-editor.png", "caption": "The editor checks your script live and knows your folders" },
+    { "file": "02-assistant.png", "caption": "The rule assistant creates a rule from a template" },
+    { "file": "03-test-mail.png", "caption": "Test mail shows where a mail ends up" },
+    { "file": "04-rule-from-mail.png", "caption": "A Sieve rule from a mail in two clicks" }
+  ]
+}
