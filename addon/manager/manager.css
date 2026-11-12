@@ -50,7 +50,8 @@ h2 { font-size: 15px; margin: 0 0 8px; }
 }
 .account { margin-left: auto; color: var(--muted); }
 .support-link { color: var(--muted); font-size: 12px; }
-.support-link::before { content: "☕"; margin-right: 0.35em; }
+/* inline-block keeps the link underline off the icon */
+.support-link::before { content: "☕"; display: inline-block; margin-right: 0.35em; }
 
 button, select, input {
   font: inherit;
