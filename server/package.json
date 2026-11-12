@@ -1,6 +1,6 @@
 {
   "name": "proton-sieve-server",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "private": true,
   "description": "Sieve service: REST API and MCP server for Proton and ManageSieve servers, sharing the core with the Thunderbird add-on",
   "type": "module",
