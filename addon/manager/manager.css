@@ -49,6 +49,7 @@ h2 { font-size: 15px; margin: 0 0 8px; }
   background: var(--sidebar);
 }
 .account { margin-left: auto; color: var(--muted); }
+.support-link { color: var(--muted); font-size: 12px; }
 
 button, select, input {
   font: inherit;
