@@ -16,6 +16,10 @@ label.inline { flex-direction: row; align-items: center; gap: 6px; margin: 0; }
 input.days { width: 70px; }
 .row.tight { margin-top: 0; align-items: center; }
 #target { min-width: 280px; }
+.suggest { position: relative; }
+#folder-list { display: block; position: absolute; top: calc(100% + 2px); left: 0; z-index: 10; min-width: 100%; overflow-y: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 4px 16px rgb(0 0 0 / .18); }
+#folder-list [role=option] { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 4px 14px 4px 8px; white-space: nowrap; cursor: pointer; }
+#folder-list [role=option]:hover, #folder-list [aria-selected] { background: var(--selected); }
 
 .plan { font-size: 13px; margin: 8px 0; }
 .plan .step::before { content: "• "; color: var(--accent); }

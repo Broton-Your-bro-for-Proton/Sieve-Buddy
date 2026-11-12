@@ -131,9 +131,41 @@ function folderChoices() {
   ];
 }
 
-function renderFolderSelect() {
-  // Thunderbird's datalist popup shows only the label, so the label carries the name too
-  $('folder-list').replaceChildren(...folderChoices().map(([value, label]) => el('option', { value, label: value === label ? value : `${value} · ${label}` })));
+/** Own list instead of a datalist, whose popup in Thunderbird stops at six rows. It reaches down to the window's edge. */
+function showFolders(filter = '') {
+  const list = $('folder-list');
+  const query = filter.trim().toLowerCase();
+  list.replaceChildren(
+    ...folderChoices()
+      .filter(([name]) => name.toLowerCase().includes(query))
+      .map(([name, kind]) => el('span', { role: 'option', 'data-value': name }, name, name === kind ? null : el('span', { class: 'muted small' }, kind))),
+  );
+  list.style.maxHeight = `${Math.max(120, innerHeight - $('folder').getBoundingClientRect().bottom - 12)}px`;
+  list.hidden = !list.children.length;
+}
+
+function pickFolder(name) {
+  $('folder').value = name;
+  $('folder-list').hidden = true;
+  update();
+}
+
+function folderKey(e) {
+  const list = $('folder-list');
+  const options = [...list.children];
+  const at = options.findIndex((o) => o.hasAttribute('aria-selected'));
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (list.hidden) return showFolders();
+    options[at]?.removeAttribute('aria-selected');
+    const next = options[e.key === 'ArrowDown' ? (at + 1) % options.length : at <= 0 ? options.length - 1 : at - 1];
+    next?.setAttribute('aria-selected', 'true');
+    next?.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter' && at >= 0 && !list.hidden) {
+    pickFolder(options[at].dataset.value);
+  } else if (e.key === 'Escape') {
+    list.hidden = true;
+  }
 }
 
 /** The folder as the account spells it; Proton matches case-insensitively, so "invoices" finds "Invoices". */
@@ -411,7 +443,6 @@ async function openInManager(draft) {
 
     state.suggestions = suggestConditions(state.message);
     renderConditions();
-    renderFolderSelect();
     renderTargets();
     if (current.folder && !SYSTEM_FOLDERS.includes(current.folder)) $('folder').value = current.folder;
 
@@ -419,6 +450,16 @@ async function openInManager(draft) {
       $(id).addEventListener('input', update);
       $(id).addEventListener('change', update);
     }
+    // opens like a datalist: on click, while typing and with the arrow keys
+    $('folder').addEventListener('mousedown', () => $('folder-list').hidden && showFolders());
+    $('folder').addEventListener('input', (e) => showFolders(e.target.value));
+    $('folder').addEventListener('keydown', folderKey);
+    $('folder').addEventListener('blur', () => ($('folder-list').hidden = true));
+    $('folder-list').addEventListener('mousedown', (e) => {
+      e.preventDefault(); // keeps the focus in the input
+      const option = e.target.closest('[role=option]');
+      if (option) pickFolder(option.dataset.value);
+    });
     $('apply').addEventListener('click', (e) => busy(e.currentTarget, () => applyPlan()));
     $('apply-run').addEventListener('click', (e) => busy(e.currentTarget, () => applyPlan(true)));
     $('edit').addEventListener('click', (e) => busy(e.currentTarget, editInManager));
