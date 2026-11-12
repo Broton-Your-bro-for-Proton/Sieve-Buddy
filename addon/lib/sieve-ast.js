@@ -149,20 +149,22 @@ export function lineOf(text, offset) {
 /**
  * Sorts the string lists in tests alphabetically, only those touching [from, to] when given.
  * A test matches if any list entry matches, so the order never changes what a filter does.
- * Exception: with "variables", :matches and :regex take ${1} from the first entry that matches; those stay.
+ * Exception: with "variables" (require or ihave), :matches and :regex take ${1} from the first entry that matches; those stay.
  * Each entry keeps its slot, so line breaks, indentation and comments stay where they were.
  */
 export function sortSieveLists(text, from = 0, to = text.length) {
   const ast = parseSieve(text);
-  const variables = ast.commands.some((c) => c.name === 'require' && c.args.some((a) => (a.type === 'list' ? a.items : [a]).some((i) => i.value === 'variables')));
+  // require or ihave: either one turns match variables on
+  const variables = /"variables"/i.test(text);
   const order = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true }).compare;
   const patches = [];
   const visit = (test) => {
     if (!test) return;
     test.tests.forEach(visit);
     if (variables && test.args.some((a) => a.type === 'tag' && /^:(matches|regex)$/i.test(a.value))) return;
+    if (test.end < from || test.start > to) return;
     for (const arg of test.args) {
-      if (arg.type !== 'list' || arg.end < from || arg.start > to) continue;
+      if (arg.type !== 'list') continue;
       const sorted = [...arg.items].sort((a, b) => order(a.value, b.value));
       sorted.forEach((item, i) => {
         const slot = arg.items[i];
