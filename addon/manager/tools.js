@@ -2,7 +2,7 @@
 // simulator and the rule assistant. Wired up by manager.js through installTools().
 
 import { fixRequire, tokenize } from '../lib/sieve-analyzer.js';
-import { formatSieve, parseSieve } from '../lib/sieve-ast.js';
+import { formatSieve, parseSieve, sortSieveLists } from '../lib/sieve-ast.js';
 import { COMMANDS, EXTENSIONS, TAGS } from '../lib/sieve-dialect.js';
 import { describeActions, insertBlockAt } from '../lib/sieve-rules.js';
 import { planRule } from '../lib/rule-planner.js';
@@ -205,6 +205,26 @@ export function installTools(editor, state) {
     editor.setValue(formatted);
     editor.setCursor(cursor);
     toast(t('Formatted'));
+  });
+
+  $('sort-lists').addEventListener('click', () => {
+    const text = editor.getValue();
+    const range = editor.somethingSelected() ? [editor.indexFromPos(editor.getCursor('from')), editor.indexFromPos(editor.getCursor('to'))] : [];
+    let sorted;
+    try {
+      sorted = sortSieveLists(text, ...range);
+    } catch (e) {
+      toast(t('The script has errors: {list}', { list: e.message }));
+      return;
+    }
+    if (sorted === text) {
+      toast(t('Lists are already sorted'));
+      return;
+    }
+    const cursor = editor.getCursor();
+    editor.setValue(sorted);
+    editor.setCursor(cursor);
+    toast(t('Lists sorted'));
   });
 
   // ---------- history ----------

@@ -146,6 +146,34 @@ export function lineOf(text, offset) {
   return line;
 }
 
+/**
+ * Sorts the string lists in tests alphabetically, only those touching [from, to] when given.
+ * A test matches if any list entry matches, so the order never changes what a filter does.
+ * Exception: with "variables", :matches and :regex take ${1} from the first entry that matches; those stay.
+ * Each entry keeps its slot, so line breaks, indentation and comments stay where they were.
+ */
+export function sortSieveLists(text, from = 0, to = text.length) {
+  const ast = parseSieve(text);
+  const variables = ast.commands.some((c) => c.name === 'require' && c.args.some((a) => (a.type === 'list' ? a.items : [a]).some((i) => i.value === 'variables')));
+  const order = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true }).compare;
+  const patches = [];
+  const visit = (test) => {
+    if (!test) return;
+    test.tests.forEach(visit);
+    if (variables && test.args.some((a) => a.type === 'tag' && /^:(matches|regex)$/i.test(a.value))) return;
+    for (const arg of test.args) {
+      if (arg.type !== 'list' || arg.end < from || arg.start > to) continue;
+      const sorted = [...arg.items].sort((a, b) => order(a.value, b.value));
+      sorted.forEach((item, i) => {
+        const slot = arg.items[i];
+        if (item !== slot) patches.push({ start: slot.start, end: slot.end, text: text.slice(item.start, item.end) });
+      });
+    }
+  };
+  for (const { command } of walkCommands(ast.commands)) visit(command.test);
+  return applyPatches(text, patches);
+}
+
 /** Applies non-overlapping {start, end, text} patches. */
 export function applyPatches(text, patches) {
   let out = text;
