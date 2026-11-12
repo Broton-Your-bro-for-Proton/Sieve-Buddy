@@ -203,3 +203,5 @@ cd server && STALWART_TEST=127.0.0.1:18480 npm test
 - ManageSieve sign-in via SCRAM-SHA-512, -256 or -1 when the server offers it (the password never leaves the service, and the server has to prove it knows it), otherwise SASL PLAIN over TLS (`MANAGESIEVE_SASL=plain` forces PLAIN for servers that offer SCRAM but store other password hashes). No OAUTHBEARER.
 - The simulator does not know Proton's contact lists (`header :list`) or `body`, `include` and `duplicate` and notes that.
 - In the add-on, the Proton session and the service token are stored unencrypted in the Thunderbird profile; in the service the Proton session is encrypted.
+
+If Broton saves you time, you can [support the project on Ko-fi](https://ko-fi.com/hypercrisis).
