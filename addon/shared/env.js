@@ -135,10 +135,10 @@ export function el(tag, props = {}, ...children) {
 }
 
 /** Renders a compact diff (changed lines with context) into a container. Returns {added, removed}. */
-export function renderDiff(container, before, after) {
+export function renderDiff(container, before, after, context = 2) {
   const diff = lineDiff(before, after);
   const stats = diffStats(diff);
-  const hunks = diffHunks(diff, 2);
+  const hunks = diffHunks(diff, context);
   container.replaceChildren(
     ...(hunks.length
       ? hunks.flatMap((hunk, i) => [
