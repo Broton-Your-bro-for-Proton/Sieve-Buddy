@@ -222,3 +222,10 @@ test('a value goes to its alphabetical place in a sorted list, an unsorted list 
   const unsorted = 'require ["fileinto"];\nif header :contains "subject" ["Welcome", "Account"] { fileinto "Konten"; }\n';
   assert.match(proposeRule([{ id: '1', name: 'f', sieve: unsorted }], rule).proposals[0].sieve, /\["Welcome", "Account", "Dein sicherer Link"\]/);
 });
+
+test('a mostly sorted list still gets the value at its alphabetical place', () => {
+  const rule = { conditions: [{ kind: 'header', header: 'subject', match: 'contains', value: 'Dein sicherer Link' }], actions: { fileinto: 'Konten' } };
+  const keys = ['A third-party', 'A fine-grained', 'Account', 'Code', 'Sign in', 'Two-Factor', 'Verify your', 'Verification code', 'Welcome', 'Zugangskennung'];
+  const sieve = `require ["fileinto"];\nif header :contains "Subject" [\n${keys.map((k) => `  "${k}"`).join(',\n')}\n] {\n  fileinto "Konten";\n}\n`;
+  assert.match(proposeRule([{ id: '1', name: 'f', sieve }], rule).proposals[0].sieve, /"Code",\n {2}"Dein sicherer Link",\n {2}"Sign in",/);
+});
