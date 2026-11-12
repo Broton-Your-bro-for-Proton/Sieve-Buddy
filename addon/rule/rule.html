@@ -48,8 +48,10 @@
       <h2>… then</h2>
       <div class="actions-grid">
         <label class="inline">Move to
-          <input id="folder" list="folder-list" placeholder="(don't move)" autocomplete="off">
-          <datalist id="folder-list"></datalist>
+          <span class="suggest">
+            <input id="folder" placeholder="(don't move)" autocomplete="off" aria-controls="folder-list">
+            <span id="folder-list" role="listbox" hidden></span>
+          </span>
         </label>
         <label class="switch"><input type="checkbox" id="seen"> mark as read</label>
         <label class="switch"><input type="checkbox" id="flagged"> star</label>
