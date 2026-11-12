@@ -204,4 +204,10 @@ cd server && STALWART_TEST=127.0.0.1:18480 npm test
 - The simulator does not know Proton's contact lists (`header :list`) or `body`, `include` and `duplicate` and notes that.
 - In the add-on, the Proton session and the service token are stored unencrypted in the Thunderbird profile; in the service the Proton session is encrypted.
 
+## 📄 License
+
+Sieve Buddy is licensed under the GNU Affero General Public License, version 3 only (`AGPL-3.0-only`). See [`LICENSE`](LICENSE). Modified versions that you distribute, or offer to users over a network as with the Docker service, must make their source code available under the same license.
+
+The bundled CodeMirror (MIT) and bcryptjs (BSD-3-Clause) keep their own licenses in `addon/vendor/`.
+
 ☕ If Broton saves you time, you can [support the project on Ko-fi](https://ko-fi.com/hypercrisis).
