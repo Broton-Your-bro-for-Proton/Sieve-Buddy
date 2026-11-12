@@ -324,7 +324,12 @@ async function applyPlan(run = false) {
   // the inbox is checked against the plan before saving, so a cancel still leaves everything as it was
   let inbox = [];
   if ($('inbox-run').checked) {
-    inbox = await scanInbox(plan);
+    $('apply').disabled = $('apply-run').disabled = true;
+    try {
+      inbox = await scanInbox(plan, run);
+    } finally {
+      $('apply').disabled = $('apply-run').disabled = false;
+    }
     if (inbox.length && !confirm(t('{count} messages in the inbox will be processed: {actions}. Continue?', { count: inbox.length, actions: summarize(inbox) }))) return;
   }
   const after = async () => {
@@ -436,7 +441,7 @@ async function runOnMessage(plan) {
 }
 
 /** Messages in the inbox of the open message's account that the change treats differently, with their new actions. */
-async function scanInbox(plan) {
+async function scanInbox(plan, run) {
   if (!inAddon) return [];
   const { folder: current } = await browser.messages.get(openMessageId());
   const folders = await accountFolders(current.accountId);
@@ -446,30 +451,45 @@ async function scanInbox(plan) {
   const after = plannedScripts(plan);
   const hits = [];
   let checked = 0;
-  let page = await browser.messages.list(inbox);
-  for (;;) {
-    for (const header of page.messages) {
-      if (header.id === openMessageId()) continue;
-      $('inbox-progress').textContent = t('Checking the inbox: {count}', { count: ++checked });
-      const message = messageFromThunderbird(await browser.messages.getFull(header.id), { size: header.size });
-      const actions = changedActions(simulateWith(before, message), simulateWith(after, message));
-      if (actions && (actions.move || actions.trash || actions.copies.length || actions.read || actions.flagged)) hits.push({ id: header.id, actions });
+  try {
+    let page = await browser.messages.list(inbox);
+    for (;;) {
+      for (const header of page.messages) {
+        // with run the open message is handled on its own
+        if (run && header.id === openMessageId()) continue;
+        $('inbox-progress').textContent = t('Checking the inbox: {count}', { count: ++checked });
+        const message = messageFromThunderbird(await browser.messages.getFull(header.id), { size: header.size });
+        const actions = changedActions(simulateWith(before, message), simulateWith(after, message));
+        if (!actions) continue;
+        // flags Thunderbird already shows change nothing
+        if (header.read) actions.read = false;
+        if (header.flagged) actions.flagged = false;
+        if (actions.move || actions.trash || actions.copies.length || actions.read || actions.flagged) hits.push({ id: header.id, actions });
+      }
+      if (!page.id) break;
+      page = await browser.messages.continueList(page.id);
     }
-    if (!page.id) break;
-    page = await browser.messages.continueList(page.id);
+  } finally {
+    $('inbox-progress').textContent = '';
   }
-  $('inbox-progress').textContent = '';
   return hits.map((h) => ({ ...h, inbox, folders }));
 }
 
 async function runOnInbox(hits) {
   const missing = new Set();
   const skipped = new Set();
+  let failed = 0;
   for (const { id, actions, inbox, folders } of hits) {
     actions.skipped.forEach((x) => skipped.add(x));
-    await perform(id, inbox, actions, folders, missing);
+    // a message moved or deleted since the scan must not stop the rest
+    try {
+      await perform(id, inbox, actions, folders, missing);
+    } catch {
+      failed++;
+    }
   }
-  report(t('Applied to {count} messages in the inbox ✓', { count: hits.length }), missing, skipped);
+  if (failed) skipped.add(t('{count} messages could not be processed', { count: failed }));
+  report(t('Applied to {count} messages in the inbox ✓', { count: hits.length - failed }), missing, skipped);
 }
 
 async function editInManager() {

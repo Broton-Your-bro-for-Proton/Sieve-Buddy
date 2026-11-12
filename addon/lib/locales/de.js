@@ -522,6 +522,7 @@ export const DE = {
   "Messages already in the inbox that the changed rule now catches are moved and marked as well. You see the number before anything happens.": "Mails, die schon im Posteingang liegen und jetzt unter die geänderte Regel fallen, werden ebenfalls verschoben und markiert. Vorher siehst du, wie viele es sind.",
   "Checking the inbox: {count}": "Posteingang wird geprüft: {count}",
   "{count} messages in the inbox will be processed: {actions}. Continue?": "{count} Mails im Posteingang werden bearbeitet: {actions}. Fortfahren?",
+  "{count} messages could not be processed": "{count} Mails konnten nicht bearbeitet werden",
   "move to the trash": "in den Papierkorb",
   "move to {folder}": "nach {folder} verschieben",
   "copy to {folder}": "nach {folder} kopieren",

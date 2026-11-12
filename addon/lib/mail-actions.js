@@ -36,9 +36,19 @@ export function mailActions(result) {
  * the old and the new filters treat it alike. Messages other rules already sorted the same way stay untouched.
  */
 export function changedActions(before, after) {
+  const old = mailActions(before);
   const now = mailActions(after);
-  const same = JSON.stringify({ ...mailActions(before), skipped: [] }) === JSON.stringify({ ...now, skipped: [] });
-  return same ? null : now;
+  // only what is new: a message the old rules already moved and the user put back stays where it is
+  const moved = old.move !== now.move || old.trash !== now.trash;
+  const diff = {
+    move: moved ? now.move : null,
+    trash: moved && now.trash,
+    copies: now.copies.filter((c) => !old.copies.includes(c)),
+    read: now.read && !old.read,
+    flagged: now.flagged && !old.flagged,
+    skipped: now.skipped,
+  };
+  return diff.move || diff.trash || diff.copies.length || diff.read || diff.flagged ? diff : null;
 }
 
 /**

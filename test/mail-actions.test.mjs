@@ -52,3 +52,11 @@ test('changedActions: only messages the change treats differently', () => {
   assert.equal(changedActions(before, hit).move, 'Bills');
   assert.equal(changedActions(before, miss), null);
 });
+
+test('changedActions: only the new part, never a move the old rules already made', () => {
+  const sim = (sieve) => simulate([{ id: '1', name: 'f', sieve, enabled: true }], message, { semantics: 'proton' });
+  const before = sim('require "fileinto"; if true { fileinto "Bills"; }');
+  const after = sim(String.raw`require ["fileinto","imap4flags"]; if true { addflag "\\Seen"; fileinto "Bills"; }`);
+  const a = changedActions(before, after);
+  assert.deepEqual([a.move, a.trash, a.read], [null, false, true]);
+});
