@@ -197,3 +197,20 @@ test('a rule blocked by an earlier stop can be placed before it', async () => {
   assert.deepEqual(errors(withStop), []);
   assert.deepEqual(errors(before), []);
 });
+
+test('a value joins an existing rule that also stops, a new block is not needed', async () => {
+
+  const sieve = 'require ["fileinto"];\n# Konten\nif header :contains "subject" ["Your account"] {\n    fileinto "Konten";\n    stop;\n}\n';
+  const rule = { conditions: [{ kind: 'header', header: 'subject', match: 'contains', value: 'Dein sicherer Link' }], actions: { fileinto: 'Konten' } };
+  const best = proposeRule([{ id: '1', name: 'f', sieve }], rule).proposals[0];
+  assert.equal(best.kind, 'append-key');
+  assert.match(best.sieve, /\["Your account", "Dein sicherer Link"\]/);
+  assert.match(best.sieve, /stop;/);
+});
+
+test('a rule that asks for stop never joins a block without stop', () => {
+  const sieve = 'require ["fileinto"];\nif header :contains "subject" ["Your account"] {\n    fileinto "Konten";\n}\n';
+  const rule = { conditions: [{ kind: 'header', header: 'subject', match: 'contains', value: 'Link' }], actions: { fileinto: 'Konten', stop: true } };
+  const best = proposeRule([{ id: '1', name: 'f', sieve }], rule).proposals[0];
+  assert.notEqual(best.kind, 'append-key');
+});
