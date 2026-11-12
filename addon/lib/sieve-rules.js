@@ -199,8 +199,10 @@ function appendKeyPatch(text, arg, value) {
   const listText = text.slice(arg.start, arg.end);
   // a list kept in alphabetical order gets the value at its place
   const order = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true }).compare;
-  const sorted = arg.items.length > 1 && arg.items.every((item, i) => i === 0 || order(arg.items[i - 1].value, item.value) <= 0);
-  const next = sorted && arg.items.find((item) => order(value, item.value) < 0);
+  // hand-kept lists are rarely perfect: mostly ascending counts as sorted
+  const pairs = arg.items.slice(1).map((item, i) => order(arg.items[i].value, item.value) <= 0);
+  const sorted = pairs.length > 1 && pairs.filter(Boolean).length >= pairs.length * 0.75;
+  const next = sorted && arg.items.find((item, i) => order(value, item.value) < 0 && (i === 0 || order(arg.items[i - 1].value, value) <= 0));
   if (next) {
     const gap = listText.includes('\n') ? `,\n${indentOf(text, next.start)}` : ', ';
     return { start: next.start, end: next.start, text: quoteSieve(value) + gap };

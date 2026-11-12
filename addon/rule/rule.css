@@ -33,9 +33,12 @@ footer .spacer { flex: 1; }
 .rule-code .diff { position: relative; }
 .rule-main { display: flex; flex-direction: column; gap: 14px; }
 @media (min-width: 1200px) {
-  .rule-form { display: grid; grid-template-columns: 728px minmax(0, 1fr); grid-template-rows: auto 1fr; gap: 0 20px; max-width: none; align-items: start; }
-  .rule-main, footer.row { grid-column: 1; }
-  .rule-code { grid-column: 2; grid-row: 1 / 3; position: sticky; top: 12px; height: calc(100vh - 24px); display: flex; flex-direction: column; }
+  /* the page never scrolls: the form on the left and the code on the right scroll on their own */
+  body.rule-page { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  .rule-form:not([hidden]) { flex: 1; min-height: 0; display: grid; grid-template-columns: 728px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 0 20px; max-width: none; }
+  .rule-main { grid-column: 1; grid-row: 1; overflow: auto; min-height: 0; }
+  footer.row { grid-column: 1; grid-row: 2; }
+  .rule-code { grid-column: 2; grid-row: 1 / 3; min-height: 0; display: flex; flex-direction: column; }
   .rule-code .diff { flex: 1; max-height: none; }
 }
 
