@@ -505,6 +505,7 @@ export const DE = {
   "Reject with a reason": "Mit Begründung abweisen",
   "rejected": "abgewiesen",
   "Reload": "Neu laden",
+  "Add “{value}” to the existing list (it ends with stop)": "„{value}“ in die bestehende Liste aufnehmen (sie endet mit stop)",
   "Apply and run on this message": "Übernehmen und anwenden",
   "Saves the rule and runs it on this message right away": "Speichert die Regel und führt sie sofort auf diese Mail aus",
   "Preview mode: would run {actions}": "Vorschaumodus: würde ausführen {actions}",

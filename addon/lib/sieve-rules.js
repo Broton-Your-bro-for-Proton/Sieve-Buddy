@@ -96,6 +96,8 @@ function normaliseActions(a) {
 }
 
 export const sameActions = (a, b) => JSON.stringify(normaliseActions(a)) === JSON.stringify(normaliseActions(b));
+// existing rule a may stop where new rule b does not (its stop stays); a stop b asks for is never dropped
+export const sameEffect = (a, b) => (!b.stop || a.stop) && sameActions({ ...a, stop: false }, { ...b, stop: false });
 
 function sameForm(desc, condition) {
   if (desc.kind !== condition.kind) return false;
@@ -259,7 +261,7 @@ export function proposeRule(scripts, rule) {
         for (const d of descs) {
           if (d && sameForm(d, single) && keyCovered(d, single.value)) {
             const entry = { scriptId: script.id, scriptName: script.name, line: lineOf(text, d.test.start) };
-            const same = actions && sameActions(actions, rule.actions);
+            const same = actions && sameEffect(actions, rule.actions);
             // nested, as elsif or with :copy the value does not decide on its own: neither covered nor a conflict
             if (same && mergeable) covered.push(entry);
             else if (!same) conflicts.push({ ...entry, message: t('“{value}” is already handled differently here', { value: single.value }) });
@@ -267,29 +269,31 @@ export function proposeRule(scripts, rule) {
         }
       }
 
-      if (!mergeable || !single || !actions || !sameActions(actions, rule.actions) || command.test.name === 'allof' || command.test.name === 'not') continue;
+      if (!mergeable || !single || !actions || !sameEffect(actions, rule.actions) || command.test.name === 'allof' || command.test.name === 'not') continue;
+      // a rule that matches exactly, stop included, wins over one that differs only in stop
+      const penalty = sameActions(actions, rule.actions) ? 0 : 1;
 
       const target = descs.find((d) => d && sameForm(d, single));
       if (target) {
         if (keyCovered(target, single.value)) continue;
         push(
           command.test.name === 'anyof' ? 'append-key-anyof' : 'append-key',
-          command.test.name === 'anyof' ? 90 : 100,
+          (command.test.name === 'anyof' ? 90 : 100) - penalty,
           appendKeyPatch(text, target.keysArg, single.value),
           target.test,
-          t('Add “{value}” to the existing list', { value: single.value }),
+          penalty ? t('Add “{value}” to the existing list (it ends with stop)', { value: single.value }) : t('Add “{value}” to the existing list', { value: single.value }),
         );
       } else if (command.test.name === 'anyof') {
         const lastTest = command.test.tests[command.test.tests.length - 1];
         const multiline = text.slice(command.test.start, command.test.end).includes('\n');
         const sep = multiline ? `,\n${indentOf(text, lastTest.start)}` : ', ';
-        push('extend-anyof', 70, { start: lastTest.end, end: lastTest.end, text: sep + conditionToSieve(single) }, command.test, t('Add condition to the existing anyof(…)'));
+        push('extend-anyof', 70 - penalty, { start: lastTest.end, end: lastTest.end, text: sep + conditionToSieve(single) }, command.test, t('Add condition to the existing anyof(…)'));
       } else if (descs[0]) {
         const inner = `${indentOf(text, command.start)}    `;
         const original = text.slice(command.test.start, command.test.end);
         push(
           'wrap-anyof',
-          60,
+          60 - penalty,
           { start: command.test.start, end: command.test.end, text: `anyof(\n${inner}${original},\n${inner}${conditionToSieve(single)}\n${indentOf(text, command.start)})` },
           command.test,
           t('Extend the existing rule with the same action to anyof(…)'),

@@ -4,7 +4,7 @@
 
 import { otherLanguage, t } from './i18n.js';
 import { lineOf, parseSieve } from './sieve-ast.js';
-import { describeActions, sameActions } from './sieve-rules.js';
+import { describeActions, sameEffect } from './sieve-rules.js';
 
 const GUARD_TEXT = 'vnd.proton.spam-threshold';
 const GUARD_COMMENT = 'Do not run this script on spam messages';
@@ -139,7 +139,7 @@ export function chooseSection(sections, rule, hints = {}) {
     for (const r of section.rules) {
       const actions = r.commands[0].block && describeActions(r.commands[0].block);
       if (!actions) continue;
-      if (sameActions(actions, rule.actions)) score += 10;
+      if (sameEffect(actions, rule.actions)) score += 10;
       else if (rule.actions?.fileinto && actions.fileinto === rule.actions.fileinto) score += 6;
     }
     const title = words(section.title);
