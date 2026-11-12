@@ -120,7 +120,7 @@ tool('reorder_filters', t('Sets the execution order of the filters (Proton only;
 tool('delete_filter', t('Deletes a filter permanently.'), { id: z.string() }, ops.deleteFilter, { ...write, destructiveHint: true });
 
 export function createMcpServer(account) {
-  const server = new McpServer({ name: 'sieve', version: '0.5.4' });
+  const server = new McpServer({ name: 'sieve', version: '0.5.5' });
   for (const [name, { description, input, run, annotations }] of TOOLS) {
     server.registerTool(name, { description, inputSchema: input, annotations }, async (args) => {
       try {
