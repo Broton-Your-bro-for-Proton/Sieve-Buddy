@@ -214,3 +214,11 @@ test('a rule that asks for stop never joins a block without stop', () => {
   const best = proposeRule([{ id: '1', name: 'f', sieve }], rule).proposals[0];
   assert.notEqual(best.kind, 'append-key');
 });
+
+test('a value goes to its alphabetical place in a sorted list, an unsorted list gets it at the end', () => {
+  const rule = { conditions: [{ kind: 'header', header: 'subject', match: 'contains', value: 'Dein sicherer Link' }], actions: { fileinto: 'Konten' } };
+  const sorted = 'require ["fileinto"];\nif header :contains "subject" [\n    "Account",\n    "Welcome",\n    "Zugangskennung"\n] {\n    fileinto "Konten";\n}\n';
+  assert.match(proposeRule([{ id: '1', name: 'f', sieve: sorted }], rule).proposals[0].sieve, /"Account",\n {4}"Dein sicherer Link",\n {4}"Welcome",/);
+  const unsorted = 'require ["fileinto"];\nif header :contains "subject" ["Welcome", "Account"] { fileinto "Konten"; }\n';
+  assert.match(proposeRule([{ id: '1', name: 'f', sieve: unsorted }], rule).proposals[0].sieve, /\["Welcome", "Account", "Dein sicherer Link"\]/);
+});

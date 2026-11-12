@@ -308,7 +308,10 @@ function render() {
     ...conflicts.map((c) => el('div', { class: 'warn' }, t('⚠ {message}: filter “{script}”, line {line}', { message: c.message, script: c.scriptName, line: c.line }))),
     ...errors.map((e) => el('div', { class: 'warn' }, `✖ ${e.message}`)),
   );
-  const stats = renderDiff($('diff'), plan.before, plan.sieve);
+  // the whole script fills the code pane; it opens at the change
+  const stats = renderDiff($('diff'), plan.before, plan.sieve, Infinity);
+  const first = $('diff').querySelector('.diff-add, .diff-del');
+  if (first) $('diff').scrollTop = first.offsetTop - $('diff').clientHeight / 3;
   $('after').textContent = after ? t('Afterwards: {result}', { result: describeSimulation(after) }) : '';
   $('apply').disabled = $('apply-run').disabled = errors.length > 0 || (stats.added === 0 && stats.removed === 0);
 }

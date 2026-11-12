@@ -197,6 +197,14 @@ function appendKeyPatch(text, arg, value) {
   }
   const last = arg.items[arg.items.length - 1];
   const listText = text.slice(arg.start, arg.end);
+  // a list kept in alphabetical order gets the value at its place
+  const order = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true }).compare;
+  const sorted = arg.items.length > 1 && arg.items.every((item, i) => i === 0 || order(arg.items[i - 1].value, item.value) <= 0);
+  const next = sorted && arg.items.find((item) => order(value, item.value) < 0);
+  if (next) {
+    const gap = listText.includes('\n') ? `,\n${indentOf(text, next.start)}` : ', ';
+    return { start: next.start, end: next.start, text: quoteSieve(value) + gap };
+  }
   if (listText.includes('\n')) {
     const lineStart = text.lastIndexOf('\n', last.start) + 1;
     const indent = text.slice(lineStart, last.start).match(/^\s*/)[0];
