@@ -5,6 +5,7 @@
   "description": "__MSG_extensionDescription__",
   "default_locale": "en",
   "author": "HyperCriSiS",
+  "homepage_url": "https://github.com/Broton-Your-bro-for-Proton/Sieve-Buddy",
   "browser_specific_settings": {
     "gecko": {
       "id": "proton-sieve-manager@hypercrisis.local",
