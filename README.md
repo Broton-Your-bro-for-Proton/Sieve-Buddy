@@ -204,4 +204,4 @@ cd server && STALWART_TEST=127.0.0.1:18480 npm test
 - The simulator does not know Proton's contact lists (`header :list`) or `body`, `include` and `duplicate` and notes that.
 - In the add-on, the Proton session and the service token are stored unencrypted in the Thunderbird profile; in the service the Proton session is encrypted.
 
-If Broton saves you time, you can [support the project on Ko-fi](https://ko-fi.com/hypercrisis).
+☕ If Broton saves you time, you can [support the project on Ko-fi](https://ko-fi.com/hypercrisis).
