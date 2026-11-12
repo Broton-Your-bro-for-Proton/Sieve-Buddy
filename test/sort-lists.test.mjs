@@ -24,3 +24,14 @@ test('a range sorts only the lists it touches', () => {
   const second = src.indexOf('"y"');
   assert.equal(sortSieveLists(src, second, src.length), 'if header :is "x" ["b", "a"] { stop; }\nif header :is "y" ["c", "d"] { stop; }');
 });
+
+test('ihave "variables" also keeps matches lists in order', () => {
+  const src = 'require "ihave";\nif ihave "variables" { if header :matches "subject" ["b*", "a*"] { stop; } }';
+  assert.equal(sortSieveLists(src), src);
+});
+
+test('a selection on the start of a test sorts its lists', () => {
+  const src = 'if header :is "x" ["b", "a"] { stop; }\nif header :is "y" ["d", "c"] { stop; }';
+  const second = src.lastIndexOf('if');
+  assert.equal(sortSieveLists(src, second, second + 5), 'if header :is "x" ["b", "a"] { stop; }\nif header :is "y" ["c", "d"] { stop; }');
+});
