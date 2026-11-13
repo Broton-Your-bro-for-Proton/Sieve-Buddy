@@ -293,3 +293,19 @@ test('nothing is inserted before an elsif, the chain stays whole', async () => {
   const text = 'if true {\n    keep;\n}\nelsif false {\n    keep;\n}';
   assert.throws(() => insertRuleBefore(text, 4, unsubscribe));
 });
+
+test('a new block goes before catch-all rules at the end, with stop when it files the message', () => {
+  const sieve = 'require ["fileinto"];\n\nif address :is "from" "a@example.com" {\n    fileinto "A";\n    stop;\n}\n\nif exists "list-unsubscribe" {\n    fileinto "Newsletter";\n}\n';
+  const rule = { conditions: [{ kind: 'header', header: 'subject', match: 'contains', value: 'Add-ons' }], actions: { fileinto: 'Development' } };
+  const message = { headers: { subject: ['Mozilla Add-ons'], 'list-unsubscribe': ['<mailto:x@example.com>'] }, size: 100 };
+  const { plan, after, notes } = planRule({ scripts: [{ id: 'f', name: 'All', sieve }], rule, message });
+  assert.ok(plan.sieve.indexOf('"Add-ons"') < plan.sieve.indexOf('list-unsubscribe'), 'before the catch-all');
+  assert.match(plan.sieve, /fileinto "Development";\s*stop;/);
+  assert.equal(after.folder, 'Development');
+  assert.match(notes.join(' '), /catch-all rule in line 13/);
+  assert.deepEqual(errors(plan.sieve), []);
+
+  const flagOnly = planRule({ scripts: [{ id: 'f', name: 'All', sieve }], rule: { ...rule, actions: { flagged: true } } }).plan;
+  assert.doesNotMatch(flagOnly.sieve.slice(0, flagOnly.sieve.indexOf('list-unsubscribe')), /stop;\s*}\s*\n\s*if exists/);
+  assert.equal(planRule({ scripts: [{ id: 'f', name: 'All', sieve }], rule, section: 'end' }).plan.sieve.trimEnd().endsWith('"Development";\n}'), true);
+});

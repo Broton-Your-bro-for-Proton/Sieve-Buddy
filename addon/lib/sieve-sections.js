@@ -208,6 +208,27 @@ export function sectionNote({ skipped, section, displaced }) {
   return null;
 }
 
+/**
+ * Where a new block goes when the script ends with catch-all rules (`exists` or `true` that file the
+ * message, such as `if exists "list-unsubscribe"`) after other rules: right before them, so they keep
+ * collecting what no other rule took.
+ * @returns {{offset: number, sep: string, line: number}|null}
+ */
+export function catchAllPoint(text) {
+  const chains = topLevel(text);
+  let i = chains.length;
+  while (i > 1) {
+    const c = chains[i - 1];
+    if (!c.rule || c.commands.length > 1) break;
+    const { test, block } = c.commands[0];
+    if (!test || !/^(exists|true)\b/i.test(text.slice(test.start, test.end).trim())) break;
+    if (!/\bfileinto\s+"/.test(text.slice(block.start, block.end))) break;
+    i--;
+  }
+  if (i === chains.length || !chains[i - 1].rule) return null;
+  return { offset: chains[i - 1].end, sep: '\n\n', line: lineOf(text, chains[i].start) };
+}
+
 /** Resolves a section choice: 'auto' | 'end' | title | index | {new: title}. */
 export function resolveSection(text, choice, rule, hints) {
   if (choice && typeof choice === 'object' && choice.new) return { section: null, at: null, heading: String(choice.new).replace(/[\r\n]+/g, ' ').trim() };
