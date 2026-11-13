@@ -268,6 +268,7 @@ export const DE = {
   "Formatted": "Formatiert",
   "Sort lists": "Listen sortieren",
   "Sort the value lists in conditions alphabetically, only in the selection if there is one. The filter works the same.": "Sortiert die Wertelisten in Bedingungen alphabetisch, bei einer Markierung nur dort. Der Filter wirkt danach genauso.",
+  "Drag to change the width, double-click to reset": "Ziehen ändert die Breite, Doppelklick setzt sie zurück",
   "Lists sorted": "Listen sortiert",
   "Lists are already sorted": "Die Listen sind schon sortiert",
   "forwarded to {to}": "weitergeleitet an {to}",
