@@ -305,6 +305,14 @@ function render() {
       ),
     ),
     ...notes.map((n) => el('div', { class: 'warn' }, `↪ ${n}`)),
+    displacedFolders(plan).length
+      ? el(
+          'div',
+          { class: 'check-moves' },
+          el('button', { type: 'button', class: 'ghost', onclick: (e) => busy(e.currentTarget, () => checkMoves(plan)) }, t('Check with the messages in {folders}', { folders: displacedFolders(plan).join(', ') })),
+          el('div', { id: 'moves', class: 'small' }),
+        )
+      : '',
     ...conflicts.map((c) => el('div', { class: 'warn' }, t('⚠ {message}: filter “{script}”, line {line}', { message: c.message, script: c.scriptName, line: c.line }))),
     ...errors.map((e) => el('div', { class: 'warn' }, `✖ ${e.message}`)),
   );
@@ -440,6 +448,63 @@ async function runOnMessage(plan) {
   report(t('Applied to this message ✓'), missing, new Set(actions.skipped));
 }
 
+/** Folders of the later rules the planned rule takes messages from. */
+const displacedFolders = (plan) => [...new Set((plan.section?.displaced ?? []).map((d) => d.folder).filter(Boolean))];
+
+/** Messages of a folder, all pages. */
+async function folderMessages(folder) {
+  const all = [];
+  let page = await browser.messages.list(folder);
+  for (;;) {
+    all.push(...page.messages);
+    if (!page.id) return all;
+    page = await browser.messages.continueList(page.id);
+  }
+}
+
+/**
+ * Runs the messages that sit in the folders the planned rule takes messages from through the old and the new
+ * filters and lists those that would end up elsewhere: real examples instead of a guess.
+ */
+async function checkMoves(plan) {
+  const out = $('moves');
+  if (!inAddon) {
+    out.textContent = t('Only available in Thunderbird.');
+    return;
+  }
+  const { folder: current } = await browser.messages.get(openMessageId());
+  const folders = await accountFolders(current.accountId);
+  const before = runnableScripts();
+  const after = plannedScripts(plan);
+  const moves = [];
+  const missing = [];
+  let checked = 0;
+  for (const name of displacedFolders(plan)) {
+    const folder = findFolder(folders, name);
+    if (!folder) {
+      missing.push(name);
+      continue;
+    }
+    for (const header of await folderMessages(folder)) {
+      out.textContent = t('Checking: {count} messages', { count: ++checked });
+      try {
+        const message = messageFromThunderbird(await browser.messages.getFull(header.id), { size: header.size });
+        const [was, now] = [simulateWith(before, message), simulateWith(after, message)];
+        if (changedActions(was, now)) moves.push({ subject: decodeEncodedWords(header.subject ?? ''), was: describeSimulation(was), now: describeSimulation(now) });
+      } catch {
+        // a message that cannot be read is left out of the check
+      }
+    }
+  }
+  const lines = moves.slice(0, 10).map((m) => el('div', { class: 'muted' }, `${m.subject || t('(no subject)')}: ${m.was} → ${m.now}`));
+  out.replaceChildren(
+    el('div', { class: moves.length ? 'warn' : 'ok' }, moves.length ? t('{count} of {total} messages would end up elsewhere:', { count: moves.length, total: checked }) : t('None of {total} messages would end up elsewhere.', { total: checked })),
+    ...lines,
+    moves.length > lines.length ? el('div', { class: 'muted' }, t('… and {count} more', { count: moves.length - lines.length })) : '',
+    missing.length ? el('div', { class: 'muted' }, t('Folder not found in Thunderbird: {names}', { names: missing.join(', ') })) : '',
+  );
+}
+
 /** Messages in the inbox of the open message's account that the change treats differently, with their new actions. */
 async function scanInbox(plan, run) {
   if (!inAddon) return [];
@@ -452,22 +517,17 @@ async function scanInbox(plan, run) {
   const hits = [];
   let checked = 0;
   try {
-    let page = await browser.messages.list(inbox);
-    for (;;) {
-      for (const header of page.messages) {
-        // with run the open message is handled on its own
-        if (run && header.id === openMessageId()) continue;
-        $('inbox-progress').textContent = t('Checking the inbox: {count}', { count: ++checked });
-        const message = messageFromThunderbird(await browser.messages.getFull(header.id), { size: header.size });
-        const actions = changedActions(simulateWith(before, message), simulateWith(after, message));
-        if (!actions) continue;
-        // flags Thunderbird already shows change nothing
-        if (header.read) actions.read = false;
-        if (header.flagged) actions.flagged = false;
-        if (actions.move || actions.trash || actions.copies.length || actions.read || actions.flagged) hits.push({ id: header.id, actions });
-      }
-      if (!page.id) break;
-      page = await browser.messages.continueList(page.id);
+    for (const header of await folderMessages(inbox)) {
+      // with run the open message is handled on its own
+      if (run && header.id === openMessageId()) continue;
+      $('inbox-progress').textContent = t('Checking the inbox: {count}', { count: ++checked });
+      const message = messageFromThunderbird(await browser.messages.getFull(header.id), { size: header.size });
+      const actions = changedActions(simulateWith(before, message), simulateWith(after, message));
+      if (!actions) continue;
+      // flags Thunderbird already shows change nothing
+      if (header.read) actions.read = false;
+      if (header.flagged) actions.flagged = false;
+      if (actions.move || actions.trash || actions.copies.length || actions.read || actions.flagged) hits.push({ id: header.id, actions });
     }
   } finally {
     $('inbox-progress').textContent = '';
