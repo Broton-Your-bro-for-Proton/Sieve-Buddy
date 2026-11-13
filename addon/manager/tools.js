@@ -4,7 +4,7 @@
 import { fixRequire, tokenize } from '../lib/sieve-analyzer.js';
 import { formatSieve, parseSieve, sortSieveLists } from '../lib/sieve-ast.js';
 import { COMMANDS, EXTENSIONS, TAGS } from '../lib/sieve-dialect.js';
-import { describeActions, insertBlockAt } from '../lib/sieve-rules.js';
+import { describeActions, insertBlock } from '../lib/sieve-rules.js';
 import { planRule } from '../lib/rule-planner.js';
 import { simulate } from '../lib/sieve-sim.js';
 import { deleteRule, findSections, moveRule, resolveSection, ruleUnits, suggestSections } from '../lib/sieve-sections.js';
@@ -443,8 +443,9 @@ export function installTools(editor, state) {
         if (section === null) throw new Error(t('Please enter a name for the new section.'));
         if (built.code) {
           const r = resolveSection(current, section, { actions: {} }, { category: template.category });
-          result = insertBlockAt(current, built.code, r.at, r.heading);
-          const placed = r.heading ? { title: r.heading, new: true } : r.section;
+          const inserted = insertBlock(current, built.code, r.at, r.heading);
+          result = inserted.sieve;
+          const placed = r.heading ? { title: r.heading, new: true } : inserted.placed ? r.section : null;
           const text = !placed
             ? t('Will be inserted as a new block at the end.')
             : placed.new

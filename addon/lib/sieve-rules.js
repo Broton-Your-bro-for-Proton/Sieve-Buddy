@@ -326,6 +326,15 @@ export function proposeRule(scripts, rule) {
   return { covered, conflicts, proposals };
 }
 
+const singleIf = (code) => {
+  try {
+    const { commands } = parseSieve(code);
+    return commands.length === 1 && commands[0].name === 'if' && code.trimStart().startsWith('if');
+  } catch {
+    return false;
+  }
+};
+
 /**
  * Inserts a finished block at `at` ({offset, sep} from sectionInsertPoint) or, without `at`, at the end.
  * A `heading` starts a new section with that title. Returns the script and the line the block starts on.
@@ -334,14 +343,18 @@ export function insertBlock(sieve, code, at = null, heading = '') {
   // a title is one comment line: a line break would turn the rest into live Sieve code
   const title = String(heading ?? '').replace(/[\r\n]+/g, ' ').trim();
   const head = title ? `# ===== ${title} =====\n` : '';
+  // inside an if/elsif chain the block continues the chain; anything but a single if block would break it
+  if (at?.elsif && !title) {
+    if (singleIf(code)) code = code.replace(/^if\b/, 'elsif');
+    else at = null;
+  }
   const before = at ? sieve.slice(0, at.offset) + at.sep : `${sieve.replace(/\s+$/, '')}\n\n`;
   const raw = `${before}${head}${code}${at ? sieve.slice(at.offset) : '\n'}`;
   const fixed = fixRequire(raw);
   // fixRequire only changes the require at the top, so everything after it moves by the same amount
-  return { sieve: sameLineEndings(sieve, fixed), line: lineOf(fixed, before.length + head.length + fixed.length - raw.length) };
+  // placed: false when the block went to the end instead of `at`
+  return { sieve: sameLineEndings(sieve, fixed), line: lineOf(fixed, before.length + head.length + fixed.length - raw.length), placed: Boolean(at) };
 }
-
-export const insertBlockAt = (sieve, code, at = null, heading = '') => insertBlock(sieve, code, at, heading).sieve;
 
 /**
  * Merges a (possibly multi-condition, anyof) rule into one script: each condition goes into the best

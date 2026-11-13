@@ -7,7 +7,7 @@ import { planRule as planRuleCore } from '../../addon/lib/rule-planner.js';
 import { fixRequire, lintSieve as lintCore } from '../../addon/lib/sieve-analyzer.js';
 import { formatSieve as formatCore, lineOf } from '../../addon/lib/sieve-ast.js';
 import { newScript } from '../../addon/lib/sieve-dialect.js';
-import { describeRule, insertBlockAt } from '../../addon/lib/sieve-rules.js';
+import { describeRule, insertBlock } from '../../addon/lib/sieve-rules.js';
 import { findSections, resolveSection } from '../../addon/lib/sieve-sections.js';
 import { simulate as simulateCore } from '../../addon/lib/sieve-sim.js';
 import { RULE_TEMPLATES, buildTemplate as buildTemplateCore, templateDefaults } from '../../addon/lib/sieve-templates.js';
@@ -228,10 +228,11 @@ async function buildTemplateWithBase(account, { templateId, params = {}, target 
   const before = script?.sieve ?? '';
   const base = script ? before : newScript('', data.dialect);
   const placed = resolveSection(base, section, { actions: {} }, { category: template.category });
-  const sieve = insertBlockAt(base, built.code, placed.at, placed.heading);
+  const inserted = insertBlock(base, built.code, placed.at, placed.heading);
+  const sieve = inserted.sieve;
   const planned = {
     target: script ? { id: script.id, name: script.name } : { id: null, name: newName || template.name, newFilter: true },
-    section: placed.heading ? { title: placed.heading, new: true } : placed.section ? { title: placed.section.title, line: placed.section.line } : null,
+    section: placed.heading ? { title: placed.heading, new: true } : placed.section && inserted.placed ? { title: placed.section.title, line: placed.section.line } : null,
     steps: [{ kind: 'new-block' }],
     notes: [],
     conflicts: [],

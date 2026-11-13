@@ -25,7 +25,8 @@ function sectionOptions(section, rule, hints) {
   if (section === 'end') return out;
   out.place = (sieve) => {
     const r = resolveSection(sieve, section, rule, hints);
-    out.chosen = r.section ? { title: r.section.title, line: r.section.line } : null;
+    out.chosen = r.section ? { title: r.section.title, line: r.section.line, displaced: r.displaced } : null;
+    out.skipped = r.skipped ?? null;
     return r.at;
   };
   if (section && section !== 'auto') {
@@ -54,6 +55,7 @@ function planForScript(script, rule, section, hints, separate = false) {
     sieve: merged.sieve,
     steps: merged.steps,
     section: placed ? options.chosen : null,
+    skipped: placed ? options.skipped : null,
     score: merges * 10 + covered * 5 + sameFolder * 2,
   };
 }
@@ -101,6 +103,17 @@ export function planRule({ scripts, rule, target = 'auto', newName, section = 'a
   }
 
   const notes = [];
+  const list = (folders) => folders.map((f) => t('“{s}”', { s: f })).join(', ');
+  if (plan.skipped) {
+    notes.push(
+      t('Not in section “{title}”: there it would come before the rules for {folders}, and messages matching both would no longer reach them. Choose the section under “Where to add it?” to put it there anyway.', {
+        title: plan.skipped.title,
+        folders: list(plan.skipped.displaced),
+      }),
+    );
+  } else if (plan.section?.displaced?.length) {
+    notes.push(t('In section “{title}” it comes before the rules for {folders}: messages matching both go to the new rule from now on.', { title: plan.section.title, folders: list(plan.section.displaced) }));
+  }
   let after = null;
   if (message) {
     const run = (p) => {
