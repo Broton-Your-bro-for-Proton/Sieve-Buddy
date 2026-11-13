@@ -9,7 +9,7 @@
 ![ManageSieve](https://img.shields.io/badge/ManageSieve-RFC%205804-2EA44F)
 ![JMAP](https://img.shields.io/badge/JMAP-RFC%209661-2EA44F)
 ![MCP](https://img.shields.io/badge/MCP-server-555555)
-![Status](https://img.shields.io/badge/Status-test%20version-orange)
+![Status](https://img.shields.io/badge/Status-stable-brightgreen)
 
 Manage Sieve filters comfortably, without signing in to webmail every time. Supported are **Proton Mail**, **every mail server with ManageSieve** (RFC 5804), such as Dovecot/Pigeonhole, Stalwart, Cyrus, Mailcow, Mailu, mailbox.org or Uberspace, and **JMAP for Sieve** (RFC 9661, for example Stalwart).
 
@@ -56,6 +56,13 @@ Inbox Zero / Claude ── MCP ──────────────┤
   - If a later block would move the mail elsewhere, the new rule in its section ends with `stop`.
   - A click on a rule under "Currently" opens it in the manager.
   - You see the diff and conflicts and save with one click.
+
+### Installation
+
+Download the `.xpi` from the [latest release](https://github.com/Broton-Your-bro-for-Proton/Sieve-Buddy/releases/latest) and drop it onto Thunderbird's **Add-ons and Themes** page.
+
+> [!NOTE]
+> Since 0.6.3 the add-on ID is `sieve-buddy@hypercrisis`. A test version up to 0.6.2 does not update to it: remove the old version first. Your Sieve scripts stay on the server; sign in again afterwards.
 
 ### Installation (development)
 
