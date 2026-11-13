@@ -254,7 +254,7 @@ function clearPlan(message) {
   $('plan').replaceChildren(el('div', { class: 'warn' }, message));
   $('diff').replaceChildren();
   $('after').textContent = '';
-  $('apply').disabled = $('apply-run').disabled = true;
+  $('apply').disabled = true;
   state.plan = null;
 }
 
@@ -321,22 +321,23 @@ function render() {
   const first = $('diff').querySelector('.diff-add, .diff-del');
   if (first) $('diff').scrollTop = first.offsetTop - $('diff').clientHeight / 3;
   $('after').textContent = after ? t('Afterwards: {result}', { result: describeSimulation(after) }) : '';
-  $('apply').disabled = $('apply-run').disabled = errors.length > 0 || (stats.added === 0 && stats.removed === 0);
+  $('apply').disabled = errors.length > 0 || (stats.added === 0 && stats.removed === 0);
 }
 
 // ---------- save ----------
 
-async function applyPlan(run = false) {
+async function applyPlan() {
   const plan = state.plan;
   if (!plan) return;
+  const run = $('inbox-run').checked;
   // the inbox is checked against the plan before saving, so a cancel still leaves everything as it was
   let inbox = [];
-  if ($('inbox-run').checked) {
-    $('apply').disabled = $('apply-run').disabled = true;
+  if (run) {
+    $('apply').disabled = true;
     try {
       inbox = await scanInbox(plan, run);
     } finally {
-      $('apply').disabled = $('apply-run').disabled = false;
+      $('apply').disabled = false;
     }
     if (inbox.length && !confirm(t('{count} messages in the inbox will be processed: {actions}. Continue?', { count: inbox.length, actions: summarize(inbox) }))) return;
   }
@@ -662,7 +663,6 @@ initSplitter();
       if (option) pickFolder(option.dataset.value);
     });
     $('apply').addEventListener('click', (e) => busy(e.currentTarget, () => applyPlan()));
-    $('apply-run').addEventListener('click', (e) => busy(e.currentTarget, () => applyPlan(true)));
     $('edit').addEventListener('click', (e) => busy(e.currentTarget, editInManager));
     $('cancel').addEventListener('click', () => window.close());
 
