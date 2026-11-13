@@ -5,7 +5,7 @@ import { lintSieve } from '../addon/lib/sieve-analyzer.js';
 import { newScript } from '../addon/lib/sieve-dialect.js';
 import { planRule } from '../addon/lib/rule-planner.js';
 import { findOverlaps } from '../addon/lib/sieve-rules.js';
-import { chooseSection, deleteRule, findSections, moveRule, ruleUnits, suggestSections } from '../addon/lib/sieve-sections.js';
+import { chooseSection, deleteRule, findSections, moveRule, prefersStop, ruleUnits, suggestSections } from '../addon/lib/sieve-sections.js';
 
 const withExt = (rules) => newScript(rules).replace('"spamtest"]', '"spamtest", "fileinto", "imap4flags"]');
 const errors = (text) => lintSieve(text).filter((i) => i.severity === 'error');
@@ -308,4 +308,13 @@ test('a new block goes before catch-all rules at the end, with stop when it file
   const flagOnly = planRule({ scripts: [{ id: 'f', name: 'All', sieve }], rule: { ...rule, actions: { flagged: true } } }).plan;
   assert.doesNotMatch(flagOnly.sieve.slice(0, flagOnly.sieve.indexOf('list-unsubscribe')), /stop;\s*}\s*\n\s*if exists/);
   assert.equal(planRule({ scripts: [{ id: 'f', name: 'All', sieve }], rule, section: 'end' }).plan.sieve.trimEnd().endsWith('"Development";\n}'), true);
+});
+
+test('prefersStop: only when most filing rules end with stop', () => {
+  const block = (folder, stop) => `if header :is "x" "${folder}" {\n    fileinto "${folder}";${stop ? '\n    stop;' : ''}\n}\n`;
+  const script = (...stops) => `require ["fileinto"];\n${stops.map((s, i) => block(`F${i}`, s)).join('')}`;
+  assert.equal(prefersStop([script(true, true, false)]), true);
+  assert.equal(prefersStop([script(true, false, false)]), false);
+  assert.equal(prefersStop([script(true, true)]), false, 'too few rules to judge');
+  assert.equal(prefersStop([script(true, true), 'if {']), false);
 });

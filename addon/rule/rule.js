@@ -5,7 +5,7 @@ import { t } from '../lib/i18n.js';
 import { messageFromThunderbird, parseHeaderBlock, senderName, suggestConditions, decodeEncodedWords } from '../lib/mail.js';
 import { planRule } from '../lib/rule-planner.js';
 import { describeRule } from '../lib/sieve-rules.js';
-import { findSections } from '../lib/sieve-sections.js';
+import { findSections, prefersStop } from '../lib/sieve-sections.js';
 import { simulate } from '../lib/sieve-sim.js';
 import { changedActions, findFolder, mailActions } from '../lib/mail-actions.js';
 import { SYSTEM_FOLDERS } from '../lib/sieve-dialect.js';
@@ -646,6 +646,8 @@ initSplitter();
     state.suggestions = suggestConditions(state.message);
     renderConditions();
     renderTargets();
+    // in a script where rules usually end with stop, a new one does too
+    $('stop').checked = prefersStop(runnableScripts().map((s) => s.sieve));
     if (current.folder && !SYSTEM_FOLDERS.includes(current.folder)) $('folder').value = current.folder;
 
     for (const id of ['combine', 'folder', 'seen', 'flagged', 'expire', 'stop', 'target', 'new-name', 'section', 'section-name']) {
