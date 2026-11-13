@@ -1,6 +1,6 @@
 {
   "name": "proton-sieve-thunderbird",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "private": true,
   "license": "AGPL-3.0-only",
   "description": "Sieve filter manager: Thunderbird add-on and Docker/MCP service for Proton and ManageSieve servers",
