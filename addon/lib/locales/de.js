@@ -275,6 +275,8 @@ export const DE = {
   "{count} of {total} messages would end up elsewhere:": "{count} von {total} Mails würden woanders landen:",
   "None of {total} messages would end up elsewhere.": "Keine der {total} Mails würde woanders landen.",
   "… and {count} more": "… und {count} weitere",
+  "Inserted before the catch-all rule in line {line} and ended with “stop”, so that rule keeps collecting only what no other rule took.": "Vor der Auffangregel in Zeile {line} eingefügt und mit „stop“ beendet, damit sie weiter nur einsammelt, was keine andere Regel genommen hat.",
+  "Inserted before the catch-all rule in line {line}, so that rule keeps collecting only what no other rule took.": "Vor der Auffangregel in Zeile {line} eingefügt, damit sie weiter nur einsammelt, was keine andere Regel genommen hat.",
   "Not in section “{title}”: there it would come before {rules}, and messages matching both would no longer reach them. Choose the section under “Where to add it?” to put it there anyway.": "Nicht im Abschnitt „{title}“: Dort stünde die Regel vor {rules}, und Mails, auf die beides passt, kämen dort nicht mehr an. Wähle den Abschnitt unter „Wo eintragen?“, um sie trotzdem dort einzutragen.",
   "In section “{title}” it comes before {rules}: messages matching both go to the new rule from now on.": "Im Abschnitt „{title}“ steht die Regel vor {rules}: Mails, auf die beides passt, gehen ab jetzt an die neue Regel.",
   "“{s}” (line {line})": "„{s}“ (Zeile {line})",
