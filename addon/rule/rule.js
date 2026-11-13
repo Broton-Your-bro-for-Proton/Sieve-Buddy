@@ -510,6 +510,45 @@ async function openInManager(draft) {
   }
 }
 
+// ---------- splitter ----------
+
+/** Lets the form and the code pane share the width as the user drags; the choice is kept per browser. */
+function initSplitter() {
+  const form = $('form');
+  const bar = $('splitter');
+  const set = (px) => {
+    const width = Math.round(Math.max(Math.min(px, window.innerWidth - 360), 420));
+    form.style.setProperty('--left', `${width}px`);
+    return width;
+  };
+  try {
+    const saved = Number(localStorage.getItem('rule-left'));
+    if (saved) set(saved);
+  } catch {}
+  bar.addEventListener('pointerdown', (e) => {
+    bar.setPointerCapture(e.pointerId);
+    bar.classList.add('dragging');
+    const start = e.clientX - (parseFloat(form.style.getPropertyValue('--left')) || $('form').querySelector('.rule-main').offsetWidth);
+    const move = (ev) => set(ev.clientX - start);
+    const up = (ev) => {
+      bar.removeEventListener('pointermove', move);
+      bar.classList.remove('dragging');
+      try {
+        localStorage.setItem('rule-left', String(set(ev.clientX - start)));
+      } catch {}
+    };
+    bar.addEventListener('pointermove', move);
+    bar.addEventListener('pointerup', up, { once: true });
+  });
+  bar.addEventListener('dblclick', () => {
+    form.style.removeProperty('--left');
+    try {
+      localStorage.removeItem('rule-left');
+    } catch {}
+  });
+}
+initSplitter();
+
 // ---------- start ----------
 
 (async () => {
