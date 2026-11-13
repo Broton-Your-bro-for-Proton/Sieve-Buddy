@@ -305,11 +305,11 @@ function render() {
       ),
     ),
     ...notes.map((n) => el('div', { class: 'warn' }, `↪ ${n}`)),
-    plan.section?.displaced?.length
+    displacedFolders(plan).length
       ? el(
           'div',
           { class: 'check-moves' },
-          el('button', { type: 'button', class: 'ghost', onclick: (e) => busy(e.currentTarget, () => checkMoves(plan)) }, t('Check with the messages in {folders}', { folders: plan.section.displaced.join(', ') })),
+          el('button', { type: 'button', class: 'ghost', onclick: (e) => busy(e.currentTarget, () => checkMoves(plan)) }, t('Check with the messages in {folders}', { folders: displacedFolders(plan).join(', ') })),
           el('div', { id: 'moves', class: 'small' }),
         )
       : '',
@@ -448,6 +448,9 @@ async function runOnMessage(plan) {
   report(t('Applied to this message ✓'), missing, new Set(actions.skipped));
 }
 
+/** Folders of the later rules the planned rule takes messages from. */
+const displacedFolders = (plan) => [...new Set((plan.section?.displaced ?? []).map((d) => d.folder).filter(Boolean))];
+
 /** Messages of a folder, all pages. */
 async function folderMessages(folder) {
   const all = [];
@@ -476,7 +479,7 @@ async function checkMoves(plan) {
   const moves = [];
   const missing = [];
   let checked = 0;
-  for (const name of plan.section.displaced) {
+  for (const name of displacedFolders(plan)) {
     const folder = findFolder(folders, name);
     if (!folder) {
       missing.push(name);
@@ -484,10 +487,13 @@ async function checkMoves(plan) {
     }
     for (const header of await folderMessages(folder)) {
       out.textContent = t('Checking: {count} messages', { count: ++checked });
-      const message = messageFromThunderbird(await browser.messages.getFull(header.id), { size: header.size });
-      const was = simulateWith(before, message).folder;
-      const now = simulateWith(after, message).folder;
-      if (was !== now) moves.push({ subject: decodeEncodedWords(header.subject ?? ''), was, now });
+      try {
+        const message = messageFromThunderbird(await browser.messages.getFull(header.id), { size: header.size });
+        const [was, now] = [simulateWith(before, message), simulateWith(after, message)];
+        if (changedActions(was, now)) moves.push({ subject: decodeEncodedWords(header.subject ?? ''), was: describeSimulation(was), now: describeSimulation(now) });
+      } catch {
+        // a message that cannot be read is left out of the check
+      }
     }
   }
   const lines = moves.slice(0, 10).map((m) => el('div', { class: 'muted' }, `${m.subject || t('(no subject)')}: ${m.was} → ${m.now}`));

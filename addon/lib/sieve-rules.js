@@ -410,6 +410,8 @@ export function insertRuleBefore(sieve, line, rule, { stop = false } = {}) {
   const ast = parseSieve(sieve);
   const command = ast.commands.find((c) => lineOf(sieve, c.start) === line);
   if (!command) throw new Error(t('No block starts at line {line}', { line }));
+  // a block before an elsif would cut the chain in two
+  if (command.name === 'elsif' || command.name === 'else') throw new Error(t('No block starts at line {line}', { line }));
   const indent = indentOf(sieve, command.start);
   const placed = stop ? { ...rule, actions: { ...rule.actions, stop: true } } : rule;
   const block = ruleToSieve(placed).replace(/\n/g, `\n${indent}`);

@@ -266,7 +266,7 @@ test('the automatic choice skips a section inside a chain that would take messag
 test('an explicitly chosen section inside a chain gets an elsif and a warning', () => {
   const { plan, notes } = planRule({ scripts: [{ id: 'f', name: 'All', sieve: CHAIN }], rule: unsubscribe, section: 'Newsletter' });
   assert.match(plan.sieve, /"news@example\.com" \{\n  fileinto "Newsletter";\n  stop;\n\}\nelsif exists "list-unsubscribe" \{\n    fileinto "Newsletter";\n\}\n\n# Categories\nelsif/);
-  assert.deepEqual(plan.section.displaced, ['Shops']);
+  assert.deepEqual(plan.section.displaced, [{ folder: 'Shops', line: 23 }]);
   assert.match(notes[0], /“Shops”/);
 });
 
@@ -278,4 +278,18 @@ test('a snippet with more than one block never goes into a chain', async () => {
   const { sieve } = insertBlock(CHAIN, 'if true { keep; }\nif false { keep; }', at);
   assert.match(sieve, /"Shops";\n  stop;\n\}\n\nif true \{ keep; \}\nif false \{ keep; \}\n$/);
   assert.match(insertBlock(CHAIN, 'if true { keep; }', at).sieve, /\n\}\nelsif true \{ keep; \}\n\n# Categories/);
+});
+
+test('a later chain link without fileinto counts as displaced too', () => {
+  const text = withExt('# Shops\nif header :contains "from" "amazon" {\n    fileinto "Shops";\n}\n# Junk\nelsif header :contains "from" "x" {\n    discard;\n}');
+  const rule = { conditions: [{ kind: 'header', header: 'subject', match: 'contains', value: 'Order' }], actions: { fileinto: 'Shops', seen: true } };
+  const { plan, notes } = planRule({ scripts: [{ id: 'f', name: 'All', sieve: text }], rule });
+  assert.equal(plan.section, null);
+  assert.match(notes[0], /the rule in line \d+/);
+});
+
+test('nothing is inserted before an elsif, the chain stays whole', async () => {
+  const { insertRuleBefore } = await import('../addon/lib/sieve-rules.js');
+  const text = 'if true {\n    keep;\n}\nelsif false {\n    keep;\n}';
+  assert.throws(() => insertRuleBefore(text, 4, unsubscribe));
 });

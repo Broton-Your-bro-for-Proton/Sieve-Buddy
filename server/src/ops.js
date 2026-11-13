@@ -8,7 +8,7 @@ import { fixRequire, lintSieve as lintCore } from '../../addon/lib/sieve-analyze
 import { formatSieve as formatCore, lineOf } from '../../addon/lib/sieve-ast.js';
 import { newScript } from '../../addon/lib/sieve-dialect.js';
 import { describeRule, insertBlock } from '../../addon/lib/sieve-rules.js';
-import { findSections, resolveSection } from '../../addon/lib/sieve-sections.js';
+import { findSections, resolveSection, sectionNote } from '../../addon/lib/sieve-sections.js';
 import { simulate as simulateCore } from '../../addon/lib/sieve-sim.js';
 import { RULE_TEMPLATES, buildTemplate as buildTemplateCore, templateDefaults } from '../../addon/lib/sieve-templates.js';
 import { t } from '../../addon/lib/i18n.js';
@@ -234,7 +234,7 @@ async function buildTemplateWithBase(account, { templateId, params = {}, target 
     target: script ? { id: script.id, name: script.name } : { id: null, name: newName || template.name, newFilter: true },
     section: placed.heading ? { title: placed.heading, new: true } : placed.section && inserted.placed ? { title: placed.section.title, line: placed.section.line } : null,
     steps: [{ kind: 'new-block' }],
-    notes: [],
+    notes: [sectionNote({ ...placed, section: inserted.placed ? placed.section : null })].filter(Boolean),
     conflicts: [],
     errors: withLines(sieve, lintCore(sieve, { dialect: data.dialect }).filter((i) => i.severity === 'error')),
     diff: unifiedDiff(before, sieve),

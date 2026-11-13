@@ -7,7 +7,7 @@ import { COMMANDS, EXTENSIONS, TAGS } from '../lib/sieve-dialect.js';
 import { describeActions, insertBlock } from '../lib/sieve-rules.js';
 import { planRule } from '../lib/rule-planner.js';
 import { simulate } from '../lib/sieve-sim.js';
-import { deleteRule, findSections, moveRule, resolveSection, ruleUnits, suggestSections } from '../lib/sieve-sections.js';
+import { deleteRule, findSections, moveRule, resolveSection, ruleUnits, sectionNote, suggestSections } from '../lib/sieve-sections.js';
 import { RULE_TEMPLATES, TEMPLATE_CATEGORIES, buildTemplate, templateDefaults } from '../lib/sieve-templates.js';
 import { dateLocale, t } from '../lib/i18n.js';
 import { messageFromThunderbird, parseHeaderBlock } from '../lib/mail.js';
@@ -451,7 +451,8 @@ export function installTools(editor, state) {
             : placed.new
               ? t('Will be inserted as a new block in the new section “{title}”.', { title: placed.title })
               : t('Will be inserted as a new block in section “{title}”.', { title: placed.title });
-          info.replaceChildren(el('div', {}, text));
+          const note = sectionNote({ ...r, section: inserted.placed ? r.section : null });
+          info.replaceChildren(el('div', {}, text), note ? el('div', { class: 'warn' }, note) : '');
         } else {
           const { plan } = planRule({
             scripts: [{ id: 'editor', name: 'Editor', sieve: current }],

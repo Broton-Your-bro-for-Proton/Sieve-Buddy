@@ -7,7 +7,7 @@ import { lineOf, parseSieve } from './sieve-ast.js';
 import { PROTON_DIALECT, newScript } from './sieve-dialect.js';
 import { insertRuleBefore, mergeRuleIntoScript, proposeRule, ruleReached, ruleToSieve } from './sieve-rules.js';
 import { simulate } from './sieve-sim.js';
-import { findSections, resolveSection } from './sieve-sections.js';
+import { findSections, resolveSection, sectionNote } from './sieve-sections.js';
 
 const GUARD = 'vnd.proton.spam-threshold';
 
@@ -103,17 +103,8 @@ export function planRule({ scripts, rule, target = 'auto', newName, section = 'a
   }
 
   const notes = [];
-  const list = (folders) => folders.map((f) => t('“{s}”', { s: f })).join(', ');
-  if (plan.skipped) {
-    notes.push(
-      t('Not in section “{title}”: there it would come before the rules for {folders}, and messages matching both would no longer reach them. Choose the section under “Where to add it?” to put it there anyway.', {
-        title: plan.skipped.title,
-        folders: list(plan.skipped.displaced),
-      }),
-    );
-  } else if (plan.section?.displaced?.length) {
-    notes.push(t('In section “{title}” it comes before the rules for {folders}: messages matching both go to the new rule from now on.', { title: plan.section.title, folders: list(plan.section.displaced) }));
-  }
+  const note = sectionNote({ skipped: plan.skipped, section: plan.section, displaced: plan.section?.displaced });
+  if (note) notes.push(note);
   let after = null;
   if (message) {
     const run = (p) => {

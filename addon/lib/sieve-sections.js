@@ -128,7 +128,7 @@ export function findSections(text) {
     const next = chains.find((c) => c.start >= offset);
     const elsif = ['elsif', 'else'].includes(next?.commands[0].name);
     // what comes after the insertion point: the rest of the chain, then every later rule
-    const later = chains.filter((c) => c.rule && c.start >= offset).map((c) => ({ command: c.commands[0], chain: elsif && sameChain(chains, next, c) }));
+    const later = chains.filter((c) => c.rule && c.start >= offset).map((c) => ({ command: c.commands[0], line: lineOf(text, c.start), chain: elsif && sameChain(chains, next, c) }));
     return { index, title: h.title, line: h.line, start: h.start, headerEnd: h.headerEnd, setupEnd, end, rules, elsif, later };
   });
 }
@@ -180,14 +180,32 @@ export function sectionInsertPoint(section) {
 }
 
 /**
- * Folders of later rules that lose messages to a rule placed in this section as an elsif: it skips the rest of
- * its chain. (A stop the planner adds on its own is deliberate and already explained in its note.)
+ * Later rules that lose messages to a rule placed in this section as an elsif: it skips the rest of its chain.
+ * Every link with an action counts, unless it does exactly what the new rule does. (A stop the planner adds on
+ * its own is deliberate and already explained in its note.)
+ * @returns {Array<{folder: string|null, line: number}>}
  */
 export function displacedBy(section, rule) {
-  const own = rule.actions?.fileinto;
-  const lost = (section.later ?? []).filter((l) => l.chain);
-  const folders = lost.map((l) => l.command.block && describeActions(l.command.block)?.fileinto).filter((f) => f && f !== own);
-  return [...new Set(folders)];
+  return (section.later ?? [])
+    .filter((l) => l.chain)
+    .map((l) => ({ ...l, actions: l.command.block && describeActions(l.command.block) }))
+    .filter((l) => !l.actions || !sameEffect(rule.actions ?? {}, l.actions) || !sameEffect(l.actions, rule.actions ?? {}))
+    .map((l) => ({ folder: l.actions?.fileinto ?? null, line: l.line }));
+}
+
+/** The note for a section choice that skipped a section or takes messages from later rules, or null. */
+export function sectionNote({ skipped, section, displaced }) {
+  const list = (rules) => rules.map((r) => (r.folder ? t('“{s}” (line {line})', { s: r.folder, line: r.line }) : t('the rule in line {line}', { line: r.line }))).join(', ');
+  if (skipped) {
+    return t('Not in section “{title}”: there it would come before {rules}, and messages matching both would no longer reach them. Choose the section under “Where to add it?” to put it there anyway.', {
+      title: skipped.title,
+      rules: list(skipped.displaced),
+    });
+  }
+  if (section && displaced?.length) {
+    return t('In section “{title}” it comes before {rules}: messages matching both go to the new rule from now on.', { title: section.title, rules: list(displaced) });
+  }
+  return null;
 }
 
 /** Resolves a section choice: 'auto' | 'end' | title | index | {new: title}. */
