@@ -209,6 +209,30 @@ export function sectionNote({ skipped, section, displaced }) {
 }
 
 /**
+ * Whether most top-level rules that file a message also end with stop ("one message, one folder"): then a
+ * new rule should too. Needs a few rules to judge by.
+ */
+export function prefersStop(texts) {
+  let filing = 0;
+  let stopping = 0;
+  for (const text of texts) {
+    let commands;
+    try {
+      commands = parseSieve(text).commands;
+    } catch {
+      continue;
+    }
+    for (const { block } of commands) {
+      const body = block ? text.slice(block.start, block.end) : '';
+      if (!/\bfileinto\s+"/.test(body)) continue;
+      filing++;
+      if (/\bstop\s*;/.test(body)) stopping++;
+    }
+  }
+  return filing >= 3 && stopping * 2 > filing;
+}
+
+/**
  * Where a new block goes when the script ends with catch-all rules (`exists` or `true` that file the
  * message, such as `if exists "list-unsubscribe"`) after other rules: right before them, so they keep
  * collecting what no other rule took.
