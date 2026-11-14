@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Sefrek imzizdigen Sieve i Proton Mail d yal aqeddac ManageSieve neɣ JMAP seg Thunderbird s timmad-is: amaẓrag i yessnen aqeddac-ik, amsalel i d-yettwaskanen anda ara tekcem tabrat, d yilugan seg tabrat s sin n yiflak kan.",
+  "description": "Ẓreg imzizdigen n yimayl-ik war ma teqqneḍ ɣer webmail yal tikkelt. Sieve Buddy iteddu d <b>Proton Mail</b> yerna, s tmellit Docker yettwafernen, d <b>yal aqeddac ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org d wiyaḍ) d <b>JMAP for Sieve</b>.\n\n<b>Timahilin</b>\n<ul>\n<li><b>Amaẓrag i yessnen tutlayt n uqeddac:</b> beṭṭu n tseddast s yiwenniten, isumar i yiwenden, i yixef n tebratin d yiwuliren-ik, asenqed s tuffɣa n require i yettwattun, n tebrinin d yiwuliren arussinen, tallalt mi ara tesɛiḍ taɣerdayt, taɣessa d umsakal.</li>\n<li><b>Alugen Sieve seg tebratt:</b> sit s uzelmaḍ ayeffus ɣef tabratt neɣ seqdec taqeffalt deg tmuɣli n tebratt. Sieve Buddy isumer tiwtilin, yufa amkan akk ufrin deg usekript-ik yerna isɛeddi tuccaḍ i yellan ma yezmer.</li>\n<li><b>Tabrat n uɛeggel:</b> amsalel yesskan anda ara tkcem tabrat send ad teskelseḍ.</li>\n<li><b>Amyellel n yilugan:</b> 16 n yinuzen i yismawen n taɣult, tebdarin n tebratin, tfakturin, tiḥanutin, tiririt tawurmant ma ur telliḍ ara d wayen-nniḍen.</li>\n<li><b>Ixfawen:</b> sleḍ asekript meqqren s yizwal, beddel neɣ kkes ilugan s yiwen n uxef.</li>\n<li><b>Asekles aɣelsan:</b> diff send yal asekles d umazray n yileqman yezrin.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton ur yesɛi ara API unṣib i yimzizdigen. Sieve Buddy yesseqdac API web yebnan am umsaɣ web n Proton, yerna Proton izmer ad t-ibeddel melmi i yebɣa. Awal-ik uffir ur d-yettaffeɣ ara seg Thunderbird d aḍris amraw (SRP), kan ajiṭun n tɣimit i yettwaklasen.\n\nAsagem yella s teglizit d talmanit.\n\nWar assaɣ ɣer Proton AG.",
+  "releaseNotes": "Lqem amezwaru deg addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Amaẓrag yesnaqad asekript-ik s tuffɣa yerna yessen ikaramen-ik"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Amyellel n yilugan yesnulfa alugen seg yinuzen"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Tabrat n uɛeggel tesskan anda ara tkcem tabrat"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Alugen Sieve seg tebrat s sin n yiflak"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Zarządzaj filtrami Sieve dla Proton Mail i każdego serwera ManageSieve lub JMAP bezpośrednio w Thunderbirdzie: edytor, który zna Twój serwer, symulator pokazujący, gdzie trafi wiadomość, i reguły z wiadomości w dwóch kliknięciach.",
+  "description": "Edytuj filtry poczty bez każdorazowego logowania do poczty w przeglądarce. Sieve Buddy współpracuje z <b>Proton Mail</b> oraz, dzięki opcjonalnej usłudze Docker, z <b>każdym serwerem ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org i inne) i z <b>JMAP for Sieve</b>.\n\n<b>Funkcje</b>\n<ul>\n<li><b>Edytor, który zna dialekt serwera:</b> kolorowanie składni, podpowiedzi poleceń, nagłówków i Twoich folderów, sprawdzanie na żywo (brakujący require, nawiasy, nieznane foldery), pomoc po najechaniu kursorem, struktura skryptu i formatowanie.</li>\n<li><b>Reguła Sieve z wiadomości:</b> kliknij wiadomość prawym przyciskiem myszy lub użyj przycisku w widoku wiadomości. Sieve Buddy podpowiada warunki, znajduje najlepsze miejsce w skrypcie i w miarę możliwości rozszerza istniejący blok.</li>\n<li><b>Wiadomość testowa:</b> symulator pokazuje, gdzie trafi wiadomość, zanim zapiszesz zmiany.</li>\n<li><b>Asystent reguł:</b> 16 szablonów dla domen, list dyskusyjnych, faktur, sklepów, autoodpowiedzi i nie tylko.</li>\n<li><b>Sekcje:</b> uporządkuj jeden duży skrypt nagłówkami, przenoś i usuwaj reguły według sekcji.</li>\n<li><b>Bezpieczny zapis:</b> porównanie zmian przed każdym zapisem i historia wcześniejszych wersji.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton nie ma oficjalnego API do filtrów. Sieve Buddy korzysta z tego samego API webowego co własny klient webowy Proton, a Proton może je zmienić w dowolnej chwili. Twoje hasło nigdy nie opuszcza Thunderbirda w postaci jawnego tekstu (SRP), zapisywany jest tylko token sesji.\n\nInterfejs jest dostępny po angielsku i niemiecku.\n\nBrak powiązań z Proton AG.",
+  "releaseNotes": "Pierwsza wersja na addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Edytor sprawdza skrypt na żywo i zna Twoje foldery"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Asystent reguł tworzy regułę z szablonu"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Wiadomość testowa pokazuje, gdzie trafi wiadomość"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Reguła Sieve z wiadomości w dwóch kliknięciach"
+    }
+  ]
+}

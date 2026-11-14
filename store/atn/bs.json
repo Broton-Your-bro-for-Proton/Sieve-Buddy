@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Upravljajte Sieve filterima za Proton Mail i svaki ManageSieve ili JMAP server direktno u Thunderbirdu: editor koji poznaje vaš server, simulator koji pokazuje gdje poruka završava i pravila iz poruke u dva klika.",
+  "description": "Uređujte svoje filtere za poštu bez prijave na webmail svaki put. Sieve Buddy radi s <b>Proton Mailom</b> i, putem svoje opcione Docker usluge, sa <b>svakim ManageSieve serverom</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org i drugi) te s <b>JMAP for Sieve</b>.\n\n<b>Funkcije</b>\n<ul>\n<li><b>Editor koji poznaje dijalekt servera:</b> isticanje sintakse, prijedlozi za naredbe, zaglavlja i vaše mape, provjera uživo za nedostajući require, zagrade i nepoznate mape, pomoć pri prelasku mišem, pregled strukture i formatiranje.</li>\n<li><b>Sieve pravilo iz poruke:</b> kliknite desnom tipkom miša na poruku ili koristite dugme u prikazu poruke. Sieve Buddy predlaže uslove, pronalazi najbolje mjesto u vašoj skripti i proširuje postojeći blok gdje može.</li>\n<li><b>Probna poruka:</b> simulator pokazuje gdje poruka završava prije nego što spremite.</li>\n<li><b>Asistent za pravila:</b> 16 šablona za domene, mailing liste, račune, trgovine, automatski odgovor i više.</li>\n<li><b>Odjeljci:</b> strukturirajte jednu veliku skriptu naslovima, premještajte i brišite pravila po odjeljcima.</li>\n<li><b>Sigurno spremanje:</b> usporedba izmjena prije svakog spremanja i historija ranijih verzija.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton nema službeni API za filtere. Sieve Buddy koristi isti web API kao Protonov vlastiti web klijent, a Proton ga može promijeniti u bilo kojem trenutku. Vaša lozinka nikada ne napušta Thunderbird u običnom tekstu (SRP), pohranjuje se samo token sesije.\n\nInterfejs je dostupan na engleskom i njemačkom jeziku.\n\nNije povezano s kompanijom Proton AG.",
+  "releaseNotes": "Prva verzija na addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Editor uživo provjerava vašu skriptu i poznaje vaše mape"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Asistent za pravila kreira pravilo iz šablona"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Probna poruka pokazuje gdje poruka završava"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Sieve pravilo iz poruke u dva klika"
+    }
+  ]
+}

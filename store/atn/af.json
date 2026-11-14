@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Bestuur Sieve-filters vir Proton Mail en elke ManageSieve- of JMAP-bediener direk in Thunderbird: 'n redigeerder wat jou bediener ken, 'n simulator wat wys waar 'n e-pos beland, en reëls uit 'n e-pos in twee klikke.",
+  "description": "Wysig jou e-posfilters sonder om elke keer by die webmail aan te meld. Sieve Buddy werk met <b>Proton Mail</b> en, deur sy opsionele Docker-diens, met <b>elke ManageSieve-bediener</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org en meer) en <b>JMAP for Sieve</b>.\n\n<b>Kenmerke</b>\n<ul>\n<li><b>Redigeerder wat die bediener se dialek ken:</b> sintaksuitlig, voorstelle vir opdragte, opskrifte en jou eie vouers, regstreekse kontrole vir ontbrekende require, hakies en onbekende vouers, hulp by oorsweef, struktuuroorsig en formateerder.</li>\n<li><b>Sieve-reël uit e-pos:</b> regsklik op 'n boodskap of gebruik die knoppie in die boodskapaansig. Sieve Buddy stel voorwaardes voor, vind die beste plek in jou skrip en brei 'n bestaande blok uit waar dit kan.</li>\n<li><b>Toets-e-pos:</b> 'n simulator wys waar 'n e-pos beland voordat jy stoor.</li>\n<li><b>Reëlassistent:</b> 16 sjablone vir domeine, possoslyste, fakture, winkels, afwesigheidsantwoord en meer.</li>\n<li><b>Afdelings:</b> struktureer een groot skrip met opskrifte, skuif en vee reëls per afdeling uit.</li>\n<li><b>Veilige stoor:</b> 'n verskilvergelyking voor elke stoor en 'n geskiedenis van vorige weergawes.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton het geen amptelike API vir filters nie. Sieve Buddy gebruik dieselfde web-API as Proton se eie webkliënt, en Proton kan dit enige tyd verander. Jou wagwoord verlaat Thunderbird nooit in gewone teks nie (SRP), net 'n sessietoken word gestoor.\n\nDie koppelvlak is in Engels en Duits beskikbaar.\n\nNie geaffilieer met Proton AG nie.",
+  "releaseNotes": "Eerste weergawe op addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Die redigeerder kontroleer jou skrip regstreeks en ken jou vouers"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Die reëlassistent skep 'n reël uit 'n sjabloon"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Toets-e-pos wys waar 'n e-pos beland"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "'n Sieve-reël uit 'n e-pos in twee klikke"
+    }
+  ]
+}

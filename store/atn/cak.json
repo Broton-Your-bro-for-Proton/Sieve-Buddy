@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Tiqasaj taq Sieve chi ri Proton Mail xki' ri ManageSieve o JMAP ruk'in Thunderbird: jun kamanel nunaj ri kaqaj, jun nuk'utuj achike ruk'ojlib'al nitzolin ri taqoj, xa ke'ib' chaqapil nuya' jun chomanik chi rij ri taqoj.",
+  "description": "Tichap ri taq tzub'al taqoj mani nab'ey ta nikajb'a' pa webmail. Sieve Buddy nisamäj ruk'in <b>Proton Mail</b> xa ruk'in ri Docker rusamaj k'o chi nawajo', ruk'in <b>konojel taq ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org chuqa' chi nik'ayew) xa chuqa' <b>JMAP for Sieve</b>.\n\n<b>Taq b'anob'äl</b>\n<ul>\n<li><b>Kamanel nunaj ri rutzij ri kaqaj:</b> nuk'utuj ri taq tz'ib', taq tzijonem chi ri taq pwäq, taq headers xa ri taq cholb'äl awichin, nisik'ij ri require nitikir ni k'ayew, ri taq paréntesis xa ri taq cholb'äl man etaman ta, kuqulib'äl xa ri rub'anikil.</li>\n<li><b>Chomanik Sieve pa taqoj:</b> chapa' ri taqoj ruk'in ri wiqiq'a' o tokisaj ri b'otón pa ruwäch ri taqoj. Sieve Buddy nuya' taq chomanik, nuk'ulwachij ri ütz chi ri script xa nunimirisaj jun chi k'o wi.</li>\n<li><b>Taqoj chi tijonem:</b> jun nuk'utuj achike ruk'ojlib'al ri taqoj nitzolin chi nasolij.</li>\n<li><b>Rutob'anel chomanik:</b> 16 taq molde chi taq dominio, taq tzub'al, taq wuj chi pwäq, taq kayb'äl, ri ruyonil chi man k'o ta ri chakunel xa nik'iyal chik.</li>\n<li><b>Taq Wi:</b> tiyak jun nimalaj script ruk'in taq rub'i', tijalöx xa tijosq'ij taq chomanik pa wi chi wi.</li>\n<li><b>Ütz rutz'ib'axik:</b> jun diff chi nab'ey chi jujun rutz'ib'axik xa jun rub'ixikil taq ruwäch nab'ey.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton man k'o ta rutzijol API chi taq tzub'al. Sieve Buddy nitokisaj ri API web junan ruk'in ri web rusamajib'al Proton, xa Proton nitikir nujäl ri jub'a' nik'o wi. Ri rukaxlan atzij man nel ta pa Thunderbird ruk'in ri tzij (SRP), xa ri rutzij ri k'olib'äl nik'oje'.\n\nRi ruwäch k'o pa kaxlan tzij xa pa aleman.\n\nMan k'o ta rik'in Proton AG.",
+  "releaseNotes": "Nab'ey ruwäch pa addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Ri kamanel nusik'ij ri script awichin xa nunaj ri taq cholb'äl"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Ri rutob'anel chomanik nuk'üt jun chomanik chi jun molde"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Ri taqoj chi tijonem nuk'üt achike ruk'ojlib'al nitzolin"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Jun chomanik Sieve pa taqoj xa ke'ib' chaqapil"
+    }
+  ]
+}

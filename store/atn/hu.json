@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Kezelje a Sieve szűrőket Proton Mailhez és bármely ManageSieve vagy JMAP szerverhez közvetlenül a Thunderbirdben: szerkesztő, amely ismeri a szerverét, szimulátor, amely megmutatja, hová kerül egy levél, és szabályok egy levélből két kattintással.",
+  "description": "Szerkessze a levélszűrőit anélkül, hogy minden alkalommal be kellene jelentkeznie a webes levelezőbe. A Sieve Buddy működik a <b>Proton Mailhez</b>, és az opcionális Docker szolgáltatásán keresztül <b>bármely ManageSieve szerverrel</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org és mások), valamint a <b>JMAP for Sieve</b> szolgáltatással.\n\n<b>Funkciók</b>\n<ul>\n<li><b>A szerver nyelvjárását ismerő szerkesztő:</b> szintaxiskiemelés, javaslatok parancsokhoz, fejlécekhez és a saját mappáihoz, élő ellenőrzés (hiányzó require, zárójelek, ismeretlen mappák), súgó az egér fölé húzáskor, szerkezeti nézet és formázó.</li>\n<li><b>Sieve szabály levélből:</b> kattintson jobb gombbal egy levélre, vagy használja az üzenetnézet gombját. A Sieve Buddy feltételeket javasol, megtalálja a legjobb helyet a szkriptben, és ahol lehet, kibővít egy meglévő blokkot.</li>\n<li><b>Tesztlevél:</b> egy szimulátor megmutatja, hová kerül a levél, mielőtt mentene.</li>\n<li><b>Szabályasszisztens:</b> 16 sablon domainekhez, levelezőlistákhoz, számlákhoz, webshopokhoz, automatikus válaszhoz és más célokra.</li>\n<li><b>Szakaszok:</b> tagoljon egy nagy szkriptet címsorokkal, helyezze át és törölje a szabályokat szakaszonként.</li>\n<li><b>Biztonságos mentés:</b> változások összehasonlítása minden mentés előtt, és a korábbi verziók előzményei.</li>\n</ul>\n\n<b>Proton Mail</b>\nA Protonnak nincs hivatalos API-ja a szűrőkhöz. A Sieve Buddy ugyanazt a webes API-t használja, mint a Proton saját webes kliense, és a Proton ezt bármikor megváltoztathatja. A jelszava soha nem hagyja el a Thunderbirdöt egyszerű szövegként (SRP), csak egy munkamenet-token kerül tárolásra.\n\nA felület angol és német nyelven érhető el.\n\nNincs kapcsolatban a Proton AG-vel.",
+  "releaseNotes": "Első verzió az addons.thunderbird.net oldalon.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "A szerkesztő élőben ellenőrzi a szkriptet, és ismeri a mappáit"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "A szabályasszisztens sablonból hoz létre szabályt"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "A tesztlevél megmutatja, hová kerül a levél"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Sieve szabály egy levélből két kattintással"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Gerencie os filtros Sieve do Proton Mail e de qualquer servidor ManageSieve ou JMAP direto no Thunderbird: um editor que conhece o seu servidor, um simulador que mostra onde um e-mail vai parar e regras criadas a partir de um e-mail em dois cliques.",
+  "description": "Edite seus filtros de e-mail sem precisar entrar no webmail toda vez. O Sieve Buddy funciona com o <b>Proton Mail</b> e, por meio do serviço Docker opcional, com <b>qualquer servidor ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org e outros) e <b>JMAP for Sieve</b>.\n\n<b>Recursos</b>\n<ul>\n<li><b>Editor que conhece o dialeto do servidor:</b> realce de sintaxe, sugestões de comandos, cabeçalhos e das suas próprias pastas, verificação em tempo real de require ausentes, chaves e pastas desconhecidas, ajuda ao passar o mouse, estrutura e formatador.</li>\n<li><b>Regra Sieve a partir de um e-mail:</b> clique com o botão direito em uma mensagem ou use o botão na visualização da mensagem. O Sieve Buddy sugere condições, encontra o melhor lugar no seu script e amplia um bloco existente quando possível.</li>\n<li><b>E-mail de teste:</b> um simulador mostra onde um e-mail vai parar antes de você salvar.</li>\n<li><b>Assistente de regras:</b> 16 modelos para domínios, listas de discussão, faturas, lojas, resposta de ausência e mais.</li>\n<li><b>Seções:</b> estruture um script grande com títulos e mova ou exclua regras por seção.</li>\n<li><b>Salvamento seguro:</b> uma comparação das diferenças antes de cada salvamento e um histórico de versões anteriores.</li>\n</ul>\n\n<b>Proton Mail</b>\nO Proton não tem uma API oficial para filtros. O Sieve Buddy usa a mesma API web do cliente web do Proton, e o Proton pode alterá-la a qualquer momento. Sua senha nunca sai do Thunderbird em texto simples (SRP), apenas um token de sessão é armazenado.\n\nA interface está disponível em inglês e alemão.\n\nSem afiliação com a Proton AG.",
+  "releaseNotes": "Primeira versão em addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "O editor verifica seu script em tempo real e conhece suas pastas"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "O assistente de regras cria uma regra a partir de um modelo"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "O e-mail de teste mostra onde um e-mail vai parar"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Uma regra Sieve a partir de um e-mail em dois cliques"
+    }
+  ]
+}
