@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Bainistigh scagairí Sieve do Proton Mail agus d'aon fhreastalaí ManageSieve nó JMAP go díreach i Thunderbird: eagarthóir a aithníonn do fhreastalaí, insamhlóir a thaispeánann cá dtéann ríomhphost, agus rialacha ó ríomhphost in dhá chliceáil.",
+  "description": "Cuir do scagairí ríomhphoist in eagar gan síniú isteach sa webmail gach uair. Oibríonn Sieve Buddy le <b>Proton Mail</b> agus, trína sheirbhís Docker roghnach, le <b>haon fhreastalaí ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org agus eile) agus le <b>JMAP for Sieve</b>.\n\n<b>Gnéithe</b>\n<ul>\n<li><b>Eagarthóir a aithníonn canúint an fhreastalaí:</b> aibhsiú comhréire, moltaí d'orduithe, de cheannteidil agus de do fhillteáin féin, seiceáil bheo ar require atá in easnamh, ar lúibíní agus ar fhillteáin anaithnide, cabhair ag an tinreamh, creatlach agus formáidiú.</li>\n<li><b>Riail Sieve ó ríomhphost:</b> deaschliceáil ar theachtaireacht nó úsáid an cnaipe san amharc teachtaireachta. Molann Sieve Buddy coinníollacha, aimsíonn sé an áit is fearr i do script agus leathnaíonn sé bloc atá ann cheana nuair is féidir.</li>\n<li><b>Ríomhphost tástála:</b> taispeánann insamhlóir cá dtéann ríomhphost sula sábhálann tú.</li>\n<li><b>Cúntóir rialacha:</b> 16 theimpléad le haghaidh fearainn, liostaí poist, sonraisc, siopaí, freagra as oifig agus eile.</li>\n<li><b>Ranna:</b> struchtúraigh script mór le ceannteidil, bog agus scrios rialacha de réir ranna.</li>\n<li><b>Sábháil shábháilte:</b> comparáid athruithe roimh gach sábháil agus stair leaganacha níos luaithe.</li>\n</ul>\n\n<b>Proton Mail</b>\nNíl API oifigiúil ag Proton do scagairí. Úsáideann Sieve Buddy an API gréasáin céanna le cliant gréasáin Proton féin, agus is féidir le Proton é a athrú am ar bith. Ní fhágann do phasfhocal Thunderbird riamh i bhfíorthéacs (SRP), ní stóráiltear ach comhartha seisiúin.\n\nTá an chomhéadan ar fáil i mBéarla agus i nGearmáinis.\n\nNíl aon cheangal le Proton AG.",
+  "releaseNotes": "An chéad leagan ar addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Seiceálann an t-eagarthóir do script go beo agus aithníonn sé d'fhillteáin"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Cruthaíonn an cúntóir rialacha riail ó theimpléad"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Taispeánann an ríomhphost tástála cá dtéann ríomhphost"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Riail Sieve ó ríomhphost in dhá chliceáil"
+    }
+  ]
+}

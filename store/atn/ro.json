@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Gestionează filtrele Sieve pentru Proton Mail și pentru orice server ManageSieve sau JMAP direct în Thunderbird: un editor care îți cunoaște serverul, un simulator care arată unde ajunge un mesaj și reguli create dintr-un mesaj în două clicuri.",
+  "description": "Editează-ți filtrele de e-mail fără să te autentifici de fiecare dată în webmail. Sieve Buddy funcționează cu <b>Proton Mail</b> și, prin serviciul Docker opțional, cu <b>orice server ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org și altele) și cu <b>JMAP for Sieve</b>.\n\n<b>Funcționalități</b>\n<ul>\n<li><b>Editor care cunoaște dialectul serverului:</b> evidențierea sintaxei, sugestii pentru comenzi, anteturi și propriile foldere, verificare în timp real pentru require lipsă, acolade și foldere necunoscute, ajutor la trecerea mausului, structură și formatator.</li>\n<li><b>Regulă Sieve dintr-un mesaj:</b> fă clic dreapta pe un mesaj sau folosește butonul din vizualizarea mesajului. Sieve Buddy sugerează condiții, găsește cel mai bun loc în script și extinde un bloc existent când poate.</li>\n<li><b>Mesaj de test:</b> un simulator arată unde ajunge un mesaj înainte de salvare.</li>\n<li><b>Asistent pentru reguli:</b> 16 șabloane pentru domenii, liste de corespondență, facturi, magazine, răspuns automat de absență și altele.</li>\n<li><b>Secțiuni:</b> structurează un script mare cu titluri, mută și șterge reguli pe secțiuni.</li>\n<li><b>Salvare sigură:</b> o comparație a modificărilor înainte de fiecare salvare și un istoric al versiunilor anterioare.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton nu are un API oficial pentru filtre. Sieve Buddy folosește același API web ca și clientul web Proton, iar Proton îl poate schimba oricând. Parola ta nu părăsește niciodată Thunderbird în text simplu (SRP), se stochează doar un token de sesiune.\n\nInterfața este disponibilă în engleză și germană.\n\nFără afiliere cu Proton AG.",
+  "releaseNotes": "Prima versiune pe addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Editorul îți verifică scriptul în timp real și îți cunoaște folderele"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Asistentul pentru reguli creează o regulă dintr-un șablon"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Mesajul de test arată unde ajunge un mesaj"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "O regulă Sieve dintr-un mesaj în două clicuri"
+    }
+  ]
+}

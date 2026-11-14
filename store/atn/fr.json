@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Gérez les filtres Sieve de Proton Mail et de tout serveur ManageSieve ou JMAP directement dans Thunderbird : un éditeur qui connaît votre serveur, un simulateur qui montre où atterrit un message, et des règles créées depuis un message en deux clics.",
+  "description": "Modifiez vos filtres de messagerie sans vous connecter à chaque fois au webmail. Sieve Buddy fonctionne avec <b>Proton Mail</b> et, grâce à son service Docker facultatif, avec <b>tout serveur ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org et d'autres) et <b>JMAP for Sieve</b>.\n\n<b>Fonctionnalités</b>\n<ul>\n<li><b>Un éditeur qui connaît le dialecte du serveur:</b> coloration syntaxique, suggestions de commandes, d'en-têtes et de vos propres dossiers, vérification en direct des require manquants, des accolades et des dossiers inconnus, aide au survol, plan et formateur.</li>\n<li><b>Règle Sieve depuis un message:</b> faites un clic droit sur un message ou utilisez le bouton de l'affichage du message. Sieve Buddy propose des conditions, trouve le meilleur emplacement dans votre script et complète un bloc existant quand c'est possible.</li>\n<li><b>Message de test:</b> un simulateur montre où atterrit un message avant l'enregistrement.</li>\n<li><b>Assistant de règles:</b> 16 modèles pour les domaines, les listes de diffusion, les factures, les boutiques, l'absence du bureau et plus encore.</li>\n<li><b>Sections:</b> structurez un gros script avec des titres, déplacez et supprimez les règles par section.</li>\n<li><b>Enregistrement sûr:</b> un aperçu des différences avant chaque enregistrement et un historique des versions précédentes.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton ne propose pas d'API officielle pour les filtres. Sieve Buddy utilise la même API web que le client web de Proton, et Proton peut la modifier à tout moment. Votre mot de passe ne quitte jamais Thunderbird en clair (SRP), seul un jeton de session est conservé.\n\nL'interface est disponible en anglais et en allemand.\n\nSans affiliation avec Proton AG.",
+  "releaseNotes": "Première version sur addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "L'éditeur vérifie votre script en direct et connaît vos dossiers"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "L'assistant de règles crée une règle à partir d'un modèle"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Le message de test montre où atterrit un message"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Une règle Sieve depuis un message en deux clics"
+    }
+  ]
+}

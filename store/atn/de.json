@@ -1,0 +1,12 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Sieve-Filter für Proton Mail und jeden ManageSieve- oder JMAP-Server direkt in Thunderbird verwalten: ein Editor, der deinen Server kennt, ein Simulator, der zeigt, wo eine Mail landet, und Regeln aus einer Mail mit zwei Klicks.",
+  "description": "Bearbeite deine Mailfilter, ohne dich jedes Mal im Webmail anzumelden. Sieve Buddy arbeitet mit <b>Proton Mail</b> und über den optionalen Docker-Dienst mit <b>jedem ManageSieve-Server</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org und weitere) sowie <b>JMAP für Sieve</b>.\n\n<b>Funktionen</b>\n<ul>\n<li><b>Editor, der den Dialekt des Servers kennt:</b> Syntaxhervorhebung, Vorschläge für Befehle, Header und deine eigenen Ordner, Live-Prüfung auf fehlendes require, Klammern und unbekannte Ordner, Hilfe beim Überfahren, Gliederung und Formatieren.</li>\n<li><b>Sieve-Regel aus Mail:</b> Rechtsklick auf eine Nachricht oder die Schaltfläche in der Nachrichtenansicht. Sieve Buddy schlägt Bedingungen vor, findet die beste Stelle im Skript und erweitert wo möglich einen vorhandenen Block.</li>\n<li><b>Mail testen:</b> ein Simulator zeigt vor dem Speichern, wo eine Mail landet.</li>\n<li><b>Regel-Assistent:</b> 16 Vorlagen für Domains, Mailinglisten, Rechnungen, Shops, Abwesenheit und mehr.</li>\n<li><b>Abschnitte:</b> ein großes Skript mit Überschriften gliedern, Regeln je Abschnitt verschieben und löschen.</li>\n<li><b>Sicheres Speichern:</b> vor jedem Speichern ein Diff und ein Verlauf früherer Versionen.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton bietet keine offizielle API für Filter. Sieve Buddy nutzt dieselbe Web-API wie Protons eigener Webclient, und Proton kann sie jederzeit ändern. Dein Passwort verlässt Thunderbird nie im Klartext (SRP), gespeichert wird nur ein Sitzungs-Token.\n\nDie Oberfläche gibt es auf Englisch und Deutsch.\n\nKeine Verbindung zur Proton AG.",
+  "releaseNotes": "Erste Version auf addons.thunderbird.net.",
+  "screenshots": [
+    { "file": "01-editor.png", "caption": "Der Editor prüft dein Skript live und kennt deine Ordner" },
+    { "file": "02-assistant.png", "caption": "Der Regel-Assistent erstellt eine Regel aus einer Vorlage" },
+    { "file": "03-test-mail.png", "caption": "Mail testen zeigt, wo eine Mail landet" },
+    { "file": "04-rule-from-mail.png", "caption": "Eine Sieve-Regel aus einer Mail mit zwei Klicks" }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Hallitse Proton Mailin ja kaikkien ManageSieve- tai JMAP-palvelimien Sieve-suodattimia suoraan Thunderbirdissä: palvelintasi tunteva editori, simulaattori joka näyttää minne viesti päätyy, ja säännöt viestistä kahdella klikkauksella.",
+  "description": "Muokkaa sähköpostisuodattimiasi ilman, että sinun täytyy kirjautua verkkopostiin joka kerta. Sieve Buddy toimii <b>Proton Mailin</b> kanssa ja valinnaisen Docker-palvelunsa kautta <b>kaikkien ManageSieve-palvelimien</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org ja muut) sekä <b>JMAP for Sieve</b> -rajapinnan kanssa.\n\n<b>Ominaisuudet</b>\n<ul>\n<li><b>Editori, joka tuntee palvelimen murteen:</b> syntaksin korostus, ehdotuksia komennoille, otsakkeille ja omille kansioillesi, jatkuva tarkistus puuttuvista require-lauseista, sulkeista ja tuntemattomista kansioista, ohje osoitettaessa, rakenneluettelo ja muotoilija.</li>\n<li><b>Sieve-sääntö viestistä:</b> napsauta viestiä hiiren kakkospainikkeella tai käytä viestinäkymän painiketta. Sieve Buddy ehdottaa ehtoja, löytää parhaan paikan skriptistäsi ja laajentaa olemassa olevaa lohkoa, kun se on mahdollista.</li>\n<li><b>Testiviesti:</b> simulaattori näyttää, minne viesti päätyy, ennen kuin tallennat.</li>\n<li><b>Sääntöavustaja:</b> 16 mallia verkkotunnuksille, postituslistoille, laskuille, verkkokaupoille, poissaoloviestille ja muuhun.</li>\n<li><b>Osiot:</b> jäsennä suuri skripti otsikoilla, siirrä ja poista sääntöjä osioittain.</li>\n<li><b>Turvallinen tallennus:</b> diff ennen jokaista tallennusta ja historia aiemmista versioista.</li>\n</ul>\n\n<b>Proton Mail</b>\nProtonilla ei ole virallista rajapintaa suodattimille. Sieve Buddy käyttää samaa web-rajapintaa kuin Protonin oma verkkosovellus, ja Proton voi muuttaa sitä milloin tahansa. Salasanasi ei koskaan poistu Thunderbirdistä selväkielisenä (SRP), vain istuntotunniste tallennetaan.\n\nKäyttöliittymä on saatavilla englanniksi ja saksaksi.\n\nEi sidoksissa Proton AG:hen.",
+  "releaseNotes": "Ensimmäinen versio addons.thunderbird.net-sivustolla.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Editori tarkistaa skriptisi jatkuvasti ja tuntee kansiosi"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Sääntöavustaja luo säännön mallista"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Testiviesti näyttää, minne viesti päätyy"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Sieve-sääntö viestistä kahdella klikkauksella"
+    }
+  ]
+}
