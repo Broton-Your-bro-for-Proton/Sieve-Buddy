@@ -1,14 +1,14 @@
 {
   "manifest_version": 2,
   "name": "Sieve Buddy",
-  "version": "0.5.8",
+  "version": "0.6.3",
   "description": "__MSG_extensionDescription__",
   "default_locale": "en",
   "author": "HyperCriSiS",
   "homepage_url": "https://github.com/Broton-Your-bro-for-Proton/Sieve-Buddy",
   "browser_specific_settings": {
     "gecko": {
-      "id": "proton-sieve-manager@hypercrisis.local",
+      "id": "sieve-buddy@hypercrisis",
       "strict_min_version": "115.0"
     }
   },

@@ -7,7 +7,7 @@ import { lineOf, parseSieve } from './sieve-ast.js';
 import { PROTON_DIALECT, newScript } from './sieve-dialect.js';
 import { insertRuleBefore, mergeRuleIntoScript, proposeRule, ruleReached, ruleToSieve } from './sieve-rules.js';
 import { simulate } from './sieve-sim.js';
-import { findSections, resolveSection } from './sieve-sections.js';
+import { catchAllPoint, findSections, resolveSection, sectionNote } from './sieve-sections.js';
 
 const GUARD = 'vnd.proton.spam-threshold';
 
@@ -25,7 +25,8 @@ function sectionOptions(section, rule, hints) {
   if (section === 'end') return out;
   out.place = (sieve) => {
     const r = resolveSection(sieve, section, rule, hints);
-    out.chosen = r.section ? { title: r.section.title, line: r.section.line } : null;
+    out.chosen = r.section ? { title: r.section.title, line: r.section.line, displaced: r.displaced } : null;
+    out.skipped = r.skipped ?? null;
     return r.at;
   };
   if (section && section !== 'auto') {
@@ -42,7 +43,17 @@ function sectionOptions(section, rule, hints) {
 function planForScript(script, rule, section, hints, separate = false) {
   const options = sectionOptions(section, rule, hints);
   if (separate) options.within = () => false;
-  const merged = mergeRuleIntoScript(script, rule, options);
+  let merged = mergeRuleIntoScript(script, rule, options);
+  // a new block that went to the end of the file goes before catch-all rules there, with stop when it files
+  // the message (otherwise the catch-all's fileinto would win)
+  let catchAll = null;
+  const atEnd = (section ?? 'auto') === 'auto' && !options.chosen && merged.steps.every((s) => s.kind === 'new-block');
+  const point = atEnd && catchAllPoint(script.sieve);
+  if (point) {
+    const stop = Boolean(rule.actions.fileinto) && !rule.actions.stop;
+    merged = mergeRuleIntoScript(script, stop ? { ...rule, actions: { ...rule.actions, stop } } : rule, { place: () => point, within: () => false });
+    catchAll = { before: catchAllPoint(merged.sieve)?.line ?? point.line, stop };
+  }
   const merges = merged.steps.filter((s) => s.kind !== 'new-block' && s.kind !== 'covered').length;
   const covered = merged.steps.filter((s) => s.kind === 'covered').length;
   const sameFolder = rule.actions.fileinto && script.sieve.includes(`fileinto "${rule.actions.fileinto}"`) ? 1 : 0;
@@ -54,6 +65,8 @@ function planForScript(script, rule, section, hints, separate = false) {
     sieve: merged.sieve,
     steps: merged.steps,
     section: placed ? options.chosen : null,
+    skipped: placed ? options.skipped : null,
+    catchAll,
     score: merges * 10 + covered * 5 + sameFolder * 2,
   };
 }
@@ -101,6 +114,15 @@ export function planRule({ scripts, rule, target = 'auto', newName, section = 'a
   }
 
   const notes = [];
+  const note = sectionNote({ skipped: plan.skipped, section: plan.section, displaced: plan.section?.displaced });
+  if (note) notes.push(note);
+  if (plan.catchAll) {
+    notes.push(
+      plan.catchAll.stop
+        ? t('Inserted before the catch-all rule in line {line} and ended with “stop”, so that rule keeps collecting only what no other rule took.', { line: plan.catchAll.before })
+        : t('Inserted before the catch-all rule in line {line}, so that rule keeps collecting only what no other rule took.', { line: plan.catchAll.before }),
+    );
+  }
   let after = null;
   if (message) {
     const run = (p) => {

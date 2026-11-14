@@ -5,7 +5,7 @@ import { t } from '../lib/i18n.js';
 import { messageFromThunderbird, parseHeaderBlock, senderName, suggestConditions, decodeEncodedWords } from '../lib/mail.js';
 import { planRule } from '../lib/rule-planner.js';
 import { describeRule } from '../lib/sieve-rules.js';
-import { findSections } from '../lib/sieve-sections.js';
+import { findSections, prefersStop } from '../lib/sieve-sections.js';
 import { simulate } from '../lib/sieve-sim.js';
 import { changedActions, findFolder, mailActions } from '../lib/mail-actions.js';
 import { SYSTEM_FOLDERS } from '../lib/sieve-dialect.js';
@@ -254,7 +254,7 @@ function clearPlan(message) {
   $('plan').replaceChildren(el('div', { class: 'warn' }, message));
   $('diff').replaceChildren();
   $('after').textContent = '';
-  $('apply').disabled = $('apply-run').disabled = true;
+  $('apply').disabled = true;
   state.plan = null;
 }
 
@@ -305,6 +305,14 @@ function render() {
       ),
     ),
     ...notes.map((n) => el('div', { class: 'warn' }, `↪ ${n}`)),
+    displacedFolders(plan).length
+      ? el(
+          'div',
+          { class: 'check-moves' },
+          el('button', { type: 'button', class: 'ghost', onclick: (e) => busy(e.currentTarget, () => checkMoves(plan)) }, t('Check with the messages in {folders}', { folders: displacedFolders(plan).join(', ') })),
+          el('div', { id: 'moves', class: 'small' }),
+        )
+      : '',
     ...conflicts.map((c) => el('div', { class: 'warn' }, t('⚠ {message}: filter “{script}”, line {line}', { message: c.message, script: c.scriptName, line: c.line }))),
     ...errors.map((e) => el('div', { class: 'warn' }, `✖ ${e.message}`)),
   );
@@ -313,22 +321,23 @@ function render() {
   const first = $('diff').querySelector('.diff-add, .diff-del');
   if (first) $('diff').scrollTop = first.offsetTop - $('diff').clientHeight / 3;
   $('after').textContent = after ? t('Afterwards: {result}', { result: describeSimulation(after) }) : '';
-  $('apply').disabled = $('apply-run').disabled = errors.length > 0 || (stats.added === 0 && stats.removed === 0);
+  $('apply').disabled = errors.length > 0 || (stats.added === 0 && stats.removed === 0);
 }
 
 // ---------- save ----------
 
-async function applyPlan(run = false) {
+async function applyPlan() {
   const plan = state.plan;
   if (!plan) return;
+  const run = $('inbox-run').checked;
   // the inbox is checked against the plan before saving, so a cancel still leaves everything as it was
   let inbox = [];
-  if ($('inbox-run').checked) {
-    $('apply').disabled = $('apply-run').disabled = true;
+  if (run) {
+    $('apply').disabled = true;
     try {
       inbox = await scanInbox(plan, run);
     } finally {
-      $('apply').disabled = $('apply-run').disabled = false;
+      $('apply').disabled = false;
     }
     if (inbox.length && !confirm(t('{count} messages in the inbox will be processed: {actions}. Continue?', { count: inbox.length, actions: summarize(inbox) }))) return;
   }
@@ -440,6 +449,63 @@ async function runOnMessage(plan) {
   report(t('Applied to this message ✓'), missing, new Set(actions.skipped));
 }
 
+/** Folders of the later rules the planned rule takes messages from. */
+const displacedFolders = (plan) => [...new Set((plan.section?.displaced ?? []).map((d) => d.folder).filter(Boolean))];
+
+/** Messages of a folder, all pages. */
+async function folderMessages(folder) {
+  const all = [];
+  let page = await browser.messages.list(folder);
+  for (;;) {
+    all.push(...page.messages);
+    if (!page.id) return all;
+    page = await browser.messages.continueList(page.id);
+  }
+}
+
+/**
+ * Runs the messages that sit in the folders the planned rule takes messages from through the old and the new
+ * filters and lists those that would end up elsewhere: real examples instead of a guess.
+ */
+async function checkMoves(plan) {
+  const out = $('moves');
+  if (!inAddon) {
+    out.textContent = t('Only available in Thunderbird.');
+    return;
+  }
+  const { folder: current } = await browser.messages.get(openMessageId());
+  const folders = await accountFolders(current.accountId);
+  const before = runnableScripts();
+  const after = plannedScripts(plan);
+  const moves = [];
+  const missing = [];
+  let checked = 0;
+  for (const name of displacedFolders(plan)) {
+    const folder = findFolder(folders, name);
+    if (!folder) {
+      missing.push(name);
+      continue;
+    }
+    for (const header of await folderMessages(folder)) {
+      out.textContent = t('Checking: {count} messages', { count: ++checked });
+      try {
+        const message = messageFromThunderbird(await browser.messages.getFull(header.id), { size: header.size });
+        const [was, now] = [simulateWith(before, message), simulateWith(after, message)];
+        if (changedActions(was, now)) moves.push({ subject: decodeEncodedWords(header.subject ?? ''), was: describeSimulation(was), now: describeSimulation(now) });
+      } catch {
+        // a message that cannot be read is left out of the check
+      }
+    }
+  }
+  const lines = moves.slice(0, 10).map((m) => el('div', { class: 'muted' }, `${m.subject || t('(no subject)')}: ${m.was} → ${m.now}`));
+  out.replaceChildren(
+    el('div', { class: moves.length ? 'warn' : 'ok' }, moves.length ? t('{count} of {total} messages would end up elsewhere:', { count: moves.length, total: checked }) : t('None of {total} messages would end up elsewhere.', { total: checked })),
+    ...lines,
+    moves.length > lines.length ? el('div', { class: 'muted' }, t('… and {count} more', { count: moves.length - lines.length })) : '',
+    missing.length ? el('div', { class: 'muted' }, t('Folder not found in Thunderbird: {names}', { names: missing.join(', ') })) : '',
+  );
+}
+
 /** Messages in the inbox of the open message's account that the change treats differently, with their new actions. */
 async function scanInbox(plan, run) {
   if (!inAddon) return [];
@@ -452,22 +518,17 @@ async function scanInbox(plan, run) {
   const hits = [];
   let checked = 0;
   try {
-    let page = await browser.messages.list(inbox);
-    for (;;) {
-      for (const header of page.messages) {
-        // with run the open message is handled on its own
-        if (run && header.id === openMessageId()) continue;
-        $('inbox-progress').textContent = t('Checking the inbox: {count}', { count: ++checked });
-        const message = messageFromThunderbird(await browser.messages.getFull(header.id), { size: header.size });
-        const actions = changedActions(simulateWith(before, message), simulateWith(after, message));
-        if (!actions) continue;
-        // flags Thunderbird already shows change nothing
-        if (header.read) actions.read = false;
-        if (header.flagged) actions.flagged = false;
-        if (actions.move || actions.trash || actions.copies.length || actions.read || actions.flagged) hits.push({ id: header.id, actions });
-      }
-      if (!page.id) break;
-      page = await browser.messages.continueList(page.id);
+    for (const header of await folderMessages(inbox)) {
+      // with run the open message is handled on its own
+      if (run && header.id === openMessageId()) continue;
+      $('inbox-progress').textContent = t('Checking the inbox: {count}', { count: ++checked });
+      const message = messageFromThunderbird(await browser.messages.getFull(header.id), { size: header.size });
+      const actions = changedActions(simulateWith(before, message), simulateWith(after, message));
+      if (!actions) continue;
+      // flags Thunderbird already shows change nothing
+      if (header.read) actions.read = false;
+      if (header.flagged) actions.flagged = false;
+      if (actions.move || actions.trash || actions.copies.length || actions.read || actions.flagged) hits.push({ id: header.id, actions });
     }
   } finally {
     $('inbox-progress').textContent = '';
@@ -510,6 +571,45 @@ async function openInManager(draft) {
   }
 }
 
+// ---------- splitter ----------
+
+/** Lets the form and the code pane share the width as the user drags; the choice is kept per browser. */
+function initSplitter() {
+  const form = $('form');
+  const bar = $('splitter');
+  const set = (px) => {
+    const width = Math.round(Math.max(Math.min(px, window.innerWidth - 360), 420));
+    form.style.setProperty('--left', `${width}px`);
+    return width;
+  };
+  try {
+    const saved = Number(localStorage.getItem('rule-left'));
+    if (saved) set(saved);
+  } catch {}
+  bar.addEventListener('pointerdown', (e) => {
+    bar.setPointerCapture(e.pointerId);
+    bar.classList.add('dragging');
+    const start = e.clientX - (parseFloat(form.style.getPropertyValue('--left')) || $('form').querySelector('.rule-main').offsetWidth);
+    const move = (ev) => set(ev.clientX - start);
+    const up = (ev) => {
+      bar.removeEventListener('pointermove', move);
+      bar.classList.remove('dragging');
+      try {
+        localStorage.setItem('rule-left', String(set(ev.clientX - start)));
+      } catch {}
+    };
+    bar.addEventListener('pointermove', move);
+    bar.addEventListener('pointerup', up, { once: true });
+  });
+  bar.addEventListener('dblclick', () => {
+    form.style.removeProperty('--left');
+    try {
+      localStorage.removeItem('rule-left');
+    } catch {}
+  });
+}
+initSplitter();
+
 // ---------- start ----------
 
 (async () => {
@@ -546,6 +646,8 @@ async function openInManager(draft) {
     state.suggestions = suggestConditions(state.message);
     renderConditions();
     renderTargets();
+    // in a script where rules usually end with stop, a new one does too
+    $('stop').checked = prefersStop(runnableScripts().map((s) => s.sieve));
     if (current.folder && !SYSTEM_FOLDERS.includes(current.folder)) $('folder').value = current.folder;
 
     for (const id of ['combine', 'folder', 'seen', 'flagged', 'expire', 'stop', 'target', 'new-name', 'section', 'section-name']) {
@@ -563,7 +665,6 @@ async function openInManager(draft) {
       if (option) pickFolder(option.dataset.value);
     });
     $('apply').addEventListener('click', (e) => busy(e.currentTarget, () => applyPlan()));
-    $('apply-run').addEventListener('click', (e) => busy(e.currentTarget, () => applyPlan(true)));
     $('edit').addEventListener('click', (e) => busy(e.currentTarget, editInManager));
     $('cancel').addEventListener('click', () => window.close());
 

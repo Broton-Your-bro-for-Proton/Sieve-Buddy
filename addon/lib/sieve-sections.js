@@ -34,6 +34,17 @@ function topLevel(text) {
   return chains;
 }
 
+/** Every top-level command on its own: an elsif is a rule of the section it sits in, not of its chain's. */
+function links(text) {
+  return parseSieve(text).commands.map((command) => {
+    const isGuard = command.test && text.slice(command.test.start, command.test.end).includes(GUARD_TEXT);
+    return { start: command.start, end: command.end, commands: [command], rule: Boolean(command.block) && !isGuard };
+  });
+}
+
+/** Whether `c` belongs to the chain that continues at `next`: only elsif/else between them. */
+const sameChain = (all, next, c) => !all.some((x) => x.start > next.start && x.start <= c.start && !['elsif', 'else'].includes(x.commands[0].name));
+
 const lineStartOf = (text, offset) => text.lastIndexOf('\n', offset - 1) + 1;
 const lineEndOf = (text, offset) => {
   const i = text.indexOf('\n', offset);
@@ -99,7 +110,7 @@ function headings(text, chains) {
 export function findSections(text) {
   let chains;
   try {
-    chains = topLevel(text);
+    chains = links(text);
   } catch {
     return [];
   }
@@ -112,7 +123,13 @@ export function findSections(text) {
     const rules = inside.filter((c) => c.rule).map((c) => ({ ...c, line: lineOf(text, c.start), tailEnd: tailEnd(c) }));
     // require or the spam guard right under a heading: new blocks go after them
     const setupEnd = Math.max(h.headerEnd, ...inside.filter((c) => !c.rule && (!rules.length || c.start < rules[0].start)).map((c) => c.end));
-    return { index, title: h.title, line: h.line, start: h.start, headerEnd: h.headerEnd, setupEnd, end, rules };
+    // inserting in the middle of an if/elsif chain: the new rule has to be an elsif too, or the chain breaks
+    const offset = rules.length ? rules.at(-1).tailEnd : setupEnd;
+    const next = chains.find((c) => c.start >= offset);
+    const elsif = ['elsif', 'else'].includes(next?.commands[0].name);
+    // what comes after the insertion point: the rest of the chain, then every later rule
+    const later = chains.filter((c) => c.rule && c.start >= offset).map((c) => ({ command: c.commands[0], line: lineOf(text, c.start), chain: elsif && sameChain(chains, next, c) }));
+    return { index, title: h.title, line: h.line, start: h.start, headerEnd: h.headerEnd, setupEnd, end, rules, elsif, later };
   });
 }
 
@@ -157,8 +174,83 @@ export function chooseSection(sections, rule, hints = {}) {
  */
 export function sectionInsertPoint(section) {
   const last = section.rules.at(-1);
-  if (last) return { offset: last.tailEnd ?? last.end, sep: '\n\n' };
-  return section.setupEnd > section.headerEnd ? { offset: section.setupEnd, sep: '\n\n' } : { offset: section.headerEnd, sep: '\n' };
+  const elsif = Boolean(section.elsif);
+  if (last) return { offset: last.tailEnd ?? last.end, sep: elsif ? '\n' : '\n\n', elsif };
+  return section.setupEnd > section.headerEnd ? { offset: section.setupEnd, sep: '\n\n', elsif } : { offset: section.headerEnd, sep: '\n', elsif };
+}
+
+/**
+ * Later rules that lose messages to a rule placed in this section as an elsif: it skips the rest of its chain.
+ * Every link with an action counts, unless it does exactly what the new rule does. (A stop the planner adds on
+ * its own is deliberate and already explained in its note.)
+ * @returns {Array<{folder: string|null, line: number}>}
+ */
+export function displacedBy(section, rule) {
+  return (section.later ?? [])
+    .filter((l) => l.chain)
+    .map((l) => ({ ...l, actions: l.command.block && describeActions(l.command.block) }))
+    .filter((l) => !l.actions || !sameEffect(rule.actions ?? {}, l.actions) || !sameEffect(l.actions, rule.actions ?? {}))
+    .map((l) => ({ folder: l.actions?.fileinto ?? null, line: l.line }));
+}
+
+/** The note for a section choice that skipped a section or takes messages from later rules, or null. */
+export function sectionNote({ skipped, section, displaced }) {
+  const list = (rules) => rules.map((r) => (r.folder ? t('“{s}” (line {line})', { s: r.folder, line: r.line }) : t('the rule in line {line}', { line: r.line }))).join(', ');
+  if (skipped) {
+    return t('Not in section “{title}”: there it would come before {rules}, and messages matching both would no longer reach them. Choose the section under “Where to add it?” to put it there anyway.', {
+      title: skipped.title,
+      rules: list(skipped.displaced),
+    });
+  }
+  if (section && displaced?.length) {
+    return t('In section “{title}” it comes before {rules}: messages matching both go to the new rule from now on.', { title: section.title, rules: list(displaced) });
+  }
+  return null;
+}
+
+/**
+ * Whether most top-level rules that file a message also end with stop ("one message, one folder"): then a
+ * new rule should too. Needs a few rules to judge by.
+ */
+export function prefersStop(texts) {
+  let filing = 0;
+  let stopping = 0;
+  for (const text of texts) {
+    let commands;
+    try {
+      commands = parseSieve(text).commands;
+    } catch {
+      continue;
+    }
+    for (const { block } of commands) {
+      const body = block ? text.slice(block.start, block.end) : '';
+      if (!/\bfileinto\s+"/.test(body)) continue;
+      filing++;
+      if (/\bstop\s*;/.test(body)) stopping++;
+    }
+  }
+  return filing >= 3 && stopping * 2 > filing;
+}
+
+/**
+ * Where a new block goes when the script ends with catch-all rules (`exists` or `true` that file the
+ * message, such as `if exists "list-unsubscribe"`) after other rules: right before them, so they keep
+ * collecting what no other rule took.
+ * @returns {{offset: number, sep: string, line: number}|null}
+ */
+export function catchAllPoint(text) {
+  const chains = topLevel(text);
+  let i = chains.length;
+  while (i > 1) {
+    const c = chains[i - 1];
+    if (!c.rule || c.commands.length > 1) break;
+    const { test, block } = c.commands[0];
+    if (!test || !/^(exists|true)\b/i.test(text.slice(test.start, test.end).trim())) break;
+    if (!/\bfileinto\s+"/.test(text.slice(block.start, block.end))) break;
+    i--;
+  }
+  if (i === chains.length || !chains[i - 1].rule) return null;
+  return { offset: chains[i - 1].end, sep: '\n\n', line: lineOf(text, chains[i].start) };
 }
 
 /** Resolves a section choice: 'auto' | 'end' | title | index | {new: title}. */
@@ -167,11 +259,13 @@ export function resolveSection(text, choice, rule, hints) {
   if (choice === 'end') return { section: null, at: null };
   const sections = findSections(text);
   if (!sections.length) return { section: null, at: null };
-  const section =
-    choice === undefined || choice === null || choice === 'auto'
-      ? chooseSection(sections, rule, hints)
-      : sections.find((s) => s.title === choice || s.index === choice) ?? chooseSection(sections, rule, hints);
-  return section ? { section, at: sectionInsertPoint(section) } : { section: null, at: null };
+  const auto = choice === undefined || choice === null || choice === 'auto';
+  const section = auto ? chooseSection(sections, rule, hints) : (sections.find((s) => s.title === choice || s.index === choice) ?? chooseSection(sections, rule, hints));
+  if (!section) return { section: null, at: null };
+  const displaced = displacedBy(section, rule);
+  // the automatic choice never takes messages away from other rules; an explicit one may, with a warning
+  if (auto && displaced.length) return { section: null, at: null, skipped: { title: section.title, displaced } };
+  return { section, at: sectionInsertPoint(section), displaced };
 }
 
 // ---------- Rule units for the manager: list, move, delete ----------

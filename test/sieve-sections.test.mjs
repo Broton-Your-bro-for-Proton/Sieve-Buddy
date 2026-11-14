@@ -5,7 +5,7 @@ import { lintSieve } from '../addon/lib/sieve-analyzer.js';
 import { newScript } from '../addon/lib/sieve-dialect.js';
 import { planRule } from '../addon/lib/rule-planner.js';
 import { findOverlaps } from '../addon/lib/sieve-rules.js';
-import { chooseSection, deleteRule, findSections, moveRule, ruleUnits, suggestSections } from '../addon/lib/sieve-sections.js';
+import { chooseSection, deleteRule, findSections, moveRule, prefersStop, ruleUnits, suggestSections } from '../addon/lib/sieve-sections.js';
 
 const withExt = (rules) => newScript(rules).replace('"spamtest"]', '"spamtest", "fileinto", "imap4flags"]');
 const errors = (text) => lintSieve(text).filter((i) => i.severity === 'error');
@@ -231,4 +231,90 @@ test('a value that would join a list overridden later becomes its own stop block
   assert.equal(after.folder, 'Einkäufe');
   assert.equal(plan.section.title, 'Shops');
   assert.match(plan.sieve, /"example\.com" \{\n    fileinto "Einkäufe";\n    stop;\n\}\n\n### Newsletter ###/);
+});
+
+const CHAIN = withExt(`# Accounts
+if header :contains "subject" "Login" {
+  fileinto "Accounts";
+  stop;
+}
+
+# Newsletter
+elsif address :is "from" "news@example.com" {
+  fileinto "Newsletter";
+  stop;
+}
+
+# Categories
+elsif address :matches "to" "shop.*@example.org" {
+  fileinto "Shops";
+  stop;
+}`);
+const unsubscribe = { conditions: [{ kind: 'exists', header: 'list-unsubscribe' }], actions: { fileinto: 'Newsletter' } };
+
+test('headings between elsif links are sections too', () => {
+  assert.deepEqual(findSections(CHAIN).map((s) => s.title), ['Accounts', 'Newsletter', 'Categories']);
+});
+
+test('the automatic choice skips a section inside a chain that would take messages from later rules, and says why', () => {
+  const { plan, notes } = planRule({ scripts: [{ id: 'f', name: 'All', sieve: CHAIN }], rule: unsubscribe });
+  assert.equal(plan.section, null);
+  assert.match(plan.sieve, /stop;\n\}\n\nif exists "list-unsubscribe"/);
+  assert.match(notes[0], /“Newsletter”.*“Shops”/);
+});
+
+test('an explicitly chosen section inside a chain gets an elsif and a warning', () => {
+  const { plan, notes } = planRule({ scripts: [{ id: 'f', name: 'All', sieve: CHAIN }], rule: unsubscribe, section: 'Newsletter' });
+  assert.match(plan.sieve, /"news@example\.com" \{\n  fileinto "Newsletter";\n  stop;\n\}\nelsif exists "list-unsubscribe" \{\n    fileinto "Newsletter";\n\}\n\n# Categories\nelsif/);
+  assert.deepEqual(plan.section.displaced, [{ folder: 'Shops', line: 23 }]);
+  assert.match(notes[0], /“Shops”/);
+});
+
+test('a snippet with more than one block never goes into a chain', async () => {
+  const { insertBlock } = await import('../addon/lib/sieve-rules.js');
+  const { resolveSection } = await import('../addon/lib/sieve-sections.js');
+  const at = resolveSection(CHAIN, 'Newsletter', { actions: {} }).at;
+  assert.equal(at.elsif, true);
+  const { sieve } = insertBlock(CHAIN, 'if true { keep; }\nif false { keep; }', at);
+  assert.match(sieve, /"Shops";\n  stop;\n\}\n\nif true \{ keep; \}\nif false \{ keep; \}\n$/);
+  assert.match(insertBlock(CHAIN, 'if true { keep; }', at).sieve, /\n\}\nelsif true \{ keep; \}\n\n# Categories/);
+});
+
+test('a later chain link without fileinto counts as displaced too', () => {
+  const text = withExt('# Shops\nif header :contains "from" "amazon" {\n    fileinto "Shops";\n}\n# Junk\nelsif header :contains "from" "x" {\n    discard;\n}');
+  const rule = { conditions: [{ kind: 'header', header: 'subject', match: 'contains', value: 'Order' }], actions: { fileinto: 'Shops', seen: true } };
+  const { plan, notes } = planRule({ scripts: [{ id: 'f', name: 'All', sieve: text }], rule });
+  assert.equal(plan.section, null);
+  assert.match(notes[0], /the rule in line \d+/);
+});
+
+test('nothing is inserted before an elsif, the chain stays whole', async () => {
+  const { insertRuleBefore } = await import('../addon/lib/sieve-rules.js');
+  const text = 'if true {\n    keep;\n}\nelsif false {\n    keep;\n}';
+  assert.throws(() => insertRuleBefore(text, 4, unsubscribe));
+});
+
+test('a new block goes before catch-all rules at the end, with stop when it files the message', () => {
+  const sieve = 'require ["fileinto"];\n\nif address :is "from" "a@example.com" {\n    fileinto "A";\n    stop;\n}\n\nif exists "list-unsubscribe" {\n    fileinto "Newsletter";\n}\n';
+  const rule = { conditions: [{ kind: 'header', header: 'subject', match: 'contains', value: 'Add-ons' }], actions: { fileinto: 'Development' } };
+  const message = { headers: { subject: ['Mozilla Add-ons'], 'list-unsubscribe': ['<mailto:x@example.com>'] }, size: 100 };
+  const { plan, after, notes } = planRule({ scripts: [{ id: 'f', name: 'All', sieve }], rule, message });
+  assert.ok(plan.sieve.indexOf('"Add-ons"') < plan.sieve.indexOf('list-unsubscribe'), 'before the catch-all');
+  assert.match(plan.sieve, /fileinto "Development";\s*stop;/);
+  assert.equal(after.folder, 'Development');
+  assert.match(notes.join(' '), /catch-all rule in line 13/);
+  assert.deepEqual(errors(plan.sieve), []);
+
+  const flagOnly = planRule({ scripts: [{ id: 'f', name: 'All', sieve }], rule: { ...rule, actions: { flagged: true } } }).plan;
+  assert.doesNotMatch(flagOnly.sieve.slice(0, flagOnly.sieve.indexOf('list-unsubscribe')), /stop;\s*}\s*\n\s*if exists/);
+  assert.equal(planRule({ scripts: [{ id: 'f', name: 'All', sieve }], rule, section: 'end' }).plan.sieve.trimEnd().endsWith('"Development";\n}'), true);
+});
+
+test('prefersStop: only when most filing rules end with stop', () => {
+  const block = (folder, stop) => `if header :is "x" "${folder}" {\n    fileinto "${folder}";${stop ? '\n    stop;' : ''}\n}\n`;
+  const script = (...stops) => `require ["fileinto"];\n${stops.map((s, i) => block(`F${i}`, s)).join('')}`;
+  assert.equal(prefersStop([script(true, true, false)]), true);
+  assert.equal(prefersStop([script(true, false, false)]), false);
+  assert.equal(prefersStop([script(true, true)]), false, 'too few rules to judge');
+  assert.equal(prefersStop([script(true, true), 'if {']), false);
 });
