@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Quản lý bộ lọc Sieve cho Proton Mail và mọi máy chủ ManageSieve hoặc JMAP ngay trong Thunderbird: trình soạn thảo hiểu máy chủ của bạn, trình mô phỏng cho biết thư sẽ rơi vào đâu, và tạo quy tắc từ một thư chỉ với hai cú nhấp.",
+  "description": "Chỉnh sửa bộ lọc thư mà không cần đăng nhập webmail mỗi lần. Sieve Buddy hoạt động với <b>Proton Mail</b> và, thông qua dịch vụ Docker tùy chọn, với <b>mọi máy chủ ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org và nhiều hơn nữa) cũng như <b>JMAP for Sieve</b>.\n\n<b>Tính năng</b>\n<ul>\n<li><b>Trình soạn thảo hiểu phương ngữ của máy chủ:</b> tô sáng cú pháp, gợi ý lệnh, tiêu đề thư và thư mục của riêng bạn, kiểm tra trực tiếp require bị thiếu, dấu ngoặc và thư mục không xác định, trợ giúp khi rê chuột, dàn ý và định dạng tự động.</li>\n<li><b>Quy tắc Sieve từ thư:</b> nhấp chuột phải vào thư hoặc dùng nút trong khung xem thư. Sieve Buddy gợi ý điều kiện, tìm vị trí tốt nhất trong tập lệnh của bạn và mở rộng khối có sẵn khi có thể.</li>\n<li><b>Thư thử:</b> trình mô phỏng cho biết thư sẽ rơi vào đâu trước khi bạn lưu.</li>\n<li><b>Trợ lý quy tắc:</b> 16 mẫu cho tên miền, danh sách thư, hóa đơn, cửa hàng, trả lời vắng mặt và nhiều hơn nữa.</li>\n<li><b>Phần:</b> cấu trúc một tập lệnh lớn bằng các tiêu đề, di chuyển và xóa quy tắc theo từng phần.</li>\n<li><b>Lưu an toàn:</b> hiển thị diff trước mỗi lần lưu và lịch sử các phiên bản trước.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton không có API chính thức cho bộ lọc. Sieve Buddy dùng cùng API web với ứng dụng web của chính Proton, và Proton có thể thay đổi nó bất cứ lúc nào. Mật khẩu của bạn không bao giờ rời Thunderbird ở dạng văn bản thuần (SRP), chỉ có mã thông báo phiên được lưu.\n\nGiao diện có tiếng Anh và tiếng Đức.\n\nKhông liên kết với Proton AG.",
+  "releaseNotes": "Phiên bản đầu tiên trên addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Trình soạn thảo kiểm tra tập lệnh trực tiếp và hiểu thư mục của bạn"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Trợ lý quy tắc tạo quy tắc từ một mẫu"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Thư thử cho biết thư sẽ rơi vào đâu"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Quy tắc Sieve từ một thư chỉ với hai cú nhấp"
+    }
+  ]
+}

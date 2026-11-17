@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Zastojśo filtry Sieve za Proton Mail a kužde serwery ManageSieve abo JMAP direktnje w Thunderbirźe: editor, kótaryž wašu serwer znaje, simulator, kótaryž pokazujo, źo e-mail kóńcy, a pšawidła z e-maila w dwěma klikoma.",
+  "description": "Wobźěłajśo swóje filtry za e-maile, bźez togo až by se kužde raz do webmaila pśizwónili. Sieve Buddy źěła z <b>Proton Mail</b> a pśez swóju opcionalnu słužbu Docker z <b>kuždym serwerom ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org a drugi) kaž teke z <b>JMAP for Sieve</b>.\n\n<b>Funkcije</b>\n<ul>\n<li><b>Editor, kótaryž dialekt serwera znaje:</b> wuzwignjenje syntaksy, nadpomnjeśa za pśikaze, głowy a waše zarědniki, žywa kontrola (felujucy require, spinki, njeznate zarědniki), pomoc pśi pśejeźenju z myšku, pśeglěd struktury a formatěrowanje.</li>\n<li><b>Pšawidło Sieve z e-maila:</b> klikniśo z pšawym tastom na e-mail abo wužywajśo tłocašk we naglěźe e-maila. Sieve Buddy nadpomina wuměnjenja, namakajo nejlěpše městno w wašom skripśe a rozšyrjujo eksistěrujucy blok, źož móžo.</li>\n<li><b>Testowy e-mail:</b> simulator pokazujo, źo e-mail kóńcy, nježli až składujośo.</li>\n<li><b>Asistent pšawidłow:</b> 16 pśedłogow za domeny, e-mailowe lisćiny, rachunki, wobchody, awtomatiske wótegrona a wěcej.</li>\n<li><b>Wótrězki:</b> strukturěrujśo jaden wjelgi skript z nadpisami, pśesuńśo a lašujśo pšawidła pó wótrězkach.</li>\n<li><b>Wěste składowanje:</b> pśirownanje změnow pśed kuždym składowanim a historija pjerwjejšnych wersijow.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton njama oficielny API za filtry. Sieve Buddy wužywa ten samy web-API kaž swójski webowy klient Protona, a Proton móžo jen kuždy cas změniś. Wašo gronidło Thunderbird nigdy w jasnem teksśe njewopušćijo (SRP), składujo se jano token pósejźenja.\n\nWužywarski powjerch jo k dispoziciji w engelskej a nimskej rěcy.\n\nŽedno zwězanje z Proton AG.",
+  "releaseNotes": "Prědna wersija na addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Editor skript žywje kontrolěrujo a waše zarědniki znaje"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Asistent pšawidłow wutwarja pšawidło z pśedłogi"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Testowy e-mail pokazujo, źo e-mail kóńcy"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Pšawidło Sieve z e-maila w dwěma klikoma"
+    }
+  ]
+}

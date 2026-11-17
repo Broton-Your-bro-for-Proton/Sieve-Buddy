@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Gestisci i filtri Sieve di Proton Mail e di ogni server ManageSieve o JMAP direttamente in Thunderbird: un editor che conosce il tuo server, un simulatore che mostra dove finisce un messaggio e regole create da un messaggio in due clic.",
+  "description": "Modifica i tuoi filtri di posta senza accedere ogni volta al webmail. Sieve Buddy funziona con <b>Proton Mail</b> e, tramite il servizio Docker opzionale, con <b>qualsiasi server ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org e altri) e <b>JMAP for Sieve</b>.\n\n<b>Funzionalità</b>\n<ul>\n<li><b>Un editor che conosce il dialetto del server:</b> evidenziazione della sintassi, suggerimenti per comandi, intestazioni e cartelle personali, controllo in tempo reale di require mancanti, parentesi e cartelle sconosciute, aiuto al passaggio del mouse, struttura e formattatore.</li>\n<li><b>Regola Sieve da un messaggio:</b> fai clic con il pulsante destro su un messaggio o usa il pulsante nella vista del messaggio. Sieve Buddy suggerisce condizioni, trova il punto migliore nello script ed estende un blocco esistente quando possibile.</li>\n<li><b>Messaggio di prova:</b> un simulatore mostra dove finisce un messaggio prima di salvare.</li>\n<li><b>Assistente per le regole:</b> 16 modelli per domini, mailing list, fatture, negozi, risposta automatica di assenza e altro.</li>\n<li><b>Sezioni:</b> struttura un grande script con intestazioni, sposta ed elimina le regole per sezione.</li>\n<li><b>Salvataggio sicuro:</b> un confronto delle differenze prima di ogni salvataggio e una cronologia delle versioni precedenti.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton non ha un'API ufficiale per i filtri. Sieve Buddy usa la stessa API web del client web di Proton, e Proton può modificarla in qualsiasi momento. La tua password non lascia mai Thunderbird in chiaro (SRP), viene memorizzato solo un token di sessione.\n\nL'interfaccia è disponibile in inglese e tedesco.\n\nNon affiliato a Proton AG.",
+  "releaseNotes": "Prima versione su addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "L'editor controlla lo script in tempo reale e conosce le tue cartelle"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "L'assistente per le regole crea una regola da un modello"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Il messaggio di prova mostra dove finisce un messaggio"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Una regola Sieve da un messaggio in due clic"
+    }
+  ]
+}

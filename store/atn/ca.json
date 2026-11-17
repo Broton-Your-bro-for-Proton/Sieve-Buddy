@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Gestiona els filtres Sieve de Proton Mail i de qualsevol servidor ManageSieve o JMAP directament al Thunderbird: un editor que coneix el teu servidor, un simulador que mostra on acaba un correu i regles creades des d'un correu en dos clics.",
+  "description": "Edita els teus filtres de correu sense haver d'iniciar la sessió al webmail cada vegada. Sieve Buddy funciona amb <b>Proton Mail</b> i, mitjançant el seu servei Docker opcional, amb <b>qualsevol servidor ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org i més) i <b>JMAP for Sieve</b>.\n\n<b>Característiques</b>\n<ul>\n<li><b>Editor que coneix el dialecte del servidor:</b> ressaltat de sintaxi, suggeriments d'ordres, capçaleres i de les teves carpetes, comprovació en directe de require que falten, claus i carpetes desconegudes, ajuda en passar el ratolí, esquema i formatador.</li>\n<li><b>Regla Sieve des d'un correu:</b> fes clic dret en un missatge o usa el botó de la vista del missatge. Sieve Buddy suggereix condicions, troba el millor lloc al teu script i amplia un bloc existent quan es pot.</li>\n<li><b>Correu de prova:</b> un simulador mostra on acaba un correu abans de desar.</li>\n<li><b>Assistent de regles:</b> 16 plantilles per a dominis, llistes de correu, factures, botigues, resposta d'absència i més.</li>\n<li><b>Seccions:</b> estructura un script gran amb encapçalaments i mou o elimina regles per secció.</li>\n<li><b>Desament segur:</b> una comparació de canvis abans de cada desament i un historial de versions anteriors.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton no té cap API oficial per als filtres. Sieve Buddy usa la mateixa API web que el client web de Proton, i Proton la pot canviar en qualsevol moment. La teva contrasenya mai no surt del Thunderbird en text pla (SRP), només es desa un testimoni de sessió.\n\nLa interfície està disponible en anglès i alemany.\n\nSense afiliació amb Proton AG.",
+  "releaseNotes": "Primera versió a addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "L'editor comprova el teu script en directe i coneix les teves carpetes"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "L'assistent de regles crea una regla a partir d'una plantilla"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "El correu de prova mostra on acaba un correu"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Una regla Sieve des d'un correu en dos clics"
+    }
+  ]
+}

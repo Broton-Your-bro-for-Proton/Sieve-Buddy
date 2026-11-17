@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Beheare Sieve-filters foar Proton Mail en elke ManageSieve- of JMAP-tsjinner streekrjocht yn Thunderbird: in bewurker dy't jo tsjinner kin, in simulator dy't toant wêr't in e-mailberjocht telâne komt en regels út in e-mailberjocht yn twa klikken.",
+  "description": "Bewurkje jo e-mailfilters sûnder elke kear yn te loggen op de webmail. Sieve Buddy wurket mei <b>Proton Mail</b> en, fia de opsjonele Docker-tsjinst, mei <b>elke ManageSieve-tsjinner</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org en mear) en <b>JMAP for Sieve</b>.\n\n<b>Funksjes</b>\n<ul>\n<li><b>Bewurker dy't it dialekt fan de tsjinner kin:</b> syntaksismarkearring, suggestjes foar kommando's, kopteksten en jo eigen mappen, live kontrôle op ûntbrekkende require, heakjes en ûnbekende mappen, help by oanwize, oersjoch en formatter.</li>\n<li><b>Sieve-regel út in e-mailberjocht:</b> klik mei de rjochtermûsknop op in berjocht of brûk de knop yn de berjochtwerjefte. Sieve Buddy stelt betingsten foar, fynt de bêste plak yn jo skript en wreidet in besteand blok út wêr't it kin.</li>\n<li><b>Testmail:</b> in simulator lit sjen wêr't in e-mailberjocht telâne komt foardat jo opslaan.</li>\n<li><b>Regelassistint:</b> 16 sjabloanen foar domeinen, mailinglisten, fakturen, webwinkels, ôfwêzigensberjochten en mear.</li>\n<li><b>Seksjes:</b> struktuer ien grut skript mei kopkes, ferpleats en wiskje regels per seksje.</li>\n<li><b>Feilich opslaan:</b> in fergeliking fan de wizigingen foar elke kear opslaan en in skiednis fan eardere ferzjes.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton hat gjin offisjele API foar filters. Sieve Buddy brûkt deselde web-API as de eigen webklient fan Proton, en Proton kin dy op elk momint feroarje. Jo wachtwurd ferlit Thunderbird nea as platte tekst (SRP), allinnich in sesjetoken wurdt opslein.\n\nDe ynterface is beskikber yn it Ingelsk en Dútsk.\n\nNet ferbûn oan Proton AG.",
+  "releaseNotes": "Earste ferzje op addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "De bewurker kontrolearret jo skript live en kin jo mappen"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "De regelassistint makket in regel op basis fan in sjabloan"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Testmail lit sjen wêr't in e-mailberjocht telâne komt"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "In Sieve-regel út in e-mailberjocht yn twa klikken"
+    }
+  ]
+}

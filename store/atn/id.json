@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Kelola filter Sieve untuk Proton Mail dan setiap server ManageSieve atau JMAP langsung di Thunderbird: editor yang mengenal server Anda, simulator yang menunjukkan ke mana surel berakhir, dan aturan dari surel dalam dua klik.",
+  "description": "Edit filter surel Anda tanpa perlu masuk ke webmail setiap kali. Sieve Buddy bekerja dengan <b>Proton Mail</b> dan, melalui layanan Docker opsionalnya, dengan <b>setiap server ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org, dan lainnya) serta <b>JMAP for Sieve</b>.\n\n<b>Fitur</b>\n<ul>\n<li><b>Editor yang mengenal dialek server:</b> penyorotan sintaks, saran untuk perintah, header, dan folder Anda sendiri, pemeriksaan langsung untuk require, tanda kurung, dan folder yang hilang atau tidak dikenal, bantuan saat kursor diarahkan, kerangka, dan pemformat.</li>\n<li><b>Aturan Sieve dari surel:</b> klik kanan pada pesan atau gunakan tombol di tampilan pesan. Sieve Buddy menyarankan kondisi, menemukan tempat terbaik di skrip Anda, dan memperluas blok yang sudah ada jika memungkinkan.</li>\n<li><b>Surel uji:</b> simulator menunjukkan ke mana surel berakhir sebelum Anda menyimpan.</li>\n<li><b>Asisten aturan:</b> 16 templat untuk domain, milis, faktur, toko online, balasan otomatis saat tidak di kantor, dan lainnya.</li>\n<li><b>Bagian:</b> susun satu skrip besar dengan judul, pindahkan dan hapus aturan per bagian.</li>\n<li><b>Penyimpanan aman:</b> diff sebelum setiap penyimpanan dan riwayat versi sebelumnya.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton tidak memiliki API resmi untuk filter. Sieve Buddy menggunakan API web yang sama dengan klien web Proton sendiri, dan Proton dapat mengubahnya kapan saja. Kata sandi Anda tidak pernah meninggalkan Thunderbird dalam teks biasa (SRP), hanya token sesi yang disimpan.\n\nAntarmuka tersedia dalam bahasa Inggris dan Jerman.\n\nTidak berafiliasi dengan Proton AG.",
+  "releaseNotes": "Versi pertama di addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Editor memeriksa skrip Anda secara langsung dan mengenal folder Anda"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Asisten aturan membuat aturan dari templat"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Surel uji menunjukkan ke mana surel berakhir"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Aturan Sieve dari surel dalam dua klik"
+    }
+  ]
+}

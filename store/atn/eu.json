@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Kudeatu Proton Mail-en eta edozein ManageSieve edo JMAP zerbitzariren Sieve iragazkiak Thunderbird-en bertan: zure zerbitzaria ezagutzen duen editorea, mezu bat non amaitzen den erakusten duen simulagailua eta mezuetatik bi klikean sortutako arauak.",
+  "description": "Editatu zure posta-iragazkiak webmailean aldi bakoitzean saioa hasi gabe. Sieve Buddy <b>Proton Mail</b>-ekin eta, aukerako Docker zerbitzuaren bidez, <b>edozein ManageSieve zerbitzarirekin</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org eta gehiago) eta <b>JMAP for Sieve</b>-rekin dabil.\n\n<b>Eginbideak</b>\n<ul>\n<li><b>Zerbitzariaren dialektoa ezagutzen duen editorea:</b> sintaxiaren nabarmentzea, komandoen, goiburuen eta zure karpeten iradokizunak, falta diren require, giltza eta karpeta ezezagunen egiaztapena denbora errealean, saguaren gainean laguntza, eskema eta formatu-emailea.</li>\n<li><b>Sieve araua mezu batetik:</b> egin klik eskuineko botoiarekin mezu batean edo erabili mezuaren ikuspegiko botoia. Sieve Buddy-k baldintzak iradokitzen ditu, zure scripteko lekurik onena aurkitzen du eta lehendik dagoen bloke bat hedatzen du ahal denean.</li>\n<li><b>Proba-mezua:</b> simulagailu batek mezu bat non amaitzen den erakusten du gorde aurretik.</li>\n<li><b>Arau-laguntzailea:</b> 16 txantiloi domeinuetarako, posta-zerrendetarako, fakturetarako, dendetarako, kanpoan egoteko erantzunerako eta gehiagorako.</li>\n<li><b>Atalak:</b> egituratu script handi bat izenburuekin, mugitu eta ezabatu arauak atalka.</li>\n<li><b>Gordetze segurua:</b> aldaketen alderaketa gorde aurretik eta aurreko bertsioen historia.</li>\n</ul>\n\n<b>Proton Mail</b>\nProtonek ez du iragazkietarako API ofizialik. Sieve Buddy-k Protonen web bezeroak darabilen web API bera erabiltzen du, eta Protonek edonoiz alda dezake. Zure pasahitzak ez du inoiz Thunderbird utziko testu arruntean (SRP), saio-token bat baino ez da gordetzen.\n\nInterfazea ingelesez eta alemanez dago eskuragarri.\n\nEz dago Proton AG-rekin lotuta.",
+  "releaseNotes": "Lehen bertsioa addons.thunderbird.net webgunean.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Editoreak zure scripta denbora errealean egiaztatzen du eta zure karpetak ezagutzen ditu"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Arau-laguntzaileak txantiloi batetik arau bat sortzen du"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Proba-mezuak mezu bat non amaitzen den erakusten du"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Sieve araua mezu batetik bi klikean"
+    }
+  ]
+}

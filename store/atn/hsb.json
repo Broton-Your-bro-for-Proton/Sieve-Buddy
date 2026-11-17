@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Zarjadujće filtry Sieve za Proton Mail a kóždy serwer ManageSieve abo JMAP direktnje w Thunderbirdźe: editor, kotryž waš serwer zna, simulator, kotryž pokazuje, hdźe e-mejl kónči, a prawidła z e-mejle we dwěmaj klikomaj.",
+  "description": "Wobdźěłajće swoje filtry za e-mejle, bjez toho zo byšće so kóždy raz do webmaila přizjewili. Sieve Buddy dźěła z <b>Proton Mail</b> a přez swoju opcionalnu słužbu Docker z <b>kóždym serwerom ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org a druhe) kaž tež z <b>JMAP for Sieve</b>.\n\n<b>Funkcije</b>\n<ul>\n<li><b>Editor, kotryž dialekt serwera zna:</b> zwuraznjenje syntaksy, namjety za přikazy, hłowy a waše rjadowaki, žiwa kontrola (falowacy require, spinki, njeznate rjadowaki), pomoc při wotkazowanju, přehlad struktury a formatowanje.</li>\n<li><b>Prawidło Sieve z e-mejle:</b> klikńće z prawym tastom na e-mejl abo wužiwajće tłóčatko wewidźe e-mejle. Sieve Buddy namjetuje wuměnjenja, namaka najlěpše městno we wašim skripće a rozšěrja eksistowacy blok, hdźež móže.</li>\n<li><b>Testowa e-mejl:</b> simulator pokazuje, hdźe e-mejl kónči, prjedy hač składujeće.</li>\n<li><b>Asistent prawidłow:</b> 16 šablonow za domeny, e-mejlowe lisćiny, rekniny, wobchody, awtomatiske wotmołwy a wjace.</li>\n<li><b>Wotrězki:</b> strukturujće jedyn wulki skript z nadpismami, přesuńće a zhašejće prawidła po wotrězkach.</li>\n<li><b>Wěste składowanje:</b> přirunowanje změnow před kóždym składowanjom a historija předchadnych wersijow.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton nima oficielny API za filtry. Sieve Buddy wužiwa samy web-API kaž wosebity webowy klient Protona, a Proton móže jón kóždy čas změnić. Waše hesło Thunderbird ženje w jasnym teksće njewopušći (SRP), składuje so jenož token posedźenja.\n\nPowjerch je dostupny w jendźelskej a němskej rěči.\n\nŽane zwjazanje z Proton AG.",
+  "releaseNotes": "Prěnja wersija na addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Editor skript žiwje kontroluje a waše rjadowaki zna"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Asistent prawidłow wutworja prawidło z šablony"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Testowa e-mejl pokazuje, hdźe e-mejl kónči"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Prawidło Sieve z e-mejle we dwěmaj klikomaj"
+    }
+  ]
+}

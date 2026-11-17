@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Proton Mail və bütün ManageSieve və ya JMAP serverləri üçün Sieve filtrlərini birbaşa Thunderbird-də idarə edin: serverinizi tanıyan redaktor, məktubun hara düşdüyünü göstərən simulyator və məktubdan iki klikləmə ilə qayda.",
+  "description": "E-poçt filtrlərinizi hər dəfə veb poçta daxil olmadan redaktə edin. Sieve Buddy <b>Proton Mail</b> ilə, isteğe bağlı Docker xidməti vasitəsilə isə <b>bütün ManageSieve serverləri</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org və digərləri) və <b>JMAP for Sieve</b> ilə işləyir.\n\n<b>Xüsusiyyətlər</b>\n<ul>\n<li><b>Serverin dialektini tanıyan redaktor:</b> sintaksis vurğulaması, əmrlər, başlıqlar və öz qovluqlarınız üçün təkliflər, çatışmayan require, mötərizələr və naməlum qovluqlar üçün canlı yoxlama, üzərinə gətirdikdə kömək, struktur və formatlayıcı.</li>\n<li><b>Məktubdan Sieve qaydası:</b> mesaja sağ klikləyin və ya mesaj görünüşündəki düymədən istifadə edin. Sieve Buddy şərtlər təklif edir, skriptinizdə ən yaxşı yeri tapır və mümkün olduqda mövcud blokları genişləndirir.</li>\n<li><b>Test məktubu:</b> simulyator saxlamazdan əvvəl məktubun hara düşəcəyini göstərir.</li>\n<li><b>Qayda köməkçisi:</b> domenlər, poçt siyahıları, hesab-fakturalar, onlayn mağazalar, ofisdən kənar cavab və daha çoxu üçün 16 şablon.</li>\n<li><b>Bölmələr:</b> böyük skripti başlıqlarla strukturlaşdırın, qaydaları bölmələr üzrə köçürün və silin.</li>\n<li><b>Təhlükəsiz saxlama:</b> hər saxlamadan əvvəl fərq görünüşü və əvvəlki versiyaların tarixçəsi.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton-un filtrlər üçün rəsmi API-si yoxdur. Sieve Buddy Proton-un öz veb müştərisi ilə eyni veb API-dən istifadə edir və Proton onu istədiyi vaxt dəyişə bilər. Parolunuz heç vaxt açıq mətn kimi Thunderbird-dən çıxmır (SRP), yalnız sessiya tokeni saxlanılır.\n\nİnterfeys ingilis və alman dillərində mövcuddur.\n\nProton AG ilə əlaqəsi yoxdur.",
+  "releaseNotes": "addons.thunderbird.net-də ilk versiya.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Redaktor skriptinizi canlı yoxlayır və qovluqlarınızı tanıyır"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Qayda köməkçisi şablondan qayda yaradır"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Test məktubu məktubun hara düşdüyünü göstərir"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Məktubdan iki klikləmə ilə Sieve qaydası"
+    }
+  ]
+}

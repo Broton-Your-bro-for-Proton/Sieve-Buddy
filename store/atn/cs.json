@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Spravujte filtry Sieve pro Proton Mail a každý server ManageSieve nebo JMAP přímo v Thunderbirdu: editor, který zná váš server, simulátor, který ukáže, kam zpráva skončí, a pravidla ze zprávy na dvě kliknutí.",
+  "description": "Upravujte své poštovní filtry, aniž byste se pokaždé museli přihlašovat do webové pošty. Sieve Buddy funguje s <b>Proton Mail</b> a díky volitelné službě v Dockeru i s <b>každým serverem ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org a další) a s <b>JMAP for Sieve</b>.\n\n<b>Funkce</b>\n<ul>\n<li><b>Editor, který zná dialekt serveru:</b> zvýraznění syntaxe, návrhy příkazů, hlaviček a vašich složek, průběžná kontrola (chybějící require, závorky, neznámé složky), nápověda při najetí myší, osnova a formátování.</li>\n<li><b>Pravidlo Sieve ze zprávy:</b> klikněte na zprávu pravým tlačítkem nebo použijte tlačítko v zobrazení zprávy. Sieve Buddy navrhne podmínky, najde nejlepší místo ve vašem skriptu a pokud to jde, rozšíří existující blok.</li>\n<li><b>Zkušební zpráva:</b> simulátor ukáže, kam zpráva skončí, ještě než změny uložíte.</li>\n<li><b>Asistent pravidel:</b> 16 šablon pro domény, konferenční seznamy, faktury, obchody, automatické odpovědi a další.</li>\n<li><b>Sekce:</b> rozdělte jeden velký skript nadpisy, pravidla přesouvejte a mažte po sekcích.</li>\n<li><b>Bezpečné ukládání:</b> porovnání změn před každým uložením a historie dřívějších verzí.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton nemá oficiální API pro filtry. Sieve Buddy používá stejné webové API jako vlastní webový klient Protonu a Proton ho může kdykoli změnit. Vaše heslo neopustí Thunderbird nikdy v čitelné podobě (SRP), ukládá se pouze token relace.\n\nRozhraní je k dispozici v angličtině a němčině.\n\nBez spojení se společností Proton AG.",
+  "releaseNotes": "První verze na addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Editor průběžně kontroluje skript a zná vaše složky"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Asistent pravidel vytvoří pravidlo ze šablony"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Zkušební zpráva ukáže, kam zpráva skončí"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Pravidlo Sieve ze zprávy na dvě kliknutí"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Proton Mail ve tüm ManageSieve veya JMAP sunucuları için Sieve filtrelerini doğrudan Thunderbird içinde yönetin: sunucunuzu tanıyan bir düzenleyici, iletinin nereye düşeceğini gösteren bir simülatör ve iki tıkla iletiden kural.",
+  "description": "E-posta filtrelerinizi her seferinde web postasına giriş yapmadan düzenleyin. Sieve Buddy, <b>Proton Mail</b> ile ve isteğe bağlı Docker hizmeti aracılığıyla <b>tüm ManageSieve sunucuları</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org ve diğerleri) ile <b>JMAP for Sieve</b> ile çalışır.\n\n<b>Özellikler</b>\n<ul>\n<li><b>Sunucunun lehçesini bilen düzenleyici:</b> sözdizimi renklendirme, komutlar, üst bilgiler ve kendi klasörleriniz için öneriler, eksik require, parantez ve bilinmeyen klasörler için canlı denetim, üzerine gelince yardım, ana hatlar ve biçimlendirici.</li>\n<li><b>İletiden Sieve kuralı:</b> bir iletiye sağ tıklayın veya ileti görünümündeki düğmeyi kullanın. Sieve Buddy koşullar önerir, betiğinizde en uygun yeri bulur ve mümkün olduğunda mevcut bir bloğu genişletir.</li>\n<li><b>Test iletisi:</b> bir simülatör, kaydetmeden önce iletinin nereye düşeceğini gösterir.</li>\n<li><b>Kural yardımcısı:</b> alan adları, e-posta listeleri, faturalar, alışveriş siteleri, ofis dışı yanıtı ve daha fazlası için 16 şablon.</li>\n<li><b>Bölümler:</b> büyük bir betiği başlıklarla yapılandırın, kuralları bölüm bölüm taşıyın ve silin.</li>\n<li><b>Güvenli kaydetme:</b> her kayıttan önce bir fark görünümü ve önceki sürümlerin geçmişi.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton'un filtreler için resmi bir API'si yoktur. Sieve Buddy, Proton'un kendi web istemcisiyle aynı web API'sini kullanır ve Proton bunu istediği zaman değiştirebilir. Parolanız Thunderbird'ü asla düz metin olarak terk etmez (SRP), yalnızca bir oturum belirteci saklanır.\n\nArayüz İngilizce ve Almanca olarak sunulur.\n\nProton AG ile bağlantılı değildir.",
+  "releaseNotes": "addons.thunderbird.net üzerindeki ilk sürüm.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Düzenleyici betiğinizi canlı denetler ve klasörlerinizi tanır"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Kural yardımcısı bir şablondan kural oluşturur"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Test iletisi, iletinin nereye düşeceğini gösterir"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "İki tıkla iletiden Sieve kuralı"
+    }
+  ]
+}

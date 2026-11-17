@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Administro filtrat Sieve për Proton Mail dhe për çdo server ManageSieve ose JMAP drejtpërdrejt në Thunderbird: një përpunues që e njeh serverin tënd, një simulator që tregon ku përfundon një mesazh dhe rregulla nga një mesazh me dy klikime.",
+  "description": "Përpunoji filtrat e postës pa u kyçur çdo herë në webmail. Sieve Buddy punon me <b>Proton Mail</b> dhe, përmes shërbimit opsional Docker, me <b>çdo server ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org e të tjerë) dhe me <b>JMAP for Sieve</b>.\n\n<b>Veçoritë</b>\n<ul>\n<li><b>Përpunues që e njeh dialektin e serverit:</b> theksim i sintaksës, sugjerime për komanda, krye mesazhesh dhe dosjet e tua, kontroll i drejtpërdrejtë për require që mungojnë, kllapa dhe dosje të panjohura, ndihmë kur kalon miun sipër, strukturë dhe formatues.</li>\n<li><b>Rregull Sieve nga një mesazh:</b> kliko me të djathtën mbi një mesazh ose përdor butonin në pamjen e mesazhit. Sieve Buddy sugjeron kushte, gjen vendin më të mirë në skriptin tënd dhe zgjeron një bllok ekzistues kur është e mundur.</li>\n<li><b>Mesazh provë:</b> një simulator tregon ku përfundon një mesazh para se ta ruash.</li>\n<li><b>Ndihmës rregullash:</b> 16 shabllone për domene, lista postimesh, fatura, dyqane, përgjigje mungese dhe më shumë.</li>\n<li><b>Seksione:</b> strukturo një skript të madh me tituj, zhvendos dhe fshi rregulla sipas seksionit.</li>\n<li><b>Ruajtje e sigurt:</b> një krahasim ndryshimesh para çdo ruajtjeje dhe një histori e versioneve të mëparshme.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton nuk ka API zyrtare për filtrat. Sieve Buddy përdor të njëjtën API ueb që përdor klienti ueb i Proton, dhe Proton mund ta ndryshojë në çdo kohë. Fjalëkalimi yt nuk del kurrë nga Thunderbird si tekst i thjeshtë (SRP), ruhet vetëm një token sesioni.\n\nNdërfaqja është e disponueshme në anglisht dhe gjermanisht.\n\nPa lidhje me Proton AG.",
+  "releaseNotes": "Versioni i parë në addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Përpunuesi kontrollon skriptin tënd drejtpërdrejt dhe i njeh dosjet e tua"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Ndihmësi i rregullave krijon një rregull nga një shabllon"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Mesazhi provë tregon ku përfundon një mesazh"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Një rregull Sieve nga një mesazh me dy klikime"
+    }
+  ]
+}

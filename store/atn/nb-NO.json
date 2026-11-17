@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Administrer Sieve-filtre for Proton Mail og alle ManageSieve- eller JMAP-servere rett i Thunderbird: en editor som kjenner serveren din, en simulator som viser hvor en e-post havner, og regler fra en e-post med to klikk.",
+  "description": "Rediger e-postfiltrene dine uten å logge inn på nettleseren hver gang. Sieve Buddy fungerer med <b>Proton Mail</b> og, via den valgfrie Docker-tjenesten, med <b>alle ManageSieve-servere</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org og flere) og <b>JMAP for Sieve</b>.\n\n<b>Funksjoner</b>\n<ul>\n<li><b>Editor som kjenner serverens dialekt:</b> syntaksutheving, forslag til kommandoer, headere og dine egne mapper, løpende kontroll av manglende require, parenteser og ukjente mapper, hjelp ved hover, disposisjon og formatering.</li>\n<li><b>Sieve-regel fra e-post:</b> høyreklikk på en melding eller bruk knappen i meldingsvisningen. Sieve Buddy foreslår vilkår, finner det beste stedet i skriptet ditt og utvider en eksisterende blokk der det går.</li>\n<li><b>Testmelding:</b> en simulator viser hvor en e-post havner før du lagrer.</li>\n<li><b>Regelassistent:</b> 16 maler for domener, e-postlister, fakturaer, nettbutikker, fraværsmelding og mer.</li>\n<li><b>Seksjoner:</b> strukturer et stort skript med overskrifter, flytt og slett regler per seksjon.</li>\n<li><b>Trygg lagring:</b> en diff før hver lagring og en historikk over tidligere versjoner.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton har ikke noe offisielt API for filtre. Sieve Buddy bruker det samme web-API-et som Protons egen nettklient, og Proton kan endre det når som helst. Passordet ditt forlater aldri Thunderbird i klartekst (SRP), bare et øktstoken lagres.\n\nGrensesnittet finnes på engelsk og tysk.\n\nIkke tilknyttet Proton AG.",
+  "releaseNotes": "Første versjon på addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Editoren sjekker skriptet ditt fortløpende og kjenner mappene dine"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Regelassistenten lager en regel fra en mal"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Testmelding viser hvor en e-post havner"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "En Sieve-regel fra en e-post med to klikk"
+    }
+  ]
+}

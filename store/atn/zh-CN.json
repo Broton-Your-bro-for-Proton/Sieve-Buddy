@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "直接在 Thunderbird 中管理 Proton Mail 以及所有 ManageSieve 或 JMAP 服务器的 Sieve 过滤器：了解服务器的编辑器、显示邮件去向的模拟器，以及两次点击即可从邮件生成规则。",
+  "description": "无需每次登录网页邮箱，就能编辑邮件过滤器。Sieve Buddy 支持 <b>Proton Mail</b>，并通过可选的 Docker 服务支持<b>所有 ManageSieve 服务器</b>（Dovecot、Stalwart、Cyrus、Mailcow、mailbox.org 等）和 <b>JMAP for Sieve</b>。\n\n<b>功能</b>\n<ul>\n<li><b>了解服务器方言的编辑器：</b>语法高亮，命令、邮件头和您自己文件夹的建议，实时检查缺失的 require、括号和不存在的文件夹，悬停帮助，大纲和格式化工具。</li>\n<li><b>从邮件生成 Sieve 规则：</b>右键单击邮件，或使用邮件视图中的按钮。Sieve Buddy 会建议条件，在脚本中找到最合适的位置，并尽可能扩展已有的代码块。</li>\n<li><b>Test mail：</b>保存之前，模拟器会显示邮件最终去向。</li>\n<li><b>规则助手：</b>16 个模板，涵盖域名、邮件列表、发票、商店、外出自动回复等。</li>\n<li><b>分区：</b>用标题整理一个大脚本，并按分区移动和删除规则。</li>\n<li><b>安全保存：</b>每次保存前显示差异，并保留历史版本记录。</li>\n</ul>\n\n<b>Proton Mail</b>\nProton 没有官方的过滤器 API。Sieve Buddy 使用与 Proton 自己的网页客户端相同的网页 API，Proton 随时可能更改。您的密码绝不会以明文形式离开 Thunderbird（SRP），只会保存会话令牌。\n\n界面提供英语和德语。\n\n与 Proton AG 无关联。",
+  "releaseNotes": "addons.thunderbird.net 上的首个版本。",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "编辑器实时检查您的脚本，并了解您的文件夹"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "规则助手根据模板创建规则"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Test mail 显示邮件最终去向"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "两次点击即可从邮件生成 Sieve 规则"
+    }
+  ]
+}

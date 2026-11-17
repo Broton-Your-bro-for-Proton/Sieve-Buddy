@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Urus penapis Sieve untuk Proton Mail dan setiap pelayan ManageSieve atau JMAP terus dalam Thunderbird: editor yang mengenali pelayan anda, simulator yang menunjukkan ke mana e-mel berakhir, dan peraturan daripada e-mel dalam dua klik.",
+  "description": "Edit penapis e-mel anda tanpa perlu log masuk ke webmel setiap kali. Sieve Buddy berfungsi dengan <b>Proton Mail</b> dan, melalui perkhidmatan Docker pilihannya, dengan <b>setiap pelayan ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org dan banyak lagi) serta <b>JMAP for Sieve</b>.\n\n<b>Ciri</b>\n<ul>\n<li><b>Editor yang mengenali dialek pelayan:</b> penyerlahan sintaks, cadangan untuk arahan, pengepala dan folder anda sendiri, semakan langsung untuk require, kurungan dan folder yang tiada atau tidak dikenali, bantuan apabila tetikus diletakkan di atasnya, rangka dan pemformat.</li>\n<li><b>Peraturan Sieve daripada e-mel:</b> klik kanan pada mesej atau gunakan butang dalam paparan mesej. Sieve Buddy mencadangkan syarat, mencari tempat terbaik dalam skrip anda dan memanjangkan blok sedia ada jika boleh.</li>\n<li><b>E-mel ujian:</b> simulator menunjukkan ke mana e-mel berakhir sebelum anda menyimpan.</li>\n<li><b>Pembantu peraturan:</b> 16 templat untuk domain, senarai mel, invois, kedai dalam talian, balasan tiada di pejabat dan banyak lagi.</li>\n<li><b>Bahagian:</b> susun satu skrip besar dengan tajuk, alih dan padam peraturan mengikut bahagian.</li>\n<li><b>Simpan dengan selamat:</b> diff sebelum setiap simpanan dan sejarah versi terdahulu.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton tidak mempunyai API rasmi untuk penapis. Sieve Buddy menggunakan API web yang sama seperti klien web Proton sendiri, dan Proton boleh mengubahnya pada bila-bila masa. Kata laluan anda tidak pernah meninggalkan Thunderbird dalam teks biasa (SRP), hanya token sesi disimpan.\n\nAntara muka tersedia dalam bahasa Inggeris dan Jerman.\n\nTidak berafiliasi dengan Proton AG.",
+  "releaseNotes": "Versi pertama di addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Editor menyemak skrip anda secara langsung dan mengenali folder anda"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Pembantu peraturan mencipta peraturan daripada templat"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "E-mel ujian menunjukkan ke mana e-mel berakhir"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Peraturan Sieve daripada e-mel dalam dua klik"
+    }
+  ]
+}

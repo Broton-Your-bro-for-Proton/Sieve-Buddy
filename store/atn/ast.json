@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Xestiona los filtros Sieve de Proton Mail y de cualesquier sirvidor ManageSieve o JMAP direutamente en Thunderbird: un editor que conoz el to sirvidor, un simulador que amuesa u acaba un corréu y regles creaes dende un corréu en dos clics.",
+  "description": "Edita los tos filtros de corréu ensin tener d'aniciar sesión nel webmail cada vegada. Sieve Buddy funciona con <b>Proton Mail</b> y, pente'l so serviciu Docker opcional, con <b>cualesquier sirvidor ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org y más) y <b>JMAP for Sieve</b>.\n\n<b>Carauterístiques</b>\n<ul>\n<li><b>Editor que conoz el dialeutu del sirvidor:</b> resaltáu de sintaxis, suxerencies de comandos, testeres y de les tos carpetes, comprobación en direutu de require que falten, llaves y carpetes desconocíes, ayuda al pasar el mur, esquema y formateador.</li>\n<li><b>Regla Sieve dende un corréu:</b> calca col botón drechu nun mensaxe o usa'l botón de la vista del mensaxe. Sieve Buddy suxer condiciones, alcuentra'l meyor sitiu nel to script y amplía un bloque esistente cuando pue.</li>\n<li><b>Corréu de prueba:</b> un simulador amuesa u acaba un corréu enantes de guardar.</li>\n<li><b>Asistente de regles:</b> 16 plantíes pa dominios, llistes de corréu, factures, tiendes, rempuesta d'ausencia y más.</li>\n<li><b>Seiciones:</b> estructura un script grande con títulos y mueve o desanicia regles por seición.</li>\n<li><b>Guardáu seguru:</b> una comparanza de cambeos enantes de cada guardáu y un historial de versiones anteriores.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton nun tien una API oficial pa los filtros. Sieve Buddy usa la mesma API web que'l veceru web de Proton, y Proton pue camudala en cualquier momentu. La to contraseña nunca sal de Thunderbird en testu planu (SRP), namás se guarda un token de sesión.\n\nLa interfaz ta disponible n'inglés y alemán.\n\nEnsin afiliación con Proton AG.",
+  "releaseNotes": "Primer versión en addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "L'editor comprueba'l to script en direutu y conoz les tos carpetes"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "L'asistente de regles crea una regla a partir d'una plantía"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "El corréu de prueba amuesa u acaba un corréu"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Una regla Sieve dende un corréu en dos clics"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Beheer Sieve-filters voor Proton Mail en elke ManageSieve- of JMAP-server rechtstreeks in Thunderbird: een editor die je server kent, een simulator die laat zien waar een mail terechtkomt en regels vanuit een mail in twee klikken.",
+  "description": "Bewerk je mailfilters zonder telkens in te loggen op de webmail. Sieve Buddy werkt met <b>Proton Mail</b> en, via de optionele Docker-service, met <b>elke ManageSieve-server</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org en meer) en <b>JMAP for Sieve</b>.\n\n<b>Functies</b>\n<ul>\n<li><b>Editor die het dialect van de server kent:</b> syntaxiskleuring, suggesties voor opdrachten, headers en je eigen mappen, live controle op ontbrekende require, haakjes en onbekende mappen, hulp bij aanwijzen, overzicht en formatter.</li>\n<li><b>Sieve-regel vanuit een mail:</b> klik met de rechtermuisknop op een bericht of gebruik de knop in de berichtweergave. Sieve Buddy stelt voorwaarden voor, vindt de beste plek in je script en breidt waar mogelijk een bestaand blok uit.</li>\n<li><b>Testmail:</b> een simulator laat zien waar een mail terechtkomt voordat je opslaat.</li>\n<li><b>Regelassistent:</b> 16 sjablonen voor domeinen, mailinglijsten, facturen, webwinkels, afwezigheidsmeldingen en meer.</li>\n<li><b>Secties:</b> structureer één groot script met kopjes, verplaats en verwijder regels per sectie.</li>\n<li><b>Veilig opslaan:</b> een vergelijking van de wijzigingen vóór elke keer opslaan en een geschiedenis van eerdere versies.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton heeft geen officiële API voor filters. Sieve Buddy gebruikt dezelfde web-API als de eigen webclient van Proton, en Proton kan die op elk moment wijzigen. Je wachtwoord verlaat Thunderbird nooit als platte tekst (SRP), alleen een sessietoken wordt opgeslagen.\n\nDe interface is beschikbaar in het Engels en Duits.\n\nNiet gelieerd aan Proton AG.",
+  "releaseNotes": "Eerste versie op addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "De editor controleert je script live en kent je mappen"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "De regelassistent maakt een regel op basis van een sjabloon"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Testmail laat zien waar een mail terechtkomt"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Een Sieve-regel vanuit een mail in twee klikken"
+    }
+  ]
+}

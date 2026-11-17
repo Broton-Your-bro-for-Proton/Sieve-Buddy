@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Spravujte filtre Sieve pre Proton Mail a každý server ManageSieve alebo JMAP priamo v Thunderbirde: editor, ktorý pozná váš server, simulátor, ktorý ukáže, kam správa skončí, a pravidlá zo správy na dve kliknutia.",
+  "description": "Upravujte svoje poštové filtre bez toho, aby ste sa vždy museli prihlasovať do webovej pošty. Sieve Buddy funguje s <b>Proton Mail</b> a vďaka voliteľnej službe v Dockeri aj s <b>každým serverom ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org a ďalšie) a s <b>JMAP for Sieve</b>.\n\n<b>Funkcie</b>\n<ul>\n<li><b>Editor, ktorý pozná dialekt servera:</b> zvýrazňovanie syntaxe, návrhy príkazov, hlavičiek a vašich priečinkov, priebežná kontrola (chýbajúci require, zátvorky, neznáme priečinky), pomoc po nabehnutí myšou, osnova a formátovanie.</li>\n<li><b>Pravidlo Sieve zo správy:</b> kliknite na správu pravým tlačidlom alebo použite tlačidlo v zobrazení správy. Sieve Buddy navrhne podmienky, nájde najlepšie miesto vo vašom skripte a ak sa dá, rozšíri existujúci blok.</li>\n<li><b>Skúšobná správa:</b> simulátor ukáže, kam správa skončí, ešte pred uložením.</li>\n<li><b>Asistent pravidiel:</b> 16 šablón pre domény, konferenčné zoznamy, faktúry, obchody, automatické odpovede a ďalšie.</li>\n<li><b>Sekcie:</b> rozdeľte jeden veľký skript nadpismi, pravidlá presúvajte a mažte po sekciách.</li>\n<li><b>Bezpečné ukladanie:</b> porovnanie zmien pred každým uložením a história skorších verzií.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton nemá oficiálne API pre filtre. Sieve Buddy používa rovnaké webové API ako vlastný webový klient Protonu a Proton ho môže kedykoľvek zmeniť. Vaše heslo nikdy neopustí Thunderbird v čitateľnej podobe (SRP), ukladá sa iba token relácie.\n\nRozhranie je k dispozícii v angličtine a nemčine.\n\nBez spojenia so spoločnosťou Proton AG.",
+  "releaseNotes": "Prvá verzia na addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Editor priebežne kontroluje skript a pozná vaše priečinky"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Asistent pravidiel vytvorí pravidlo zo šablóny"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Skúšobná správa ukáže, kam správa skončí"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Pravidlo Sieve zo správy na dve kliknutia"
+    }
+  ]
+}

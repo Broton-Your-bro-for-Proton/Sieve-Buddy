@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Proton Mail과 모든 ManageSieve 또는 JMAP 서버의 Sieve 필터를 Thunderbird에서 바로 관리하세요. 서버를 이해하는 편집기, 메일이 어디로 가는지 보여 주는 시뮬레이터, 메일에서 두 번 클릭으로 만드는 규칙.",
+  "description": "매번 웹메일에 로그인하지 않고도 메일 필터를 편집하세요. Sieve Buddy는 <b>Proton Mail</b>과 함께 작동하며, 선택 사항인 Docker 서비스를 통해 <b>모든 ManageSieve 서버</b>(Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org 등)와 <b>JMAP for Sieve</b>에서도 사용할 수 있습니다.\n\n<b>기능</b>\n<ul>\n<li><b>서버의 방언을 아는 편집기:</b> 구문 강조, 명령, 헤더, 내 폴더에 대한 제안, 누락된 require, 괄호, 없는 폴더에 대한 실시간 검사, 호버 도움말, 개요 보기, 포매터.</li>\n<li><b>메일에서 Sieve 규칙 만들기:</b> 메시지를 마우스 오른쪽 버튼으로 클릭하거나 메시지 보기의 버튼을 사용하세요. Sieve Buddy가 조건을 제안하고, 스크립트에서 가장 알맞은 위치를 찾아내며, 가능하면 기존 블록을 확장합니다.</li>\n<li><b>Test mail:</b> 저장하기 전에 시뮬레이터가 메일이 어디로 가는지 보여 줍니다.</li>\n<li><b>규칙 도우미:</b> 도메인, 메일링 리스트, 청구서, 쇼핑몰, 부재 중 알림 등을 위한 템플릿 16종.</li>\n<li><b>섹션:</b> 큰 스크립트 하나를 제목으로 구조화하고, 규칙을 섹션별로 옮기거나 삭제하세요.</li>\n<li><b>안전한 저장:</b> 저장할 때마다 변경 내용 비교를 보여 주고, 이전 버전 기록을 남깁니다.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton에는 필터용 공식 API가 없습니다. Sieve Buddy는 Proton 자체 웹 클라이언트와 같은 웹 API를 사용하며, Proton이 언제든 이를 바꿀 수 있습니다. 비밀번호는 평문으로 Thunderbird 밖으로 나가지 않으며(SRP), 세션 토큰만 저장됩니다.\n\n인터페이스는 영어와 독일어로 제공됩니다.\n\nProton AG와 관련이 없습니다.",
+  "releaseNotes": "addons.thunderbird.net의 첫 번째 버전입니다.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "편집기가 스크립트를 실시간으로 검사하고 내 폴더를 압니다"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "규칙 도우미가 템플릿으로 규칙을 만듭니다"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Test mail이 메일이 어디로 가는지 보여 줍니다"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "메일에서 두 번 클릭으로 Sieve 규칙 만들기"
+    }
+  ]
+}

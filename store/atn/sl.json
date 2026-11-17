@@ -1,0 +1,24 @@
+{
+  "name": "Sieve Buddy",
+  "summary": "Upravljajte filtre Sieve za Proton Mail in vsak strežnik ManageSieve ali JMAP kar v Thunderbirdu: urejevalnik, ki pozna vaš strežnik, simulator, ki pokaže, kam pristane sporočilo, in pravila iz sporočila z dvema klikoma.",
+  "description": "Urejajte svoje poštne filtre, ne da bi se vsakič prijavili v spletno pošto. Sieve Buddy deluje s storitvijo <b>Proton Mail</b> in prek izbirne storitve Docker z <b>vsakim strežnikom ManageSieve</b> (Dovecot, Stalwart, Cyrus, Mailcow, mailbox.org in drugi) ter z <b>JMAP for Sieve</b>.\n\n<b>Funkcije</b>\n<ul>\n<li><b>Urejevalnik, ki pozna narečje strežnika:</b> barvanje sintakse, predlogi za ukaze, glave in vaše mape, sprotno preverjanje (manjkajoči require, oklepaji, neznane mape), pomoč ob premiku miške, oris in oblikovanje.</li>\n<li><b>Pravilo Sieve iz sporočila:</b> z desnim klikom kliknite sporočilo ali uporabite gumb v pogledu sporočila. Sieve Buddy predlaga pogoje, poišče najboljše mesto v skripti in, kjer je mogoče, razširi obstoječi blok.</li>\n<li><b>Preizkusno sporočilo:</b> simulator pokaže, kam pristane sporočilo, še preden shranite.</li>\n<li><b>Pomočnik za pravila:</b> 16 predlog za domene, poštne sezname, račune, trgovine, samodejni odgovor in drugo.</li>\n<li><b>Razdelki:</b> eno veliko skripto razčlenite z naslovi, pravila premikajte in brišite po razdelkih.</li>\n<li><b>Varno shranjevanje:</b> primerjava sprememb pred vsakim shranjevanjem in zgodovina prejšnjih različic.</li>\n</ul>\n\n<b>Proton Mail</b>\nProton nima uradnega API-ja za filtre. Sieve Buddy uporablja isti spletni API kot Protonov lastni spletni odjemalec, Proton pa ga lahko kadar koli spremeni. Vaše geslo nikoli ne zapusti Thunderbirda v navadnem besedilu (SRP), shrani se le žeton seje.\n\nVmesnik je na voljo v angleščini in nemščini.\n\nNi povezano s podjetjem Proton AG.",
+  "releaseNotes": "Prva različica na addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-editor.png",
+      "caption": "Urejevalnik sproti preverja skripto in pozna vaše mape"
+    },
+    {
+      "file": "02-assistant.png",
+      "caption": "Pomočnik za pravila ustvari pravilo iz predloge"
+    },
+    {
+      "file": "03-test-mail.png",
+      "caption": "Preizkusno sporočilo pokaže, kam pristane sporočilo"
+    },
+    {
+      "file": "04-rule-from-mail.png",
+      "caption": "Pravilo Sieve iz sporočila z dvema klikoma"
+    }
+  ]
+}
