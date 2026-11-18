@@ -8,7 +8,7 @@ import { join } from 'node:path';
 
 import { LoginGuard } from '../../addon/lib/login-guard.js';
 import { LABEL_TYPE, ProtonClient } from '../../addon/lib/proton-api.js';
-import { ProtonProvider } from '../../addon/lib/providers/proton-provider.js';
+import { ProtonProvider } from './providers/proton-provider.js';
 import { makeDialect } from '../../addon/lib/sieve-dialect.js';
 import { JmapProvider } from './providers/jmap-provider.js';
 import { ManageSieveProvider } from './providers/managesieve-provider.js';

@@ -2,6 +2,7 @@
 // Endpoints follow ProtonMail/WebClients (packages/shared/lib/api/{auth,filters}.ts).
 
 import { isAbuseError, noopGuard } from './login-guard.js';
+import { secureUrl } from './secure-url.js';
 import { getSrpProofs } from './srp.js';
 import { t } from './i18n.js';
 
@@ -65,7 +66,7 @@ export class ProtonClient {
   }
 
   async request(method, path, { body, query, auth = true, headers = {}, retry = true } = {}) {
-    const url = new URL(`${this.settings.apiBase.replace(/\/$/, '')}/${path}`);
+    const url = new URL(`${secureUrl(this.settings.apiBase).href.replace(/\/$/, '')}/${path}`);
     for (const [key, value] of Object.entries(query ?? {})) url.searchParams.set(key, value);
 
     const allHeaders = {

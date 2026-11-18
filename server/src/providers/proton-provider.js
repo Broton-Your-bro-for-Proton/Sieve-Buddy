@@ -9,8 +9,8 @@
 //   check(sieve)                        → [{message, line?}]  (empty = valid)
 //   listFolders()                       → {folders, labels} | null (unknown)
 
-import { LABEL_TYPE } from '../proton-api.js';
-import { t } from '../i18n.js';
+import { LABEL_TYPE } from '../../../addon/lib/proton-api.js';
+import { t } from '../../../addon/lib/i18n.js';
 
 
 export const PROTON_CAPABILITIES = {

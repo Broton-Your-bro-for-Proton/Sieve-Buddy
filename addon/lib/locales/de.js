@@ -322,6 +322,7 @@ export const DE = {
   "Insert Proton spam protection at the top": "Proton-Spam-Schutz am Anfang einfügen",
   "Inserted as a new block before line {line} – otherwise the block there would have caught the message first.": "Als neuer Block vor Zeile {line} eingefügt – der Block dort hätte die Mail sonst vorher abgefangen.",
   "Inserted as a new block before line {line} and ended with “stop” – otherwise the block there would move the message elsewhere.": "Als neuer Block vor Zeile {line} eingefügt und mit „stop“ beendet – sonst würde der Block dort die Mail woandershin verschieben.",
+  "Only https:// addresses are allowed (http:// only for localhost): {url}": "Nur https://-Adressen sind erlaubt (http:// nur für localhost): {url}",
   "Invalid address": "Ungültige Adresse",
   "Invalid character in the name (line break or NUL)": "Ungültiges Zeichen im Namen (Zeilenumbruch oder NUL)",
   "Invalid input: {list}": "Ungültige Eingabe: {list}",
