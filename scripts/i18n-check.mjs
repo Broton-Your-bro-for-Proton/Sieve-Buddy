@@ -32,7 +32,7 @@ export const SOURCES = [
   'server/src/providers/managesieve-provider.js',
   'server/src/providers/managesieve.js',
   'server/src/providers/imap-folders.js',
-  'addon/lib/providers/proton-provider.js',
+  'server/src/providers/proton-provider.js',
   'server/src/account.js',
   'server/src/config.js',
   'server/src/index.js',

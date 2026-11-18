@@ -94,7 +94,7 @@ test('password login in the service is off by default', async () => {
 test('free-plan limit: Proton creates the filter disabled and answers 50016 – reported as created', async () => {
   const { createFakeProton } = await import('../../scripts/fake-proton.mjs');
   const { ProtonClient } = await import('../../addon/lib/proton-api.js');
-  const { ProtonProvider } = await import('../../addon/lib/providers/proton-provider.js');
+  const { ProtonProvider } = await import('../src/providers/proton-provider.js');
   const limited = createFakeProton({ maxActive: 1 });
   const api = await limited.listen();
   try {

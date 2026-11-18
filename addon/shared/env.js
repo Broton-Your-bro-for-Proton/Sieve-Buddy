@@ -4,6 +4,7 @@ import { diffHunks, diffStats, lineDiff } from '../lib/diff.js';
 import { t } from '../lib/i18n.js';
 import { LoginGuard } from '../lib/login-guard.js';
 import { DEFAULT_SETTINGS, LABEL_TYPE, ProtonClient } from '../lib/proton-api.js';
+import { secureUrl } from '../lib/secure-url.js';
 import { ServiceClient } from '../lib/service-client.js';
 import { makeDialect } from '../lib/sieve-dialect.js';
 
@@ -32,7 +33,12 @@ export async function loadSettings() {
 export async function makeClient() {
   const settings = await loadSettings();
   if (settings.mode === 'service' && settings.serviceUrl) {
-    return new ServiceClient({ baseUrl: settings.serviceUrl, token: settings.serviceToken ?? '' });
+    try {
+      return new ServiceClient({ baseUrl: settings.serviceUrl, token: settings.serviceToken ?? '' });
+    } catch (error) {
+      // a service address saved before http was refused: start signed out instead of not at all
+      console.warn(error.message);
+    }
   }
   return new ProtonClient({
     bcrypt: window.dcodeIO.bcrypt,
@@ -52,7 +58,7 @@ export async function setServiceMode(service) {
 
 /** Asks Thunderbird for access to the service's origin (optional host permission). */
 export async function requestOrigin(url) {
-  const origin = new URL(url).origin;
+  const origin = secureUrl(url).origin;
   if (!globalThis.browser?.permissions) return origin; // preview outside Thunderbird
   if (!(await browser.permissions.request({ origins: [`${origin}/*`] }))) throw new Error(t('Access to the service was not granted'));
   return origin;

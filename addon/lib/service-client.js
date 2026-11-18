@@ -2,11 +2,12 @@
 // on ProtonClient, so the UI works unchanged – for Proton behind the service as well as ManageSieve servers.
 
 import { t } from './i18n.js';
+import { secureUrl } from './secure-url.js';
 
 export class ServiceClient {
   /** @param {{baseUrl: string, token: string}} options */
   constructor({ baseUrl, token }) {
-    this.baseUrl = baseUrl.replace(/\/$/, '');
+    this.baseUrl = secureUrl(baseUrl).href.replace(/\/$/, '');
     this.token = token;
     this.status = null;
     this.capabilities = null;
