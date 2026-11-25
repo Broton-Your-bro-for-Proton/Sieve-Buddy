@@ -1,8 +1,15 @@
 // German UI texts. Key = English text (see i18n.js). Checked by test/i18n.test.mjs.
 export const DE = {
+  "The saved session could not be resumed: {message}": "Die gespeicherte Sitzung ließ sich nicht fortsetzen: {message}",
+  "This message is in another account than {user}: the rule is saved, but not run on messages in Thunderbird": "Diese Nachricht liegt in einem anderen Konto als {user}: Die Regel wird gespeichert, aber nicht auf Nachrichten in Thunderbird angewendet",
+  "all actions (a test could not be simulated)": "alle Aktionen (ein Test ließ sich nicht simulieren)",
+  "Signed out in another window": "In einem anderen Fenster abgemeldet",
+  "JMAP_URL uses plain http: user name and token go unencrypted to {host}": "JMAP_URL nutzt unverschlüsseltes http: Benutzername und Token gehen unverschlüsselt an {host}",
+  "A script named “{name}” already exists": "Ein Skript namens „{name}“ gibt es schon",
+  "The server has no CHECKSCRIPT, and checking by uploading needs write access (ALLOW_WRITE=true)": "Der Server kennt kein CHECKSCRIPT, und eine Prüfung per Hochladen braucht Schreibzugriff (ALLOW_WRITE=true)",
+  "Retry": "Erneut versuchen",
   " or ": " oder ",
   ":index / :last for header/address/date": ":index / :last bei header/address/date",
-  ". Stored in this browser only.": ". Wird nur in diesem Browser gespeichert.",
   "… then": "… dann",
   "“,” or “)” expected": "„,“ oder „)“ erwartet",
   "“,” or “]” expected": "„,“ oder „]“ erwartet",

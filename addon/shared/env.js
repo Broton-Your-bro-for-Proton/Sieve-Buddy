@@ -7,6 +7,7 @@ import { DEFAULT_SETTINGS, LABEL_TYPE, ProtonClient } from '../lib/proton-api.js
 import { secureUrl } from '../lib/secure-url.js';
 import { ServiceClient } from '../lib/service-client.js';
 import { makeDialect } from '../lib/sieve-dialect.js';
+import { STARRED } from '../lib/sieve-sim.js';
 
 export const $ = (id) => document.getElementById(id);
 
@@ -93,16 +94,30 @@ export const asScripts = (filters) => filters.map((f) => ({ id: f.ID, name: f.Na
 
 const HISTORY_LIMIT = 25;
 
+/**
+ * The connection a version belongs to. A ManageSieve script id is its name, so "main" of another server or
+ * account would otherwise show the versions of the previous one. Versions from before have none.
+ */
+async function historyAccount() {
+  const settings = await loadSettings();
+  return settings.mode === 'service' ? `service:${settings.serviceUrl ?? ''}` : `proton:${(await storage.get('session'))?.username ?? ''}`;
+}
+
 export async function pushHistory(filterId, name, sieve) {
   if (!filterId || !sieve) return;
   const key = `history:${filterId}`;
+  const account = await historyAccount();
   const list = (await storage.get(key)) ?? [];
-  if (list[0]?.sieve === sieve) return;
-  list.unshift({ at: new Date().toISOString(), name, sieve });
+  if (list.find((v) => !v.account || v.account === account)?.sieve === sieve) return;
+  list.unshift({ at: new Date().toISOString(), name, sieve, account });
   await storage.set(key, list.slice(0, HISTORY_LIMIT));
 }
 
-export const getHistory = async (filterId) => (filterId ? ((await storage.get(`history:${filterId}`)) ?? []) : []);
+export async function getHistory(filterId) {
+  if (!filterId) return [];
+  const account = await historyAccount();
+  return ((await storage.get(`history:${filterId}`)) ?? []).filter((v) => !v.account || v.account === account);
+}
 
 // ---------- UI helpers ----------
 
@@ -266,7 +281,7 @@ export function openModal({ title, body, actions = [], wide = false, key = null 
 /** Describes a simulation result in one line. */
 export function describeSimulation(result) {
   const parts = [t('ends up in “{location}”', { location: result.location })];
-  if (result.labels.length) parts.push(t('Labels: {labels}', { labels: result.labels.join(', ') }));
+  if (result.labels.length) parts.push(t('Labels: {labels}', { labels: result.labels.map((l) => (l === STARRED ? t('Starred') : l)).join(', ') }));
   if (result.flags.includes('\\Seen')) parts.push(t('mark as read'));
   if (result.flags.includes('\\Flagged')) parts.push(t('with star'));
   if (result.expireDays) parts.push(t('deleted after {days} days', { days: result.expireDays }));

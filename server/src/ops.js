@@ -103,7 +103,7 @@ export async function lintSieve(account, { sieve }) {
 
 export async function checkSieve(account, { sieve }) {
   account.requireReady();
-  return { issues: await account.provider.check(sieve) };
+  return { issues: await account.provider.check(sieve, { mayUpload: account.config.allowWrite }) };
 }
 
 export const formatSieve = (_account, { sieve }) => ({ sieve: formatCore(sieve) });

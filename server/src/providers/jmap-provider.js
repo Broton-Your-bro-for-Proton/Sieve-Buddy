@@ -63,6 +63,11 @@ export class JmapProvider {
     // fetch refuses such URLs with the full URL, password included, in its error message
     const url = new URL(this.config.url);
     if (url.username || url.password) throw new JmapError(t('JMAP_URL must not contain a user name or password, use JMAP_USER and JMAP_TOKEN'));
+    // unlike MANAGESIEVE_TLS=none there is no switch for plain text, so it is at least said once
+    if (url.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) && !this.warnedPlain) {
+      this.warnedPlain = true;
+      console.warn(t('JMAP_URL uses plain http: user name and token go unencrypted to {host}', { host: url.host }));
+    }
     const res = await this.#fetch(this.config.url);
     const session = await res.json();
     const accountId = session.primaryAccounts?.[SIEVE];

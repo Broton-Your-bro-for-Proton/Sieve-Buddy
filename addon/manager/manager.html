@@ -31,6 +31,8 @@
   <section id="view-login" class="card narrow" hidden>
     <h2>Connect to Proton</h2>
     <p class="muted">The password never leaves Thunderbird in plain text (SRP). Only a session token is stored.</p>
+    <!-- a stored session that could not be resumed (offline, Proton unreachable): retry before a new password login -->
+    <p id="resume" class="warn" hidden><span id="resume-text"></span> <button type="button" id="resume-retry">Retry</button></p>
     <form id="login-form">
       <label>Username / email<input id="username" autocomplete="username" required></label>
       <label>Password<input id="password" type="password" autocomplete="current-password" required></label>

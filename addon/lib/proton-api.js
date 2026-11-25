@@ -62,7 +62,18 @@ export class ProtonClient {
 
   async restore() {
     this.session = await this.store.load();
+    this.storedUid = this.session?.UID ?? null;
     return this.isLoggedIn;
+  }
+
+  /** Whether the session in memory is the stored one, which other add-on pages share. */
+  get #shared() {
+    return Boolean(this.session) && this.storedUid === this.session.UID;
+  }
+
+  async #save(session) {
+    await this.store.save(session);
+    this.storedUid = session?.UID ?? null;
   }
 
   async request(method, path, { body, query, auth = true, headers = {}, retry = true } = {}) {
@@ -189,7 +200,7 @@ export class ProtonClient {
     }
     if (twoFactor) return { twoFactor: true };
 
-    await this.store.save(this.session);
+    await this.#save(this.session);
     return { twoFactor: false };
   }
 
@@ -207,12 +218,26 @@ export class ProtonClient {
       throw error;
     }
     this.session.pending2FA = false;
-    await this.store.save(this.session);
+    await this.#save(this.session);
   }
 
   async refresh() {
     if (!this.refreshing) {
       this.refreshing = (async () => {
+        // Every add-on page has its own client. Another one may have refreshed meanwhile, which rotates the
+        // refresh token, or handed the session over or signed out: the stored session is the current one.
+        // A session set in memory only (the service checking an imported one) has nothing to compare with.
+        const used = this.session.RefreshToken;
+        const shared = this.#shared;
+        const stored = shared ? await this.store.load() : this.session;
+        if (stored?.UID !== this.session.UID) {
+          this.session = null;
+          throw new ProtonApiError(t('Signed out in another window'), { status: 401 });
+        }
+        if (stored.RefreshToken !== used) {
+          this.session = stored;
+          return;
+        }
         try {
           const res = await this.request('POST', 'auth/v4/refresh', {
             body: {
@@ -230,12 +255,18 @@ export class ProtonClient {
             AccessToken: res.AccessToken,
             RefreshToken: res.RefreshToken,
           };
-          await this.store.save(this.session);
+          await this.#save(this.session);
         } catch (error) {
           if (isAbuseError(error)) await this.guard.onError(error);
           if (error.status === 400 || error.status === 401 || error.status === 422) {
+            // a page that refreshed at the same moment keeps its newer session
+            const latest = shared ? await this.store.load() : null;
+            if (latest?.UID === this.session?.UID && latest.RefreshToken && latest.RefreshToken !== used) {
+              this.session = latest;
+              return;
+            }
             this.session = null;
-            await this.store.save(null);
+            await this.#save(null);
           }
           throw error;
         } finally {
@@ -253,7 +284,7 @@ export class ProtonClient {
       // the session may already be gone on Proton's side
     }
     this.session = null;
-    await this.store.save(null);
+    await this.#save(null);
   }
 
 

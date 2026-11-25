@@ -7,7 +7,7 @@ import { planRule } from '../lib/rule-planner.js';
 import { describeRule } from '../lib/sieve-rules.js';
 import { findSections, prefersStop } from '../lib/sieve-sections.js';
 import { simulate } from '../lib/sieve-sim.js';
-import { changedActions, findFolder, mailActions } from '../lib/mail-actions.js';
+import { accountHasAddress, changedActions, findFolder, isSpecial, mailActions } from '../lib/mail-actions.js';
 import { SYSTEM_FOLDERS } from '../lib/sieve-dialect.js';
 import {
   $,
@@ -329,7 +329,12 @@ function render() {
 async function applyPlan() {
   const plan = state.plan;
   if (!plan) return;
-  const run = $('inbox-run').checked;
+  let run = $('inbox-run').checked;
+  if (run && !(await messageInFilterAccount())) {
+    // the filters belong to another account, so its messages would be sorted by rules they never meet
+    run = false;
+    toast(t('This message is in another account than {user}: the rule is saved, but not run on messages in Thunderbird', { user: state.client.session.username }), true);
+  }
   // the inbox is checked against the plan before saving, so a cancel still leaves everything as it was
   let inbox = [];
   if (run) {
@@ -377,6 +382,8 @@ async function applyPlan() {
     }
     if (!activate) toast(t('New script created but not activated: only one script can be active'));
   }
+  // a second click while the window closes must not save the rule again
+  state.plan = null;
   toast(t('Rule saved ✓'));
   await after();
   setTimeout(() => window.close(), run || inbox.length ? 4000 : 1200);
@@ -411,6 +418,15 @@ async function accountFolders(accountId) {
   const walk = (list) => list?.forEach((f) => (all.push(f), walk(f.subFolders)));
   walk(account.folders);
   return all;
+}
+
+/** Whether the open message belongs to the account the filters are for; without an address to compare, yes. */
+async function messageInFilterAccount() {
+  const username = state.client?.session?.username;
+  if (!inAddon || !username?.includes('@')) return true;
+  const { folder } = await browser.messages.get(openMessageId());
+  const account = await browser.accounts.get(folder.accountId);
+  return accountHasAddress(account?.identities ?? [], username);
 }
 
 /** Runs mailActions on one message; folder names Thunderbird does not know go into `missing`. */
@@ -511,7 +527,7 @@ async function scanInbox(plan, run) {
   if (!inAddon) return [];
   const { folder: current } = await browser.messages.get(openMessageId());
   const folders = await accountFolders(current.accountId);
-  const inbox = folders.find((f) => f.specialUse?.includes('inbox'));
+  const inbox = folders.find((f) => isSpecial(f, 'inbox'));
   if (!inbox) return [];
   const before = runnableScripts();
   const after = plannedScripts(plan);

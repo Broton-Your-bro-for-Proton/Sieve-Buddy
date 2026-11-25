@@ -216,7 +216,8 @@ function analyze(tokens, dialect = PROTON_DIALECT) {
           if (!dialect.extensions.has(s.value.toLowerCase())) {
             issue(s, dialect.proton ? t('Extension “{name}” is not supported by Proton', { name: s.value }) : t('Extension “{name}” is not offered by this server', { name: s.value }));
           }
-          required.set(s.value, s);
+          // extension names compare case-insensitively: "FileInto" already requires fileinto
+          required.set(s.value.toLowerCase(), s);
         }
       } else {
         sawNonRequire = true;
@@ -449,8 +450,10 @@ export function fixRequire(text) {
     return [t.start, end];
   });
   const insertAt = spans.length ? spans[0][0] : 0;
+  // comments inside a removed require stay, on their own lines after the new one
+  const comments = spans.flatMap(([start, end]) => out.slice(start, end).match(/#[^\r\n]*|\/\*[\s\S]*?\*\//g) ?? []);
   for (const [start, end] of [...spans].reverse()) out = out.slice(0, start) + out.slice(end);
-  const line = `require ${formatList(names)};\n${spans.length ? '' : '\n'}`;
+  const line = `require ${formatList(names)};\n${comments.map((c) => `${c}\n`).join('')}${spans.length ? '' : '\n'}`;
   return out.slice(0, insertAt) + line + out.slice(insertAt);
 }
 
