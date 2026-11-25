@@ -51,3 +51,17 @@ test('a page whose session was handed over or signed out elsewhere does not refr
   assert.equal(fake.state.sessions.get('uid-handed-over').refresh, refresh, 'the service keeps a valid refresh token');
   assert.equal(rule.session, null);
 });
+
+test('after taking over the stored session a page still refreshes when its access token expires again', async () => {
+  const { client } = signedIn('uid-twice');
+  const [manager, rule] = [client(), client()];
+  await manager.restore();
+  await rule.restore();
+  for (let round = 0; round < 3; round++) {
+    fake.state.sessions.get('uid-twice').access = `expired-${round}`;
+    await rule.request('GET', 'mail/v4/filters');
+    fake.state.sessions.get('uid-twice').access = `expired-again-${round}`; // the adopted access token is old too
+    await manager.request('GET', 'mail/v4/filters');
+  }
+  assert.equal(manager.refreshing, null);
+});

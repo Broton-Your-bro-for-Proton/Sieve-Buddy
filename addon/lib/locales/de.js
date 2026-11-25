@@ -1,7 +1,9 @@
 // German UI texts. Key = English text (see i18n.js). Checked by test/i18n.test.mjs.
 export const DE = {
   "The saved session could not be resumed: {message}": "Die gespeicherte Sitzung ließ sich nicht fortsetzen: {message}",
-  "This message is in another account than {user}: the rule is saved, but not run on messages in Thunderbird": "Diese Nachricht liegt in einem anderen Konto als {user}: Die Regel wird gespeichert, aber nicht auf Nachrichten in Thunderbird angewendet",
+  "No identity of this account is {user}: the rule runs on this message only, not on its inbox": "Keine Identität dieses Kontos ist {user}: Die Regel läuft nur für diese Nachricht, nicht für den Posteingang",
+  "{count} messages in the inbox are left alone: a test could not be simulated": "{count} Nachrichten im Posteingang bleiben unberührt: Ein Test ließ sich nicht simulieren",
+  "{count} messages could not be simulated: a test is not evaluated in the simulator": "{count} Nachrichten ließen sich nicht simulieren: Ein Test wird im Simulator nicht ausgewertet",
   "all actions (a test could not be simulated)": "alle Aktionen (ein Test ließ sich nicht simulieren)",
   "Signed out in another window": "In einem anderen Fenster abgemeldet",
   "JMAP_URL uses plain http: user name and token go unencrypted to {host}": "JMAP_URL nutzt unverschlüsseltes http: Benutzername und Token gehen unverschlüsselt an {host}",

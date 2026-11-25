@@ -439,6 +439,7 @@ globalThis.browser?.storage?.onChanged.addListener((changes) => {
 // ---------- Login flow ----------
 
 async function enterApp() {
+  $('resume').hidden = true;
   state.offline = false;
   state.dialect = dialectOf(state.client);
   state.caps = capabilitiesOf(state.client);

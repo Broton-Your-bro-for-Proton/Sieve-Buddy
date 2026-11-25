@@ -26,7 +26,7 @@ test('a message is not moved or deleted when the simulator had to guess a test',
   assert.equal(guessed.uncertain, true);
   const actions = mailActions(guessed);
   assert.deepEqual([actions.trash, actions.move, actions.copies], [false, null, []]);
-  assert.equal(changedActions(run('keep;\n'), guessed), null);
+  assert.equal(changedActions(run('keep;\n'), guessed)?.uncertain, true, 'reported, not passed as unchanged');
   assert.equal(run('discard;\n').uncertain, false);
   assert.equal(mailActions(run('discard;\n')).trash, true);
 });

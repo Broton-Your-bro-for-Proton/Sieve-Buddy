@@ -100,7 +100,7 @@ const HISTORY_LIMIT = 25;
  */
 async function historyAccount() {
   const settings = await loadSettings();
-  return settings.mode === 'service' ? `service:${settings.serviceUrl ?? ''}` : `proton:${(await storage.get('session'))?.username ?? ''}`;
+  return settings.mode === 'service' ? `service:${settings.serviceUrl ?? ''}` : `proton:${((await storage.get('session'))?.username ?? '').toLowerCase()}`;
 }
 
 export async function pushHistory(filterId, name, sieve) {

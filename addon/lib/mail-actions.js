@@ -41,6 +41,8 @@ export function mailActions(result) {
 export function changedActions(before, after) {
   const old = mailActions(before);
   const now = mailActions(after);
+  // a guess decides nothing, but the message is reported instead of passing as unchanged
+  if (before.uncertain || after.uncertain) return { move: null, trash: false, copies: [], read: false, flagged: false, skipped: now.skipped, uncertain: true };
   // only what is new: a message the old rules already moved and the user put back stays where it is
   const moved = old.move !== now.move || old.trash !== now.trash;
   const diff = {

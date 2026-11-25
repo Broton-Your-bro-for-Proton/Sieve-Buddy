@@ -164,6 +164,7 @@ export class Account {
       }
       this.pending = null;
       this.cache = null;
+      this.writes = (this.writes ?? 0) + 1; // a read running now must not cache the old state
       return { step: 'done' };
     } catch (error) {
       if (error.needsHumanVerification && (error.details?.HumanVerificationMethods ?? []).includes('captcha')) {
@@ -197,6 +198,7 @@ export class Account {
     this.storedCredentials = true;
     this.initError = null;
     this.cache = null;
+    this.writes = (this.writes ?? 0) + 1; // a read running now must not cache the old state
     return this.status();
   }
 
@@ -210,10 +212,12 @@ export class Account {
       this.storedCredentials = false;
       this.initError = t('No credentials yet: enter them in the web UI or set them in the configuration');
       this.cache = null;
+      this.writes = (this.writes ?? 0) + 1; // a read running now must not cache the old state
       return;
     }
     this.pending = null;
     this.cache = null;
+    this.writes = (this.writes ?? 0) + 1; // a read running now must not cache the old state
     await this.client.logout();
   }
 
@@ -240,6 +244,7 @@ export class Account {
     await this.store.save(this.client.session);
     this.pending = null;
     this.cache = null;
+    this.writes = (this.writes ?? 0) + 1; // a read running now must not cache the old state
     return { imported: true, username: this.client.session.username };
   }
 

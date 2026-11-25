@@ -329,18 +329,16 @@ function render() {
 async function applyPlan() {
   const plan = state.plan;
   if (!plan) return;
-  let run = $('inbox-run').checked;
-  if (run && !(await messageInFilterAccount())) {
-    // the filters belong to another account, so its messages would be sorted by rules they never meet
-    run = false;
-    toast(t('This message is in another account than {user}: the rule is saved, but not run on messages in Thunderbird', { user: state.client.session.username }), true);
-  }
+  const run = $('inbox-run').checked;
+  // the filters may belong to another account: then its inbox is not sorted by rules its mail never meets
+  const ownAccount = !run || (await messageInFilterAccount());
+  if (!ownAccount) toast(t('No identity of this account is {user}: the rule runs on this message only, not on its inbox', { user: state.client.session.username }), true);
   // the inbox is checked against the plan before saving, so a cancel still leaves everything as it was
   let inbox = [];
   if (run) {
     $('apply').disabled = true;
     try {
-      inbox = await scanInbox(plan, run);
+      inbox = ownAccount ? await scanInbox(plan, run) : [];
     } finally {
       $('apply').disabled = false;
     }
@@ -496,6 +494,7 @@ async function checkMoves(plan) {
   const moves = [];
   const missing = [];
   let checked = 0;
+  let unsure = 0;
   for (const name of displacedFolders(plan)) {
     const folder = findFolder(folders, name);
     if (!folder) {
@@ -507,7 +506,9 @@ async function checkMoves(plan) {
       try {
         const message = messageFromThunderbird(await browser.messages.getFull(header.id), { size: header.size });
         const [was, now] = [simulateWith(before, message), simulateWith(after, message)];
-        if (changedActions(was, now)) moves.push({ subject: decodeEncodedWords(header.subject ?? ''), was: describeSimulation(was), now: describeSimulation(now) });
+        const changed = changedActions(was, now);
+        if (changed?.uncertain) unsure++;
+        else if (changed) moves.push({ subject: decodeEncodedWords(header.subject ?? ''), was: describeSimulation(was), now: describeSimulation(now) });
       } catch {
         // a message that cannot be read is left out of the check
       }
@@ -515,10 +516,11 @@ async function checkMoves(plan) {
   }
   const lines = moves.slice(0, 10).map((m) => el('div', { class: 'muted' }, `${m.subject || t('(no subject)')}: ${m.was} → ${m.now}`));
   out.replaceChildren(
-    el('div', { class: moves.length ? 'warn' : 'ok' }, moves.length ? t('{count} of {total} messages would end up elsewhere:', { count: moves.length, total: checked }) : t('None of {total} messages would end up elsewhere.', { total: checked })),
+    el('div', { class: moves.length || unsure ? 'warn' : 'ok' }, moves.length ? t('{count} of {total} messages would end up elsewhere:', { count: moves.length, total: checked }) : t('None of {total} messages would end up elsewhere.', { total: checked })),
     ...lines,
     moves.length > lines.length ? el('div', { class: 'muted' }, t('… and {count} more', { count: moves.length - lines.length })) : '',
     missing.length ? el('div', { class: 'muted' }, t('Folder not found in Thunderbird: {names}', { names: missing.join(', ') })) : '',
+    unsure ? el('div', { class: 'warn' }, t('{count} messages could not be simulated: a test is not evaluated in the simulator', { count: unsure })) : '',
   );
 }
 
@@ -533,6 +535,7 @@ async function scanInbox(plan, run) {
   const after = plannedScripts(plan);
   const hits = [];
   let checked = 0;
+  let unsure = 0;
   try {
     for (const header of await folderMessages(inbox)) {
       // with run the open message is handled on its own
@@ -541,6 +544,10 @@ async function scanInbox(plan, run) {
       const message = messageFromThunderbird(await browser.messages.getFull(header.id), { size: header.size });
       const actions = changedActions(simulateWith(before, message), simulateWith(after, message));
       if (!actions) continue;
+      if (actions.uncertain) {
+        unsure++;
+        continue;
+      }
       // flags Thunderbird already shows change nothing
       if (header.read) actions.read = false;
       if (header.flagged) actions.flagged = false;
@@ -549,6 +556,7 @@ async function scanInbox(plan, run) {
   } finally {
     $('inbox-progress').textContent = '';
   }
+  if (unsure) toast(t('{count} messages in the inbox are left alone: a test could not be simulated', { count: unsure }), true);
   return hits.map((h) => ({ ...h, inbox, folders }));
 }
 
