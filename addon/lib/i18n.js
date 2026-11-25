@@ -33,7 +33,12 @@ export function setLocale(lang) {
 /** Loads the catalog of a language and switches to it. */
 export async function loadLocale(lang) {
   const code = matchLocale(lang);
-  if (code !== 'en' && !loaded[code]) loaded[code] = (await import(`./locales/${code}.js`)).default;
+  try {
+    if (code !== 'en' && !loaded[code]) loaded[code] = (await import(`./locales/${code}.js`)).default;
+  } catch (error) {
+    // a missing catalog must not stop the page: it then shows English
+    console.error(`no UI texts for ${code}`, error);
+  }
   setLocale(code);
 }
 
@@ -41,6 +46,9 @@ export const getLocale = () => locale;
 
 /** Locale tag for dates and numbers. */
 export const dateLocale = () => ({ en: 'en-US', de: 'de-DE' })[locale] ?? locale;
+
+/** The English text a UI text in the current language was translated from (the text itself when it is not one). */
+export const englishOf = (text) => (catalog ? (Object.keys(catalog).find((key) => catalog[key] === text) ?? text) : text);
 
 /** A UI text in the other language (English or German), whichever one it is in (the text itself when it has no translation). */
 export const otherLanguage = (text) => (Object.hasOwn(DE, text ?? '') ? DE[text] : Object.keys(DE).find((key) => DE[key] === text)) ?? text;

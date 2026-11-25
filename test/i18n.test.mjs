@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { LOCALES, getLocale, loadLocale, matchLocale, setLocale, t } from '../addon/lib/i18n.js';
+import { LOCALES, englishOf, getLocale, loadLocale, matchLocale, setLocale, t } from '../addon/lib/i18n.js';
 import { DE } from '../addon/lib/locales/de.js';
 import { parseSieve } from '../addon/lib/sieve-ast.js';
 import { check, dynamicKeys, tKeys } from '../scripts/i18n-check.mjs';
@@ -107,6 +107,8 @@ test('a language tag finds its catalog, a region falls back to the language', as
   try {
     assert.equal(getLocale(), 'fr');
     assert.notEqual(t('Save'), 'Save');
+    assert.equal(englishOf(t('Save')), 'Save', 'a section title in French still finds its English category');
+    await loadLocale('xx-missing'); // unknown tags fall back to English without an error
   } finally {
     setLocale('en');
   }

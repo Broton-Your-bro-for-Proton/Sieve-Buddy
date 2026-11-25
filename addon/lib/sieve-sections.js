@@ -2,7 +2,7 @@
 // title between "# =====" lines. New rules go into the matching section; the manager lists, moves and
 // deletes rules per section. Pure text functions, shared by the add-on and the service.
 
-import { otherLanguage, t } from './i18n.js';
+import { englishOf, otherLanguage, t } from './i18n.js';
 import { lineOf, parseSieve } from './sieve-ast.js';
 import { describeActions, sameEffect } from './sieve-rules.js';
 
@@ -149,7 +149,7 @@ const words = (s) =>
 export function chooseSection(sections, rule, hints = {}) {
   const folderWords = words(rule.actions?.fileinto?.split('/').at(-1));
   // section titles are the user's own words: compare with the category in both languages
-  const categoryWords = [...words(hints.category), ...words(otherLanguage(hints.category))];
+  const categoryWords = [...words(hints.category), ...words(otherLanguage(hints.category)), ...words(englishOf(hints.category))];
   let best = null;
   for (const section of sections) {
     let score = 0;
