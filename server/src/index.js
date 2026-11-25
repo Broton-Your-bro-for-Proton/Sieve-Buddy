@@ -13,7 +13,7 @@ import { loadConfig } from './config.js';
 import { z } from 'zod';
 
 import { TOOLS, createMcpServer } from './mcp.js';
-import { getLocale, t } from '../../addon/lib/i18n.js';
+import { LOCALES, getLocale, t } from '../../addon/lib/i18n.js';
 
 const MAX_BODY = 1024 * 1024;
 
@@ -60,7 +60,8 @@ export async function startServer(config = loadConfig()) {
     "form-action 'none'",
     "frame-ancestors 'none'",
   ].join('; ');
-  const scripts = { '/i18n.js': await lib('i18n.js'), '/locales/de.js': await lib('locales/de.js') };
+  const scripts = { '/i18n.js': await lib('i18n.js') };
+  for (const code of LOCALES) scripts[`/locales/${code}.js`] = await lib(`locales/${code}.js`);
   const expected = Buffer.from(`Bearer ${config.apiToken}`);
 
   const authorized = (req) => {

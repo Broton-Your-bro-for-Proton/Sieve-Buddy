@@ -104,9 +104,9 @@
   </section>
 </main>
 <script type="module">
-  import { dateLocale, localizeDom, setLocale, t } from '/i18n.js';
+  import { dateLocale, loadLocale, localizeDom, t } from '/i18n.js';
 
-  setLocale(document.documentElement.lang);
+  await loadLocale(document.documentElement.lang);
   localizeDom(document.documentElement, document);
   const $ = (id) => document.getElementById(id);
   let token = '';
