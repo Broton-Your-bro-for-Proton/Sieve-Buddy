@@ -17,6 +17,7 @@ import {
   toast,
 } from '../shared/env.js';
 import { DEFAULT_SETTINGS } from '../lib/proton-api.js';
+import { verificationUrl } from '../lib/secure-url.js';
 import { installHandover } from './handover.js';
 import { confirmDiff, installTools } from './tools.js';
 
@@ -438,6 +439,7 @@ globalThis.browser?.storage?.onChanged.addListener((changes) => {
 // ---------- Login flow ----------
 
 async function enterApp() {
+  $('resume').hidden = true;
   state.offline = false;
   state.dialect = dialectOf(state.client);
   state.caps = capabilitiesOf(state.client);
@@ -507,7 +509,7 @@ function startCaptcha(details) {
   // which marks the HumanVerificationToken as verified; then we retry the login with that token.
   captcha.token = details.HumanVerificationToken;
   captcha.type = methods.join(',');
-  captcha.url = details.WebUrl || `https://verify.proton.me/?methods=captcha&token=${encodeURIComponent(captcha.token)}`;
+  captcha.url = verificationUrl(details.WebUrl, captcha.token);
   show('captcha');
   openVerification().catch((error) => toast(t('Could not open the verification page: {message}', { message: error.message }), true));
 }
@@ -641,6 +643,12 @@ $('logout').addEventListener('click', async () => {
       return;
     } catch (error) {
       toast(t('Could not resume the session: {message}', { message: error.message }), true);
+      // the session is still stored: a new password login is not needed once Proton can be reached again
+      if (state.client.isLoggedIn) {
+        $('resume-text').textContent = t('The saved session could not be resumed: {message}', { message: error.message });
+        $('resume').hidden = false;
+        $('resume-retry').addEventListener('click', () => location.reload());
+      }
     }
   }
   show('login');

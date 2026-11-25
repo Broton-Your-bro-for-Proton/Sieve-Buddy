@@ -7,7 +7,7 @@ import { planRule } from '../lib/rule-planner.js';
 import { describeRule } from '../lib/sieve-rules.js';
 import { findSections, prefersStop } from '../lib/sieve-sections.js';
 import { simulate } from '../lib/sieve-sim.js';
-import { changedActions, findFolder, mailActions } from '../lib/mail-actions.js';
+import { accountHasAddress, changedActions, findFolder, isSpecial, mailActions } from '../lib/mail-actions.js';
 import { SYSTEM_FOLDERS } from '../lib/sieve-dialect.js';
 import {
   $,
@@ -330,12 +330,15 @@ async function applyPlan() {
   const plan = state.plan;
   if (!plan) return;
   const run = $('inbox-run').checked;
+  // the filters may belong to another account: then its inbox is not sorted by rules its mail never meets
+  const ownAccount = !run || (await messageInFilterAccount());
+  if (!ownAccount) toast(t('No identity of this account is {user}: the rule runs on this message only, not on its inbox', { user: state.client.session.username }), true);
   // the inbox is checked against the plan before saving, so a cancel still leaves everything as it was
   let inbox = [];
   if (run) {
     $('apply').disabled = true;
     try {
-      inbox = await scanInbox(plan, run);
+      inbox = ownAccount ? await scanInbox(plan, run) : [];
     } finally {
       $('apply').disabled = false;
     }
@@ -377,6 +380,8 @@ async function applyPlan() {
     }
     if (!activate) toast(t('New script created but not activated: only one script can be active'));
   }
+  // a second click while the window closes must not save the rule again
+  state.plan = null;
   toast(t('Rule saved ✓'));
   await after();
   setTimeout(() => window.close(), run || inbox.length ? 4000 : 1200);
@@ -411,6 +416,15 @@ async function accountFolders(accountId) {
   const walk = (list) => list?.forEach((f) => (all.push(f), walk(f.subFolders)));
   walk(account.folders);
   return all;
+}
+
+/** Whether the open message belongs to the account the filters are for; without an address to compare, yes. */
+async function messageInFilterAccount() {
+  const username = state.client?.session?.username;
+  if (!inAddon || !username?.includes('@')) return true;
+  const { folder } = await browser.messages.get(openMessageId());
+  const account = await browser.accounts.get(folder.accountId);
+  return accountHasAddress(account?.identities ?? [], username);
 }
 
 /** Runs mailActions on one message; folder names Thunderbird does not know go into `missing`. */
@@ -480,6 +494,7 @@ async function checkMoves(plan) {
   const moves = [];
   const missing = [];
   let checked = 0;
+  let unsure = 0;
   for (const name of displacedFolders(plan)) {
     const folder = findFolder(folders, name);
     if (!folder) {
@@ -491,7 +506,9 @@ async function checkMoves(plan) {
       try {
         const message = messageFromThunderbird(await browser.messages.getFull(header.id), { size: header.size });
         const [was, now] = [simulateWith(before, message), simulateWith(after, message)];
-        if (changedActions(was, now)) moves.push({ subject: decodeEncodedWords(header.subject ?? ''), was: describeSimulation(was), now: describeSimulation(now) });
+        const changed = changedActions(was, now);
+        if (changed?.uncertain) unsure++;
+        else if (changed) moves.push({ subject: decodeEncodedWords(header.subject ?? ''), was: describeSimulation(was), now: describeSimulation(now) });
       } catch {
         // a message that cannot be read is left out of the check
       }
@@ -499,10 +516,11 @@ async function checkMoves(plan) {
   }
   const lines = moves.slice(0, 10).map((m) => el('div', { class: 'muted' }, `${m.subject || t('(no subject)')}: ${m.was} → ${m.now}`));
   out.replaceChildren(
-    el('div', { class: moves.length ? 'warn' : 'ok' }, moves.length ? t('{count} of {total} messages would end up elsewhere:', { count: moves.length, total: checked }) : t('None of {total} messages would end up elsewhere.', { total: checked })),
+    el('div', { class: moves.length || unsure ? 'warn' : 'ok' }, moves.length ? t('{count} of {total} messages would end up elsewhere:', { count: moves.length, total: checked }) : t('None of {total} messages would end up elsewhere.', { total: checked })),
     ...lines,
     moves.length > lines.length ? el('div', { class: 'muted' }, t('… and {count} more', { count: moves.length - lines.length })) : '',
     missing.length ? el('div', { class: 'muted' }, t('Folder not found in Thunderbird: {names}', { names: missing.join(', ') })) : '',
+    unsure ? el('div', { class: 'warn' }, t('{count} messages could not be simulated: a test is not evaluated in the simulator', { count: unsure })) : '',
   );
 }
 
@@ -511,12 +529,13 @@ async function scanInbox(plan, run) {
   if (!inAddon) return [];
   const { folder: current } = await browser.messages.get(openMessageId());
   const folders = await accountFolders(current.accountId);
-  const inbox = folders.find((f) => f.specialUse?.includes('inbox'));
+  const inbox = folders.find((f) => isSpecial(f, 'inbox'));
   if (!inbox) return [];
   const before = runnableScripts();
   const after = plannedScripts(plan);
   const hits = [];
   let checked = 0;
+  let unsure = 0;
   try {
     for (const header of await folderMessages(inbox)) {
       // with run the open message is handled on its own
@@ -525,6 +544,10 @@ async function scanInbox(plan, run) {
       const message = messageFromThunderbird(await browser.messages.getFull(header.id), { size: header.size });
       const actions = changedActions(simulateWith(before, message), simulateWith(after, message));
       if (!actions) continue;
+      if (actions.uncertain) {
+        unsure++;
+        continue;
+      }
       // flags Thunderbird already shows change nothing
       if (header.read) actions.read = false;
       if (header.flagged) actions.flagged = false;
@@ -533,6 +556,7 @@ async function scanInbox(plan, run) {
   } finally {
     $('inbox-progress').textContent = '';
   }
+  if (unsure) toast(t('{count} messages in the inbox are left alone: a test could not be simulated', { count: unsure }), true);
   return hits.map((h) => ({ ...h, inbox, folders }));
 }
 

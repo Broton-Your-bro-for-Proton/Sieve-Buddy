@@ -14,6 +14,7 @@ import { JmapProvider } from './providers/jmap-provider.js';
 import { ManageSieveProvider } from './providers/managesieve-provider.js';
 import { encryptedFileStore, jsonFileStore } from './store.js';
 import { t } from '../../addon/lib/i18n.js';
+import { verificationUrl } from '../../addon/lib/secure-url.js';
 
 const bcrypt = createRequire(import.meta.url)('bcryptjs');
 const CACHE_MS = 30_000;
@@ -163,6 +164,7 @@ export class Account {
       }
       this.pending = null;
       this.cache = null;
+      this.writes = (this.writes ?? 0) + 1; // a read running now must not cache the old state
       return { step: 'done' };
     } catch (error) {
       if (error.needsHumanVerification && (error.details?.HumanVerificationMethods ?? []).includes('captcha')) {
@@ -171,7 +173,7 @@ export class Account {
           ...this.pending,
           step: 'captcha',
           hv: { token, type: error.details.HumanVerificationMethods.join(',') },
-          webUrl: error.details.WebUrl || `https://verify.proton.me/?methods=captcha&token=${encodeURIComponent(token)}`,
+          webUrl: verificationUrl(error.details.WebUrl, token),
           expires: Date.now() + PENDING_MS,
         };
         return { step: 'captcha', webUrl: this.pending.webUrl };
@@ -196,6 +198,7 @@ export class Account {
     this.storedCredentials = true;
     this.initError = null;
     this.cache = null;
+    this.writes = (this.writes ?? 0) + 1; // a read running now must not cache the old state
     return this.status();
   }
 
@@ -209,10 +212,12 @@ export class Account {
       this.storedCredentials = false;
       this.initError = t('No credentials yet: enter them in the web UI or set them in the configuration');
       this.cache = null;
+      this.writes = (this.writes ?? 0) + 1; // a read running now must not cache the old state
       return;
     }
     this.pending = null;
     this.cache = null;
+    this.writes = (this.writes ?? 0) + 1; // a read running now must not cache the old state
     await this.client.logout();
   }
 
@@ -239,6 +244,7 @@ export class Account {
     await this.store.save(this.client.session);
     this.pending = null;
     this.cache = null;
+    this.writes = (this.writes ?? 0) + 1; // a read running now must not cache the old state
     return { imported: true, username: this.client.session.username };
   }
 
@@ -265,6 +271,8 @@ export class Account {
     if (this.kind !== 'proton' && !this.provider.isReady) await this.init();
     this.requireReady();
     if (!fresh && this.cache && Date.now() - this.cache.at < CACHE_MS) return this.cache;
+    // a write that finishes while this read runs makes its result outdated, so it is not cached
+    const generation = this.writes;
     const [scripts, folderInfo] = await Promise.all([
       this.provider.listScripts(),
       this.provider.listFolders().catch((error) => {
@@ -272,7 +280,7 @@ export class Account {
         return null;
       }),
     ]);
-    this.cache = {
+    const data = {
       at: Date.now(),
       scripts,
       folders: folderInfo?.folders ?? null,
@@ -280,7 +288,8 @@ export class Account {
       capabilities: this.provider.capabilities,
       dialect: this.dialect(),
     };
-    return this.cache;
+    if (generation === this.writes) this.cache = data;
+    return data;
   }
 
   /** Serialises writes and invalidates the cache afterwards. */
@@ -292,6 +301,7 @@ export class Account {
     try {
       return await run;
     } finally {
+      this.writes = (this.writes ?? 0) + 1;
       this.cache = null;
     }
   }

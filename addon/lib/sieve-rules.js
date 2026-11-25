@@ -160,7 +160,8 @@ function groupConditions(conditions) {
   return [...groups.values()].map((g) => {
     if (g.kind === 'exists' || g.values.length === 1) return conditionToSieve({ ...g, value: g.values[0] });
     const single = conditionToSieve({ ...g, value: '\u0000' });
-    return single.replace(quoteSieve('\u0000'), `[${g.values.map(quoteSieve).join(', ')}]`);
+    // a function, so "$&" or "$$" in a value is not read as a replacement pattern
+    return single.replace(quoteSieve('\u0000'), () => `[${g.values.map(quoteSieve).join(', ')}]`);
   });
 }
 

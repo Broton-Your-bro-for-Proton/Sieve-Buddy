@@ -21,6 +21,9 @@ class Return extends Error {}
  * @param {import('./mail.js').SieveMessage} message
  * @param {{semantics?: 'proton'|'rfc', labels?: string[], spamScore?: number, spamThreshold?: string, now?: Date, isInList?: (spec: string, address: string) => boolean|undefined}} [options]
  */
+// Proton's star as a label of the result; shown translated, compared by this value
+export const STARRED = 'Starred';
+
 export function simulate(scripts, message, options = {}) {
   const rfc = options.semantics === 'rfc';
   const labels = new Set(options.labels ?? []);
@@ -37,6 +40,7 @@ export function simulate(scripts, message, options = {}) {
     stoppedBy: null,
     fired: [],
     notes: [],
+    guessed: false, // a test was assumed false because the simulator cannot evaluate it
     // rfc
     implicitKeep: true,
     copies: [], // {folder, flags}
@@ -110,6 +114,7 @@ export function simulate(scripts, message, options = {}) {
       stoppedBy: state.stoppedBy,
       fired: state.fired,
       notes: state.notes,
+      uncertain: state.guessed,
     };
   }
 
@@ -127,6 +132,7 @@ export function simulate(scripts, message, options = {}) {
     stoppedBy: state.stoppedBy,
     fired: state.fired,
     notes: state.notes,
+    uncertain: state.guessed,
   };
 
   // ---------- commands ----------
@@ -203,7 +209,7 @@ export function simulate(scripts, message, options = {}) {
         // Proton matches folder and label names case-insensitively
         const label = [...labels].find((l) => l.toLowerCase() === lower);
         if (label) state.labels.add(label);
-        else if (lower === 'starred') state.labels.add('Markiert');
+        else if (lower === 'starred') state.labels.add(STARRED);
         else state.folder = SYSTEM[lower] ? lower : target;
         state.filedOrKept = true;
         state.filedFlags = new Set(state.flags);
@@ -316,6 +322,7 @@ export function simulate(scripts, message, options = {}) {
         return compare([datePart(date, expand(strs(pos[1])[0] ?? '', ctx), tags[':zone'])], keys(), tags, ctx);
       }
       default:
+        state.guessed = true;
         state.notes.push(t('Test “{name}” is not evaluated in the simulator (assumed false)', { name: test.name }));
         return false;
     }
@@ -323,6 +330,7 @@ export function simulate(scripts, message, options = {}) {
 
   function listTest(addresses, specs) {
     if (!options.isInList) {
+      state.guessed = true;
       state.notes.push(t('Contact lists ({lists}) are unknown to the simulator – assumed “not included”', { lists: specs.join(', ') }));
       return false;
     }

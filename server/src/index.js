@@ -1,7 +1,7 @@
 // HTTP entry point: web UI (login), REST API under /api and the MCP endpoint under /mcp.
 // Everything except /health and the UI page itself requires `Authorization: Bearer <API_TOKEN>`.
 
-import { timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
@@ -48,6 +48,18 @@ export async function startServer(config = loadConfig()) {
   const ui = (await readFile(fileURLToPath(new URL('./ui.html', import.meta.url)), 'utf8')).replace('<html lang="en">', `<html lang="${getLocale()}">`);
   // the page translates itself with the shared i18n module
   const lib = (file) => readFile(fileURLToPath(new URL(`../../addon/lib/${file}`, import.meta.url)), 'utf8');
+  // only this page's own inline script and its modules may run
+  const inline = /<script type="module">([\s\S]*?)<\/script>/.exec(ui)?.[1] ?? '';
+  const csp = [
+    "default-src 'none'",
+    `script-src 'self' 'sha256-${createHash('sha256').update(inline).digest('base64')}'`,
+    "style-src 'unsafe-inline'",
+    "connect-src 'self'",
+    "img-src 'self' data:",
+    "base-uri 'none'",
+    "form-action 'none'",
+    "frame-ancestors 'none'",
+  ].join('; ');
   const scripts = { '/i18n.js': await lib('i18n.js'), '/locales/de.js': await lib('locales/de.js') };
   const expected = Buffer.from(`Bearer ${config.apiToken}`);
 
@@ -137,7 +149,13 @@ export async function startServer(config = loadConfig()) {
   }
 
   const server = createServer(async (req, res) => {
-    const path = new URL(req.url, 'http://local').pathname;
+    let path;
+    try {
+      path = new URL(req.url, 'http://local').pathname;
+    } catch {
+      // a path like "//" is no valid URL; thrown here it would end the process
+      return send(res, 400, { error: t('Invalid address') });
+    }
     // the Thunderbird add-on hands its session over from a moz-extension:// page
     const origin = req.headers.origin ?? '';
     const allowedOrigin = origin.startsWith('moz-extension://') || config.corsOrigins?.includes(origin);
@@ -154,7 +172,10 @@ export async function startServer(config = loadConfig()) {
     }
     try {
       if (path === '/health') return send(res, 200, { ok: true, provider: account.kind, loggedIn: account.provider.isReady });
-      if (path === '/' && req.method === 'GET') return send(res, 200, ui, 'text/html; charset=utf-8');
+      if (path === '/' && req.method === 'GET') {
+        res.setHeader('Content-Security-Policy', csp);
+        return send(res, 200, ui, 'text/html; charset=utf-8');
+      }
       if (scripts[path] && req.method === 'GET') return send(res, 200, scripts[path], 'text/javascript; charset=utf-8');
       if (!authorized(req)) return send(res, 401, { error: t('Bearer token is missing or wrong') });
       if (path === '/mcp') return await handleMcp(req, res);

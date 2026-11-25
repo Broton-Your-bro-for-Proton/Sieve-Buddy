@@ -1,8 +1,17 @@
 // German UI texts. Key = English text (see i18n.js). Checked by test/i18n.test.mjs.
 export const DE = {
+  "The saved session could not be resumed: {message}": "Die gespeicherte Sitzung ließ sich nicht fortsetzen: {message}",
+  "No identity of this account is {user}: the rule runs on this message only, not on its inbox": "Keine Identität dieses Kontos ist {user}: Die Regel läuft nur für diese Nachricht, nicht für den Posteingang",
+  "{count} messages in the inbox are left alone: a test could not be simulated": "{count} Nachrichten im Posteingang bleiben unberührt: Ein Test ließ sich nicht simulieren",
+  "{count} messages could not be simulated: a test is not evaluated in the simulator": "{count} Nachrichten ließen sich nicht simulieren: Ein Test wird im Simulator nicht ausgewertet",
+  "all actions (a test could not be simulated)": "alle Aktionen (ein Test ließ sich nicht simulieren)",
+  "Signed out in another window": "In einem anderen Fenster abgemeldet",
+  "JMAP_URL uses plain http: user name and token go unencrypted to {host}": "JMAP_URL nutzt unverschlüsseltes http: Benutzername und Token gehen unverschlüsselt an {host}",
+  "A script named “{name}” already exists": "Ein Skript namens „{name}“ gibt es schon",
+  "The server has no CHECKSCRIPT, and checking by uploading needs write access (ALLOW_WRITE=true)": "Der Server kennt kein CHECKSCRIPT, und eine Prüfung per Hochladen braucht Schreibzugriff (ALLOW_WRITE=true)",
+  "Retry": "Erneut versuchen",
   " or ": " oder ",
   ":index / :last for header/address/date": ":index / :last bei header/address/date",
-  ". Stored in this browser only.": ". Wird nur in diesem Browser gespeichert.",
   "… then": "… dann",
   "“,” or “)” expected": "„,“ oder „)“ erwartet",
   "“,” or “]” expected": "„,“ oder „]“ erwartet",

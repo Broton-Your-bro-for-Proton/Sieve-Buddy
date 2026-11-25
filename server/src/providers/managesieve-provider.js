@@ -95,6 +95,10 @@ export class ManageSieveProvider {
       const list = await conn.listScripts();
       const current = list.find((s) => s.name === id);
       if (!current) throw new ManageSieveError(t('Script “{id}” not found', { id }), { code: 'NONEXISTENT' });
+      // checked before anything is written, so a failing rename does not leave the new content under the old name
+      if (name && name !== id && list.some((s) => s.name === name)) {
+        throw new ManageSieveError(t('A script named “{name}” already exists', { name }), { code: 'ALREADYEXISTS' });
+      }
       if (sieve !== undefined) await conn.putScript(id, sieve);
       let finalName = id;
       if (name && name !== id) {
@@ -135,11 +139,13 @@ export class ManageSieveProvider {
     throw new Error(t('ManageSieve has no ordering: exactly one script is active'));
   }
 
-  check(sieve) {
+  /** With `mayUpload` false (no write access) a server without CHECKSCRIPT cannot check. */
+  check(sieve, { mayUpload = true } = {}) {
     return this.#with(async (conn) => {
       try {
         if (conn.capabilities.version) await conn.checkScript(sieve);
         else {
+          if (!mayUpload) throw new Error(t('The server has no CHECKSCRIPT, and checking by uploading needs write access (ALLOW_WRITE=true)'));
           // servers without CHECKSCRIPT: upload under a temporary name and remove it again
           await conn.putScript(CHECK_NAME, sieve);
           await conn.deleteScript(CHECK_NAME).catch(() => {});
