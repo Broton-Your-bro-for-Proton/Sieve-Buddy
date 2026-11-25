@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Quản lý bộ lọc Sieve cho Proton Mail và các máy chủ thư khác ngay trong Thunderbird, kèm kiểm tra cú pháp, trình mô phỏng và quy tắc tạo từ thư."
+  },
+  "messageActionTitle": {
+    "message": "Quy tắc Sieve"
+  }
+}

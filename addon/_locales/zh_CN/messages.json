@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "直接在 Thunderbird 中管理 Proton Mail 及其他邮件服务器的 Sieve 过滤器，支持语法检查、模拟器和从邮件创建规则。"
+  },
+  "messageActionTitle": {
+    "message": "Sieve 规则"
+  }
+}

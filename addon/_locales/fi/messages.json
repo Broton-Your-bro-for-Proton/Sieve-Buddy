@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Hallitse Proton Mailin ja muiden postipalvelimien Sieve-suodattimia suoraan Thunderbirdissä. Mukana syntaksintarkistus, simulaattori ja säännöt viesteistä."
+  },
+  "messageActionTitle": {
+    "message": "Sieve-sääntö"
+  }
+}

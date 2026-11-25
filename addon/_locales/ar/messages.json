@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "أدِر مرشّحات Sieve لـ Proton Mail وخوادم البريد الأخرى مباشرة في Thunderbird، مع فحص الصياغة ومحاكٍ وقواعد من الرسائل."
+  },
+  "messageActionTitle": {
+    "message": "قاعدة Sieve"
+  }
+}

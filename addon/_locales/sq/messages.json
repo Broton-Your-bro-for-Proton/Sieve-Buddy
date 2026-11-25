@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Administroni filtra Sieve për Proton Mail dhe shërbyes të tjerë poste drejtpërdrejt në Thunderbird, me kontrolle sintakse, një simulator dhe rregulla nga mesazhet."
+  },
+  "messageActionTitle": {
+    "message": "Rregull Sieve"
+  }
+}

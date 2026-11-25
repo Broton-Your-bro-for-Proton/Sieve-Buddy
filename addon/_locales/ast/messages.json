@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Xestiona los filtros Sieve de Proton Mail y d'otros sirvidores de corréu direutamente en Thunderbird, con comprobación de sintaxis, un simulador y regles a partir de mensaxes."
+  },
+  "messageActionTitle": {
+    "message": "Regla Sieve"
+  }
+}

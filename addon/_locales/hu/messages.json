@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Kezelje a Proton Mail és más levelezőszerverek Sieve-szűrőit közvetlenül a Thunderbirdben, szintaxisellenőrzéssel, szimulátorral és levelekből létrehozott szabályokkal."
+  },
+  "messageActionTitle": {
+    "message": "Sieve-szabály"
+  }
+}

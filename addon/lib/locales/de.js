@@ -774,3 +774,5 @@ export const DE = {
   "Write access is disabled (ALLOW_WRITE=false).": "Schreibzugriffe sind deaktiviert (ALLOW_WRITE=false).",
   "Wrong API token": "API-Token falsch",
 };
+
+export default DE;

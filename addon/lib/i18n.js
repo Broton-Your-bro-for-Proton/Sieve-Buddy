@@ -1,22 +1,56 @@
-// Gettext-style translation: the English text is the key, a catalog maps it to German. A missing entry
-// shows the English text. Placeholders are written {name}. Free of Thunderbird APIs, shared by the add-on
-// and the service.
+// Gettext-style translation: the English text is the key, a catalog per language maps it to that language.
+// A missing entry shows the English text. Placeholders are written {name}. Free of Thunderbird APIs, shared
+// by the add-on and the service.
 
 import { DE } from './locales/de.js';
 
+/** Every UI language besides English, with a catalog ./locales/<code>.js (the store's languages). */
+export const LOCALES = [
+  'af', 'ar', 'ast', 'az', 'bg', 'bn', 'bs', 'ca', 'cak', 'cs', 'da', 'de', 'dsb', 'el', 'es', 'eu', 'fa', 'fi',
+  'fr', 'fy-NL', 'ga-IE', 'gu', 'he', 'hsb', 'hu', 'id', 'it', 'ja', 'ka', 'kab', 'ko', 'mk', 'mn', 'ms', 'nb-NO',
+  'nl', 'nn-NO', 'pa-IN', 'pl', 'pt-BR', 'pt-PT', 'ro', 'ru', 'sk', 'sl', 'sq', 'sv-SE', 'te', 'th', 'tr', 'uk',
+  'ur', 'vi', 'zh-CN', 'zh-TW',
+];
+
+const loaded = { de: DE }; // German is always there: otherLanguage and the template categories use it
+let locale = 'en';
 let catalog = null; // null = English
 
-/** 'de…' selects German, anything else English. */
-export function setLocale(lang) {
-  catalog = String(lang ?? '').toLowerCase().startsWith('de') ? DE : null;
+/** The supported locale for a language tag: the exact one (pt-BR), else the first of that language (pt), else English. */
+export function matchLocale(tag) {
+  const want = String(tag ?? '').replace('_', '-').toLowerCase();
+  const base = want.split('-')[0];
+  return LOCALES.find((l) => l.toLowerCase() === want) ?? LOCALES.find((l) => l.toLowerCase().split('-')[0] === base) ?? 'en';
 }
 
-export const getLocale = () => (catalog ? 'de' : 'en');
+/** Switches to a language whose catalog is loaded (German always is); any other shows English until loadLocale. */
+export function setLocale(lang) {
+  const code = matchLocale(lang);
+  locale = loaded[code] ? code : 'en';
+  catalog = loaded[locale] ?? null;
+}
+
+/** Loads the catalog of a language and switches to it. */
+export async function loadLocale(lang) {
+  const code = matchLocale(lang);
+  try {
+    if (code !== 'en' && !loaded[code]) loaded[code] = (await import(`./locales/${code}.js`)).default;
+  } catch (error) {
+    // a missing catalog must not stop the page: it then shows English
+    console.error(`no UI texts for ${code}`, error);
+  }
+  setLocale(code);
+}
+
+export const getLocale = () => locale;
 
 /** Locale tag for dates and numbers. */
-export const dateLocale = () => (catalog ? 'de-DE' : 'en-US');
+export const dateLocale = () => ({ en: 'en-US', de: 'de-DE' })[locale] ?? locale;
 
-/** A UI text in the other language, whichever one it is in (the text itself when it has no translation). */
+/** The English text a UI text in the current language was translated from (the text itself when it is not one). */
+export const englishOf = (text) => (catalog ? (Object.keys(catalog).find((key) => catalog[key] === text) ?? text) : text);
+
+/** A UI text in the other language (English or German), whichever one it is in (the text itself when it has no translation). */
 export const otherLanguage = (text) => (Object.hasOwn(DE, text ?? '') ? DE[text] : Object.keys(DE).find((key) => DE[key] === text)) ?? text;
 
 export function t(text, params) {
@@ -45,7 +79,7 @@ export function localizeDom(root, doc = root.ownerDocument ?? root) {
 
 // The add-on follows Thunderbird's language, a plain browser (preview) ?lang= or its own; Node (the
 // service, tests) stays English unless LOCALE is set.
-setLocale(
+await loadLocale(
   globalThis.browser?.i18n?.getUILanguage?.() ??
     (globalThis.process?.versions?.node
       ? globalThis.process.env.LOCALE

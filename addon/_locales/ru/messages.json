@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Управляйте фильтрами Sieve для Proton Mail и других почтовых серверов прямо в Thunderbird: проверка синтаксиса, симулятор и правила из писем."
+  },
+  "messageActionTitle": {
+    "message": "Правило Sieve"
+  }
+}

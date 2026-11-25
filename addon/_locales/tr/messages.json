@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Proton Mail ve diğer posta sunucuları için Sieve filtrelerini doğrudan Thunderbird içinde yönetin; sözdizimi denetimi, simülatör ve e-postalardan kural oluşturma ile."
+  },
+  "messageActionTitle": {
+    "message": "Sieve kuralı"
+  }
+}

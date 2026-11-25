@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Hantera Sieve-filter för Proton Mail och andra e-postservrar direkt i Thunderbird, med syntaxkontroll, en simulator och regler från e-postmeddelanden."
+  },
+  "messageActionTitle": {
+    "message": "Sieve-regel"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "จัดการตัวกรอง Sieve สำหรับ Proton Mail และเซิร์ฟเวอร์อีเมลอื่น ๆ ได้ใน Thunderbird โดยตรง พร้อมการตรวจสอบไวยากรณ์ ตัวจำลอง และกฎที่สร้างจากอีเมล"
+  },
+  "messageActionTitle": {
+    "message": "กฎ Sieve"
+  }
+}
