@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Proton Mail болон бусад шуудангийн серверийн Sieve шүүлтүүрийг Thunderbird дотроо удирдаж, синтакс шалгах, симулятор болон захидлаас дүрэм үүсгэх боломжтой."
+  },
+  "messageActionTitle": {
+    "message": "Sieve дүрэм"
+  }
+}

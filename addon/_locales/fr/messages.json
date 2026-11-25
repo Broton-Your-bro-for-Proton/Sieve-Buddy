@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Gérez les filtres Sieve de Proton Mail et d'autres serveurs de messagerie directement dans Thunderbird, avec vérification de la syntaxe, un simulateur et des règles créées à partir des messages."
+  },
+  "messageActionTitle": {
+    "message": "Règle Sieve"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Kelola filter Sieve untuk Proton Mail dan server email lainnya langsung di Thunderbird, dengan pemeriksaan sintaks, simulator, dan aturan dari email."
+  },
+  "messageActionTitle": {
+    "message": "Aturan Sieve"
+  }
+}

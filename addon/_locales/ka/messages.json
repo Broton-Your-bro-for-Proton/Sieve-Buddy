@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "მართეთ Sieve ფილტრები Proton Mail-ისა და სხვა საფოსტო სერვერებისთვის პირდაპირ Thunderbird-ში: სინტაქსის შემოწმებით, სიმულატორითა და წერილებიდან შექმნილი წესებით."
+  },
+  "messageActionTitle": {
+    "message": "Sieve წესი"
+  }
+}

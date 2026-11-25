@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Zarządzaj filtrami Sieve dla Proton Mail i innych serwerów poczty bezpośrednio w Thunderbirdzie, ze sprawdzaniem składni, symulatorem i regułami tworzonymi z wiadomości."
+  },
+  "messageActionTitle": {
+    "message": "Reguła Sieve"
+  }
+}

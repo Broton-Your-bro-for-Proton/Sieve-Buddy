@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Spravujte filtre Sieve pre Proton Mail a ďalšie poštové servery priamo v Thunderbirde, s kontrolou syntaxe, simulátorom a pravidlami z e-mailov."
+  },
+  "messageActionTitle": {
+    "message": "Pravidlo Sieve"
+  }
+}

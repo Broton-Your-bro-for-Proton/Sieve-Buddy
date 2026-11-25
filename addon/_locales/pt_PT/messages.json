@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Gira filtros Sieve para o Proton Mail e outros servidores de correio diretamente no Thunderbird, com verificação de sintaxe, simulador e regras criadas a partir de mensagens."
+  },
+  "messageActionTitle": {
+    "message": "Regra Sieve"
+  }
+}

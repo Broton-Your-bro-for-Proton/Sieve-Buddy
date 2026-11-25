@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Thunderbird-এর মধ্যেই Proton Mail ও অন্যান্য মেইল সার্ভারের জন্য Sieve ফিল্টার পরিচালনা করুন, সিনট্যাক্স যাচাই, সিমুলেটর এবং মেইল থেকে নিয়ম তৈরির সুবিধাসহ।"
+  },
+  "messageActionTitle": {
+    "message": "Sieve নিয়ম"
+  }
+}

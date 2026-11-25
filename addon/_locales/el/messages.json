@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Διαχειριστείτε φίλτρα Sieve για το Proton Mail και άλλους διακομιστές αλληλογραφίας απευθείας στο Thunderbird, με έλεγχο σύνταξης, προσομοιωτή και κανόνες από μηνύματα."
+  },
+  "messageActionTitle": {
+    "message": "Κανόνας Sieve"
+  }
+}

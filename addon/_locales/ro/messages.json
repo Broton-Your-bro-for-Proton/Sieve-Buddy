@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Gestionați filtrele Sieve pentru Proton Mail și alte servere de e-mail direct în Thunderbird, cu verificarea sintaxei, un simulator și reguli create din mesaje."
+  },
+  "messageActionTitle": {
+    "message": "Regulă Sieve"
+  }
+}

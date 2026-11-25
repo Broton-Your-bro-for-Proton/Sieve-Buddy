@@ -1,8 +1,8 @@
 # Agent notes
 
 - Language for code, comments, UI source texts, log and error messages, commits and docs: American English.
-- Other languages exist only as additional UI locales. English is the key in `t('...')`. German lives in `addon/lib/locales/de.js` and `addon/_locales/de/messages.json`. A new language is one more catalog next to `de.js`, not a new mechanism.
-- Every new UI text goes through `t()` or `localizeDom` and gets a German entry. `npm test` fails otherwise (`scripts/i18n-check.mjs`).
+- Other languages exist only as additional UI locales, the same 56 as the store listings (`LOCALES` in `addon/lib/i18n.js`). English is the key in `t('...')`. Each language has a catalog `addon/lib/locales/<code>.js` and `addon/_locales/<code>/messages.json`. A new language is one more catalog and one more entry in `LOCALES`, not a new mechanism.
+- Every new UI text goes through `t()` or `localizeDom` and gets an entry in every catalog. `npm test` fails otherwise (`scripts/i18n-check.mjs` for German, `test/i18n.test.mjs` for all catalogs).
 - Never rename a storage key, stored value, message ID, CSS class or URL because of language or spelling.
 - Core logic goes into `addon/lib/` so the add-on and the service share it and `npm test` covers it without Thunderbird.
 - No runtime dependencies in the add-on besides the vendored CodeMirror and bcryptjs.

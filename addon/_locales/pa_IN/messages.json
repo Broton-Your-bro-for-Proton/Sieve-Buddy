@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Thunderbird ਵਿੱਚ ਹੀ Proton Mail ਅਤੇ ਹੋਰ ਮੇਲ ਸਰਵਰਾਂ ਲਈ Sieve ਫਿਲਟਰ ਪ੍ਰਬੰਧਿਤ ਕਰੋ, ਸਿੰਟੈਕਸ ਜਾਂਚ, ਸਿਮੂਲੇਟਰ ਅਤੇ ਮੇਲਾਂ ਤੋਂ ਨਿਯਮਾਂ ਨਾਲ।"
+  },
+  "messageActionTitle": {
+    "message": "Sieve ਨਿਯਮ"
+  }
+}

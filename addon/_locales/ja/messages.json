@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Proton Mail などのメールサーバー向けの Sieve フィルターを Thunderbird 上で直接管理できます。構文チェック、シミュレーター、メールからのルール作成に対応。"
+  },
+  "messageActionTitle": {
+    "message": "Sieve ルール"
+  }
+}

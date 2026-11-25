@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { getLocale, setLocale, t } from '../addon/lib/i18n.js';
+import { LOCALES, getLocale, loadLocale, matchLocale, setLocale, t } from '../addon/lib/i18n.js';
 import { DE } from '../addon/lib/locales/de.js';
 import { parseSieve } from '../addon/lib/sieve-ast.js';
 import { check, dynamicKeys, tKeys } from '../scripts/i18n-check.mjs';
@@ -62,9 +62,9 @@ test('editor snippets carry translated sample values', async () => {
   }
 });
 
-test('manifest strings exist in both languages', () => {
+test('manifest strings exist in every language', () => {
   const read = (lang) => JSON.parse(readFileSync(new URL(`../addon/_locales/${lang}/messages.json`, import.meta.url), 'utf8'));
-  assert.deepEqual(Object.keys(read('en')).sort(), Object.keys(read('de')).sort());
+  for (const code of LOCALES) assert.deepEqual(Object.keys(read(code.replace('-', '_'))).sort(), Object.keys(read('en')).sort(), code);
   const manifest = readFileSync(new URL('../addon/manifest.json', import.meta.url), 'utf8');
   for (const [, key] of manifest.matchAll(/__MSG_(\w+)__/g)) assert.ok(key in read('en'), key);
 });
@@ -76,6 +76,37 @@ test('the template category finds section titles in the other language', async (
   setLocale('de');
   try {
     assert.equal(chooseSection(section('Invoices'), { actions: { flagged: true } }, { category: t('Shops & invoices') })?.title, 'Invoices');
+  } finally {
+    setLocale('en');
+  }
+});
+
+test('every language has a complete catalog with the same placeholders', async () => {
+  const placeholders = (s) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join();
+  for (const code of LOCALES) {
+    const { default: catalog } = await import(`../addon/lib/locales/${code}.js`);
+    for (const key of Object.keys(DE)) {
+      const value = catalog[key];
+      assert.ok(typeof value === 'string' && value.trim(), `${code}: missing ${key}`);
+      assert.equal(placeholders(value), placeholders(key), `${code}: ${key}`);
+      assert.ok(!value.includes('—'), `${code}: em dash in ${key}`);
+    }
+    assert.deepEqual(Object.keys(catalog).filter((key) => !(key in DE)), [], `${code}: keys no UI text uses`);
+  }
+});
+
+test('a language tag finds its catalog, a region falls back to the language', async () => {
+  assert.equal(matchLocale('pt-BR'), 'pt-BR');
+  assert.equal(matchLocale('pt'), 'pt-BR');
+  assert.equal(matchLocale('sv'), 'sv-SE');
+  assert.equal(matchLocale('de-AT'), 'de');
+  assert.equal(matchLocale('zh_TW'), 'zh-TW');
+  assert.equal(matchLocale('en-GB'), 'en');
+  assert.equal(matchLocale('xx'), 'en');
+  await loadLocale('fr');
+  try {
+    assert.equal(getLocale(), 'fr');
+    assert.notEqual(t('Save'), 'Save');
   } finally {
     setLocale('en');
   }
